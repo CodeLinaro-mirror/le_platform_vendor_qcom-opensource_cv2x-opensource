@@ -1,0 +1,149 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+import "platform:/plugin/org.genivi.commonapi.someip/deployment/CommonAPI-4-SOMEIP_deployment_spec.fdepl"
+import "Cv2xRadio.fidl"
+
+define org.genivi.commonapi.someip.deployment for interface commonapi.telux.cv2x.Cv2xRadio {
+    SomeIpServiceID = 4670
+
+    method createRxSubscription {
+        SomeIpMethodID = 30100
+        SomeIpReliable = false
+    }
+
+    method getServiceStatus {
+        SomeIpMethodID = 30101
+        SomeIpReliable = false
+
+        out {
+        }
+    }
+
+    method enableRxMetaDataReport {
+        SomeIpMethodID = 30102
+        SomeIpReliable = false
+
+        out {
+        }
+    }
+
+    method createTxSpsFlow {
+        SomeIpMethodID = 30103
+        SomeIpReliable = false
+
+        out {
+        }
+    }
+
+    method createTxEventFlow {
+        SomeIpMethodID = 30104
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method closeRxSubscription {
+        SomeIpMethodID = 30105
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method closeTxFlow {
+        SomeIpMethodID = 30106
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method changeSpsFlowInfo {
+        SomeIpMethodID = 30107
+        SomeIpReliable = false
+        in {
+        }
+        out {
+        }
+    }
+
+    method requestSpsFlowInfo {
+        SomeIpMethodID = 30108
+        SomeIpReliable = false
+        in {
+        }
+        out {
+        }
+    }
+
+    method changeEventFlowInfo {
+        SomeIpMethodID = 30109
+        SomeIpReliable = false
+        in {
+        }
+        out {
+        }
+    }
+
+    method requestCapability {
+        SomeIpMethodID = 30110
+        SomeIpReliable = false
+        out {
+        }
+    }
+    broadcast currentCv2xStatus {
+        SomeIpEventID = 32774
+        SomeIpEventGroups = { 32769 }
+
+        out {
+        }
+    }
+
+    broadcast currentCv2xStatusEx {
+        SomeIpEventID = 32769
+        SomeIpEventGroups = { 32769 }
+
+        out {
+        }
+    }
+    broadcast currentL2Addr {
+        SomeIpEventID = 32770
+        SomeIpEventGroups = { 32769 }
+
+        out {
+        }
+    }
+    broadcast currentSpsOffset {
+        SomeIpEventID = 32771
+        SomeIpEventGroups = { 32769 }
+
+        out {
+        }
+    }
+    broadcast currentCapabilities {
+        SomeIpEventID = 32772
+        SomeIpEventGroups = { 32769 }
+
+        out {
+        }
+    }
+    broadcast macAddrClone {
+        SomeIpEventID = 32773
+        SomeIpEventGroups = { 32769 }
+
+        out {
+        }
+    }
+
+}
+define org.genivi.commonapi.someip.deployment for provider as Service {
+    instance commonapi.telux.cv2x.Cv2xRadio{
+        InstanceId = "commonapi.telux.cv2x.Cv2xRadio"
+        SomeIpInstanceID = 22137
+
+        SomeIpUnicastAddress = "192.168.0.2"
+        SomeIpReliableUnicastPort = 30500
+        SomeIpUnreliableUnicastPort = 30501
+    }
+}

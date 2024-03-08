@@ -1,0 +1,155 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+package commonapi.telux.cv2x
+import commonapi.telux.common.* from "common.fidl"
+import commonapi.telux.cv2x.* from "Cv2xRadioTypes.fidl"
+
+interface Cv2xRadio extends Cv2xRadioTypes {
+    version {major 1 minor 0 }
+
+    method createRxSubscription {
+        in {
+            commonapi.telux.cv2x.Cv2xRadioTypes.TrafficIpType ipType
+            UInt16 port
+            UInt32[] idList
+        }
+        out {
+            UInt32 subscriptionId
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method getServiceStatus {
+        out {
+            commonapi.telux.common.CommonDefines.ServiceStatus status
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method enableRxMetaDataReport {
+        in {
+            commonapi.telux.cv2x.Cv2xRadioTypes.TrafficIpType ipType
+            Boolean enable
+            UInt32[] idList
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method createTxSpsFlow {
+        in {
+            commonapi.telux.cv2x.Cv2xRadioTypes.TrafficIpType ipType
+            UInt32 serviceId
+            commonapi.telux.cv2x.Cv2xRadioTypes.SpsFlowInfo spsInfo
+            UInt16 spsSrcPort
+            Boolean eventSrcPortValid
+            UInt16 eventSrcPort
+        }
+        out {
+            UInt32 txSpsFlowId
+            UInt32 txEventFlowId
+            commonapi.telux.common.CommonDefines.ErrorCode spsError
+            commonapi.telux.common.CommonDefines.ErrorCode eventError
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+
+    }
+
+    method createTxEventFlow {
+        in {
+            commonapi.telux.cv2x.Cv2xRadioTypes.TrafficIpType ipTyp
+            UInt32 serviceId
+            UInt16 eventSrcPort
+        }
+        out {
+            UInt32 txEventFlowId
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method closeRxSubscription {
+        in {
+            UInt32 subscriptionId
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method closeTxFlow {
+        in {
+            UInt32 txFlowId
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method changeSpsFlowInfo {
+        in {
+            UInt32 txFlowId
+            commonapi.telux.cv2x.Cv2xRadioTypes.SpsFlowInfo spsInfo
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method requestSpsFlowInfo {
+        in {
+            UInt32 txFlowId
+        }
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.SpsFlowInfo spsInfo
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method changeEventFlowInfo {
+        in {
+            UInt32 txFlowId
+            commonapi.telux.cv2x.Cv2xRadioTypes.EventFlowInfo eventInfo
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method requestCapability {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xRadioCapabilities capabilities
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    broadcast currentCv2xStatus {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xStatus status
+        }
+    }
+
+    broadcast currentCv2xStatusEx {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xStatusEx statusEx
+        }
+    }
+
+    broadcast currentL2Addr {
+        out {
+            UInt32 newL2Addr
+        }
+    }
+
+    broadcast currentSpsOffset {
+        out {
+            Int32 spsId
+            commonapi.telux.cv2x.Cv2xRadioTypes.MacDetails details
+        }
+    }
+
+    broadcast currentCapabilities {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xRadioCapabilities capabilities
+        }
+    }
+
+    broadcast macAddrClone {
+        out {
+            Boolean detected
+        }
+    }
+}

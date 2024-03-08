@@ -1,0 +1,98 @@
+From 84fa74adc95b1434695ca9ee80a2a2fc9d910881 Mon Sep 17 00:00:00 2001
+From: Lei Sun <quic_leisun@quicinc.com>
+Date: Tue, 11 Jun 2024 10:27:59 -0700
+Subject: [PATCH] change required cmake to older version.
+
+Signed-off-by: Lei Sun <quic_leisun@quicinc.com>
+---
+ CMakeLists.txt                         |  4 +++-
+ cmake/common/check_configuration.cmake | 15 ++++++++++-----
+ src/cpp/CMakeLists.txt                 |  2 +-
+ thirdparty/optionparser/CMakeLists.txt |  2 +-
+ tools/fds/CMakeLists.txt               |  2 +-
+ 5 files changed, 16 insertions(+), 9 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f6933b2a5..91cdd68df 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -15,8 +15,10 @@
+ ###############################################################################
+ # CMake build rules for Fast DDS
+ ###############################################################################
+-cmake_minimum_required(VERSION 3.22)
++cmake_minimum_required(VERSION 3.10)
+ 
++set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE BOTH)
++set(THIRDPARTY_Asio FORCE)
+ # Set CMAKE_BUILD_TYPE to Release by default.
+ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+     message(STATUS "Setting build type to 'Release' as none was specified.")
+diff --git a/cmake/common/check_configuration.cmake b/cmake/common/check_configuration.cmake
+index 201c52e62..92b4b9627 100644
+--- a/cmake/common/check_configuration.cmake
++++ b/cmake/common/check_configuration.cmake
+@@ -82,11 +82,16 @@ function(check_stdcxx enforced_level)
+     while(cxx_levels)
+ 
+         # pop current values
+-        list(POP_FRONT cxx_levels level)
+-        list(POP_FRONT cxx_features feature)
+-        list(POP_FRONT gcc_flags gcc_flag)
+-        list(POP_FRONT cl_flags cl_flag)
+-        list(POP_FRONT HAVE_CXX preprocessor_flag)
++        list(GET cxx_levels 0 level)
++        list(REMOVE_AT cxx_levels 0)
++        list(GET cxx_features 0 feature)
++        list(REMOVE_AT cxx_features 0)
++        list(GET gcc_flags 0 gcc_flag)
++        list(REMOVE_AT gcc_flags 0)
++        list(GET cl_flags 0 cl_flag)
++        list(REMOVE_AT cl_flags 0)
++        list(GET HAVE_CXX 0 preprocessor_flag)
++        list(REMOVE_AT HAVE_CXX 0)
+ 
+         # check if we must enforce this one
+         if(enforced_level STREQUAL level)
+diff --git a/src/cpp/CMakeLists.txt b/src/cpp/CMakeLists.txt
+index 9a459ac15..c4be9a2bf 100644
+--- a/src/cpp/CMakeLists.txt
++++ b/src/cpp/CMakeLists.txt
+@@ -578,7 +578,7 @@ elseif(BUILD_SHARED_LIBS)
+     unset(OLD_CMAKE_REQUIRED_FLAGS)
+     if(HAS_VERSION_SCRIPT_SUPPORT)
+         message(STATUS "Using linker version script to select exported symbols")
+-        target_link_options(${PROJECT_NAME} PRIVATE ${VERSION_SCRIPT_SUPPORT_FLAGS})
++        set_target_properties(${PROJECT_NAME} PROPERTIES LINK_FLAGS ${VERSION_SCRIPT_SUPPORT_FLAGS})
+     endif()
+ endif()
+ 
+diff --git a/thirdparty/optionparser/CMakeLists.txt b/thirdparty/optionparser/CMakeLists.txt
+index b829c895d..295018fb5 100644
+--- a/thirdparty/optionparser/CMakeLists.txt
++++ b/thirdparty/optionparser/CMakeLists.txt
+@@ -12,7 +12,7 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
+-cmake_minimum_required(VERSION 3.22)
++cmake_minimum_required(VERSION 3.10)
+ 
+ #####################################################################################
+ #                             Interface Library
+diff --git a/tools/fds/CMakeLists.txt b/tools/fds/CMakeLists.txt
+index 7881850df..c1edb7193 100644
+--- a/tools/fds/CMakeLists.txt
++++ b/tools/fds/CMakeLists.txt
+@@ -12,7 +12,7 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ 
+-cmake_minimum_required(VERSION 3.22)
++cmake_minimum_required(VERSION 3.10)
+ 
+ project(fast-discovery-server VERSION 1.0.1 LANGUAGES CXX)
+ 
+-- 
+2.17.1
+
