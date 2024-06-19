@@ -1,0 +1,174 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+package commonapi.telux.cv2x
+import commonapi.telux.common.* from "common.fidl"
+
+interface Cv2xRadioTypes extends CommonDefines {
+
+    version { major 1 minor 0 }
+    enumeration TrafficCategory {
+        SAFETY_TYPE
+        NON_SAFETY_TYPE
+    }
+    enumeration Cv2xStatusType {
+        INACTIVE
+        ACTIVE
+        SUSPENDED
+        UNKNOWN
+    }
+
+    enumeration Cv2xCauseType {
+        TIMING
+        CONFIG
+        UE_MODE
+        GEOPOLYGON
+        THERMAL
+        THERMNAL_ECALL
+        GEOPOLYGON_SWITCH
+        SENSING
+        LPM
+        DISABLED
+        NO_GNSS
+        INVALID_LICENSE
+        UNKNOWN
+    }
+    struct Cv2xStatus {
+        Cv2xStatusType rxStatus
+        Cv2xStatusType txStatus
+        Cv2xCauseType rxCause
+        Cv2xCauseType txCause
+        UInt8 cbrValue
+        Boolean cbrValueValid
+    }
+
+    struct Cv2xPoolStatus {
+        UInt8 poolId
+        Cv2xStatus status
+    }
+
+    struct Cv2xStatusEx {
+        Cv2xStatus status
+        Cv2xPoolStatus[] poolStatus
+        Boolean timeUncertaintyValid
+        Float timeUncertainty
+    }
+
+    enumeration TrafficIpType {
+        TRAFFIC_IP
+        TRAFFIC_NON_IP
+    }
+
+    enumeration RadioConcurrencyMode {
+        WWAN_NONCONCURRENT
+        WWAN_CONCURRENT
+    }
+
+    enumeration Cv2xEvent {
+        CV2X_INVACTIVE
+        CV2X_ACTIVE
+        TX_SUSPENDED
+        TXRX_SUSPENDED
+    }
+
+    enumeration Priority {
+        MOST_URGENT
+        PRIORITY_1
+        PRIORITY_2
+        PRIORITY_3
+        PRIORITY_4
+        PRIORITY_5
+        PRIORITY_6
+        PRIORITY_BACKGROUND
+        PRIORITY_UNKNOWN
+    }
+
+    enumeration Periodicity {
+        PERIODICITY_10MS
+        PERIODICITY_20MS
+        PERIODICITY_50MS
+        PERIODICITY_100MS
+        PERIODICITY_UNKNOWN
+    }
+
+    struct TxPoolIdInfo {
+        UInt8 poolId
+        UInt16 minFreq
+        UInt16 maxFreq
+    }
+
+    struct EventFlowInfo {
+        Boolean autoRetransEnabledValid
+        Boolean autoRetransEnabled
+        Boolean peakTxPowerValid
+        Boolean peakTxPower
+        Boolean mcsIndexValid
+        Boolean mcsIndex
+        Boolean txPoolIdValid
+        UInt8 txPoolId
+        Boolean isUnicast
+    }
+
+    struct SpsFlowInfo {
+        Priority priority
+        Periodicity periodicity
+        UInt64 periodicityMs
+        UInt32 nbytesReserved
+        Boolean autoRetransEnabledValid
+        Boolean autoRetransEnabled
+        Boolean peakTxPowerValid
+        Int32 peakTxPower
+        Boolean mcsIndexValid
+        UInt8 mcsIndex
+        Boolean txPoolIdValid
+        UInt8 txPoolId
+    }
+
+    struct Cv2xRadioCapabilities {
+        UInt32 linkIpMtuBytes
+        UInt32 linkNonIpMtuBytes
+        RadioConcurrencyMode maxSupportedConcurrency
+        UInt16 nonIpTxPayloadOffsetBytes
+        UInt16 nonIpRxPayloadOffsetBytes
+        UInt8 periodicitiesSupported
+        UInt64[] periodicities
+        UInt8 maxNumAutoRetransmissions
+        UInt8 layer2MacAddressSize
+        UInt8 prioritiesSupported
+        UInt16 maxNumSpsFlows
+        UInt16 maxNumNonSpsFlows
+        Int32 maxTxPower
+        Int32 minTxPower
+        TxPoolIdInfo[] txPoolIdsSupported
+        UInt8 isUnicastSupported
+    }
+
+    struct MacDetails {
+        UInt32 periodicityInUseNs
+        UInt16 currentlyReservedPeriodicBytes
+        UInt32 txReservationOffsetNs
+    }
+
+    struct SpsSchedulingInfo {
+        UInt8 spsId
+        UInt64 utcTime
+        UInt32 periodicity
+    }
+
+    struct TrustedUEInfo {
+       UInt32 sourceL2Id
+       Float timeUncertainty
+       UInt16 timeConfidenceLevel
+       UInt16 positionConfidenceLevel
+       UInt32 propagationDelay
+    }
+
+    struct TrustedUEInfoList {
+        Boolean maliciousIdsValid
+        UInt32[] maliciousIds
+        Boolean trustedUEsValid
+        TrustedUEInfo[] trustedUEs
+    }
+}

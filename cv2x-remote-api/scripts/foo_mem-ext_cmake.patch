@@ -1,0 +1,26 @@
+From 5b8aea41e44e6909552310125a1aa9695521d635 Mon Sep 17 00:00:00 2001
+From: Lei Sun <quic_leisun@quicinc.com>
+Date: Tue, 11 Jun 2024 10:39:03 -0700
+Subject: [PATCH] change the required cmake to older verison.
+
+Signed-off-by: Lei Sun <quic_leisun@quicinc.com>
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ddbc459..4a85686 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3,7 +3,7 @@
+ 
+ # root CMakeLists.txt, specifies option and interface library
+ 
+-cmake_minimum_required(VERSION 3.14)
++cmake_minimum_required(VERSION 3.10)
+ project(FOONATHAN_MEMORY)
+ 
+ set(FOONATHAN_MEMORY_VERSION_MAJOR 0 CACHE STRING "major version of memory" FORCE)
+-- 
+2.17.1
+

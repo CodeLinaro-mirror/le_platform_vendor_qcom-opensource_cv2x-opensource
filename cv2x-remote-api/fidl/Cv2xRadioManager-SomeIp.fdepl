@@ -1,0 +1,62 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+import "platform:/plugin/org.genivi.commonapi.someip/deployment/CommonAPI-4-SOMEIP_deployment_spec.fdepl"
+import "Cv2xRadioManager.fidl"
+
+define org.genivi.commonapi.someip.deployment for interface commonapi.telux.cv2x.Cv2xRadioManager {
+    SomeIpServiceID = 4660
+
+    method GetServiceStatus {
+        SomeIpMethodID = 30000
+        SomeIpReliable = false
+
+        out {
+        }
+    }
+
+    broadcast currentCv2xStatus {
+        SomeIpEventID = 33010
+        SomeIpEventGroups = { 33010 }
+
+        out {
+        }
+    }
+
+    method startCv2x {
+        SomeIpMethodID = 30001
+        SomeIpReliable = false
+        out {
+        }
+    }
+    method stopCv2x {
+        SomeIpMethodID = 30002
+        SomeIpReliable = false
+        out {
+        }
+    }
+    method requestCv2xStatus {
+        SomeIpMethodID = 30003
+        SomeIpReliable = false
+        out {
+        }
+    }
+    method requestCv2xStatusEx {
+        SomeIpMethodID = 30004
+        SomeIpReliable = false
+        out {
+        }
+    }
+}
+define org.genivi.commonapi.someip.deployment for provider as Service {
+    instance commonapi.telux.cv2x.Cv2xRadioManager {
+        InstanceId = "commonapi.telux.cv2x.Cv2xRadioManager"
+        SomeIpInstanceID = 22136
+
+        SomeIpUnicastAddress = "192.168.0.2"
+        SomeIpReliableUnicastPort = 30500
+        SomeIpUnreliableUnicastPort = 30501
+    }
+}

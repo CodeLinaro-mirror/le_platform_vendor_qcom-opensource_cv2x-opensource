@@ -1,0 +1,53 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+package commonapi.telux.cv2x
+import commonapi.telux.common.* from "common.fidl"
+import commonapi.telux.cv2x.* from "Cv2xRadioTypes.fidl"
+
+interface Cv2xRadioManager extends Cv2xRadioTypes {
+
+    version { major 1 minor 0 }
+
+    method GetServiceStatus {
+        out {
+            commonapi.telux.common.CommonDefines.ServiceStatus status
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    broadcast currentCv2xStatus {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xStatus status
+        }
+    }
+
+    method startCv2x {
+        out {
+            commonapi.telux.common.CommonDefines.Status status
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+    method stopCv2x {
+        out {
+            commonapi.telux.common.CommonDefines.Status status
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method requestCv2xStatus {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xStatus status
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+    
+    method requestCv2xStatusEx {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xStatusEx statusEx
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+}
