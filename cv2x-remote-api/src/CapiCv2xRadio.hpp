@@ -123,6 +123,10 @@ public:
             telux::common::ResponseCallback cb) {
         return Status::NOTALLOWED;
     };
+    telux::common::Status injectVehicleSpeed(uint32_t speed, telux::common::ResponseCallback cb) {
+        return Status::NOTALLOWED;
+    };
+
     Cv2xRadioCapabilities getCapabilities() const {
         return Cv2xRadioCapabilities();
     };

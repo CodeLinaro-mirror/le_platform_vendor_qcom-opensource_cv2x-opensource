@@ -132,7 +132,7 @@ void CapiCv2xRadio::initSync(InitResponseCb callback)
             for (auto listener : listeners_) {
                 auto sp = listener.lock();
                 if (sp) {
-                    sp->onStatusChangedEx(stex);
+                    sp->onStatusChanged(stex);
                 }
             }
     });
@@ -708,7 +708,7 @@ telux::common::Status CapiCv2xRadio::changeEventFlowInfo(std::shared_ptr<ICv2xTx
 {
     CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
     telux::common::Status status = telux::common::Status::FAILED;
-    capitelux::CommonDefines::ErrorCode;
+    capitelux::CommonDefines::ErrorCode error;
 
     if (!proxy_->isAvailable()) {
         return Status::NOTREADY;
@@ -774,7 +774,7 @@ telux::common::Status CapiCv2xRadio::requestCapabilities(RequestCapabilitiesCall
     }
 
     //Async call
-    auto fcb = [](const CommonAPI::CallStatus &callstatus,
+    auto fcb = [&](const CommonAPI::CallStatus &callstatus,
             const capitelux::CommonDefines::ErrorCode &err,
             const capicv2x::Cv2xRadioTypes::Cv2xRadioTypes::Cv2xRadioCapabilities& capabilities) {
         Cv2xRadioCapabilities cap = capi2teluxRadioCapbilities(capabilities);

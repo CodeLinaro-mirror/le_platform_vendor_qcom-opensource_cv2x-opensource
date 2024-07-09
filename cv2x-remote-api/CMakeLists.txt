@@ -48,6 +48,7 @@ message(STATUS "COMMONAPI_INCLUDE_DIRS: ${COMMONAPI_INCLUDE_DIRS}")
 
 # CommonAPI
 include(FindPkgConfig)
+include(GNUInstallDirs)
 ###############################################################################
 
 # SOME/IP
@@ -69,7 +70,7 @@ set(PRJ_SERVICE_SRCS
         ${PRJ_SRC_PATH}/Cv2xRadioStubImpl.cpp
     )
 #client library name
-set(PRJ_NAME_CLIENT telux_cv2x_remote)
+set(PRJ_NAME_CLIENT telux_cv2x)
 set(CLIENT_WRAPPER_SRCS
         ${PRJ_SRC_PATH}/Utils.cpp
         ${PRJ_SRC_PATH}/Cv2xUtil.cpp
@@ -115,9 +116,9 @@ if (${TARGET} STREQUAL "CLIENT")
     target_link_libraries(${PRJ_NAME_CLIENT} ${LINK_LIBRARIES} ${CV2X_DATA_LIB} fastcdr fastrtps)
 
     install(TARGETS ${PRJ_NAME_CLIENT}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} lib
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} lib
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} include
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
     if ("${TELUX_SRC_PATH}" STREQUAL "")
         message(STATUS "telux_src not defined")
@@ -135,9 +136,9 @@ if (${TARGET} STREQUAL "CLIENT")
         set_target_properties(${LIB_V2X_RADIO} PROPERTIES LINKER_LANGUAGE CXX)
         target_link_libraries(${LIB_V2X_RADIO} ${PRJ_NAME_CLIENT})
         install(TARGETS ${LIB_V2X_RADIO} 
-             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} lib
-             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} lib
-             PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} include
+             ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+             LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+             PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
     endif()
 
