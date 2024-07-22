@@ -1,0 +1,35 @@
+From 405e8d692311d69d658d5e79d4a517f9d8ae6c72 Mon Sep 17 00:00:00 2001
+From: Lei Sun <quic_leisun@quicinc.com>
+Date: Tue, 11 Jun 2024 10:54:32 -0700
+Subject: [PATCH] change required cmake to older version.
+
+Signed-off-by: Lei Sun <quic_leisun@quicinc.com>
+---
+ CMakeLists.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 82ab4b3..97cf1af 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3,7 +3,7 @@
+ # License, v. 2.0. If a copy of the MPL was not distributed with this
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+-cmake_minimum_required (VERSION 3.13)
++cmake_minimum_required (VERSION 3.10)
+ project (vsomeip)
+ 
+ set (VSOMEIP_NAME vsomeip3)
+@@ -316,7 +316,7 @@ target_include_directories(${VSOMEIP_NAME} INTERFACE
+ target_link_libraries(${VSOMEIP_NAME} PRIVATE ${Boost_LIBRARIES} ${USE_RT} ${DL_LIBRARY} ${DLT_LIBRARIES} ${SystemD_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+ 
+ if(NOT WIN32)
+-    target_link_options(${VSOMEIP_NAME} PRIVATE "LINKER:-as-needed")
++    #target_link_options(${VSOMEIP_NAME} PRIVATE "LINKER:-as-needed")
+ endif()
+ 
+ ################################################################################
+-- 
+2.17.1
+

@@ -1,0 +1,53 @@
+From b49ca842de5227f063f51169033c73447b4418d9 Mon Sep 17 00:00:00 2001
+From: Lei Sun <quic_leisun@quicinc.com>
+Date: Tue, 11 Jun 2024 10:22:03 -0700
+Subject: [PATCH] Change required cmake lower version
+
+Signed-off-by: Lei Sun <quic_leisun@quicinc.com>
+---
+ CMakeLists.txt                         |  2 +-
+ cmake/common/check_configuration.cmake | 15 ++++++++++-----
+ 2 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8188f84..e7c1fd5 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -15,7 +15,7 @@
+ ###############################################################################
+ # CMake build rules for FastCDR                                               #
+ ###############################################################################
+-cmake_minimum_required(VERSION 3.22)
++cmake_minimum_required(VERSION 3.10)
+ 
+ # Set CMAKE_BUILD_TYPE to Release by default.
+ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+diff --git a/cmake/common/check_configuration.cmake b/cmake/common/check_configuration.cmake
+index ac60c5a..cb943cb 100644
+--- a/cmake/common/check_configuration.cmake
++++ b/cmake/common/check_configuration.cmake
+@@ -85,11 +85,16 @@ function(check_stdcxx enforced_level)
+     while(cxx_levels)
+ 
+         # pop current values
+-        list(POP_FRONT cxx_levels level)
+-        list(POP_FRONT cxx_features feature)
+-        list(POP_FRONT gcc_flags gcc_flag)
+-        list(POP_FRONT cl_flags cl_flag)
+-        list(POP_FRONT HAVE_CXX preprocessor_flag)
++        list(GET cxx_levels 0 level)
++        list(REMOVE_AT cxx_levels 0)
++        list(GET cxx_features 0 feature)
++        list(REMOVE_AT cxx_features 0)
++        list(GET gcc_flags 0 gcc_flag)
++        list(REMOVE_AT gcc_flags 0)
++        list(GET cl_flags 0 cl_flag)
++        list(REMOVE_AT cl_flags 0)
++        list(GET HAVE_CXX 0 preprocessor_flag)
++        list(REMOVE_AT HAVE_CXX 0)
+ 
+         # check if we must enforce this one
+         if(enforced_level STREQUAL level)
+-- 
+2.17.1
+
