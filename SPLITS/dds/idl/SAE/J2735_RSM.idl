@@ -1,0 +1,291 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 Road Safety Message types based on ASN.1 notation
+ * ASN definition file J2735_RoadSafetyMessage_2024_rel_v1.1
+ */
+
+#include "J2735_Common.idl"
+#include "J2735_ITIS.idl"
+#include "J2735_SPAT.idl"
+
+module J2735 {
+module idl {
+
+// integers and booleans Typedefs
+typedef boolean Activity;
+typedef short LatOffset;
+typedef short LongOffset;
+typedef short ElevOffset;
+
+typedef short BankAngle;
+
+typedef unsigned short HeadingDeg;
+
+typedef boolean LaneClosed;
+
+typedef octet RSMLanePosition;
+typedef octet Tolerance;
+typedef string ShortString;
+//from TravelerInformation.asn
+typedef octet Zoom;
+typedef unsigned short Radius_B12;
+//From J2540-2-J2540ITIS-2024-rel-v1.1
+typedef octet ITISgroups;  //0-255
+//From J2735 RoadWeatherMessage
+typedef unsigned long NTCIPEssVisibility;
+
+//enums 
+enum ReferencePointType
+{
+    rpt_startOfEvent,
+    rpt_arbitrary
+};
+enum DistanceUnits
+{
+   du_centimeter,
+   du_cm2_5,
+   du_decimeter,
+   du_meter,
+   du_kilometer,
+   du_foot,
+   du_yard,
+   du_mile
+};
+
+// compound types
+struct Offset3D
+{
+    LatOffset lat_offset;
+    LongOffset long_offset;
+    @optional ElevOffset elev_offset;
+};
+
+// unions
+
+union RegionUncertainty switch(octet)
+{
+    case 0:
+        Offset3D alongPath;
+    case 1:
+        Offset3D inCoordinateFrame;
+};
+
+union NodePointLLE switch(octet)
+{
+    case 0:
+        Position3D node_3Dabsolute;
+    case 1:
+        Offset3D node_3Doffset;
+};
+typedef sequence<NodePointLLE, 63> RSMPolygon; //3...63 
+typedef sequence<NodePointLLE, 63> PathPoints; //2...63 
+
+struct Circle {
+    Position3D center;
+    Radius_B12 radius;
+    DistanceUnits units;
+};
+struct Path
+{
+    unsigned short pathWidth;   // Width of the Path in units of 10cm 
+    PathPoints pathPoints;
+};
+typedef sequence<Path, 10> PathList;
+
+struct Obstructions
+{
+    Position3D location;
+    @optional ITIScodes description;
+};
+
+struct ApplicableHeading
+{
+    HeadingDeg heading;
+    //-- Heading in 1 degree increments, message applies to heading +/- tolerance 
+    Tolerance tolerance;
+    //-- Tolerance in 1 degree increments
+};
+union BroadRegionArea switch(octet)
+{
+    case 0:
+        RSMPolygon polygon;
+    case 1:
+        Circle circle;
+};
+struct BroadRegion
+{
+    ApplicableHeading applicableHeading;
+    BroadRegionArea broadArea;
+};
+
+union AreaType switch(octet)
+{
+    case 0:
+        BroadRegion broadRegion;
+    case 1:
+        PathList paths;
+};
+
+struct AudioLink
+{
+    @optional unsigned short amChannel;
+    @optional unsigned long fmChannel;
+    @optional unsigned short satelliteChannel;
+    @optional string urlChannel;
+};
+
+struct VisualLink
+{
+    @optional string urlLink;
+};
+
+struct EventIdentifier
+{
+    //RoadAuthorityID operatorID;
+    string operatorID;
+    TemporaryID uniqueID;
+};
+
+struct CrossLinking
+{
+    @optional sequence<AudioLink,4> audioLink;
+    @optional sequence<VisualLink,4> visualLink;
+    @optional sequence<EventIdentifier,4> rsmLink;
+};
+
+struct EventRecurrence
+{
+    @optional DTime startTime;
+    @optional DTime endTime;
+    @optional DDate startDate;
+    @optional DDate endDate;
+//   -- Define days of the week for applicable periods (used by EventRecurrence)
+    boolean monday;
+    boolean tuesday;
+    boolean wednesday;
+    boolean thursday;
+    boolean friday;
+    boolean saturday;
+    boolean sunday;
+    @optional boolean exclusion;
+//    -- exclusion: TRUE: The period defined here is excluded, i.e., the period is NOT applicable to the event
+};
+
+struct EventInfo
+{
+    EventIdentifier eventID;
+    MsgCount eventUpdate;
+    Activity eventCancellation;
+    DDateTime startDateTime;
+    @optional DDateTime endDateTime;
+    @optional sequence<EventRecurrence,5> eventRecurrence;
+    ITISgroups causeCode;
+    @optional ITIScodes subCauseCode;
+    @optional sequence<VehicleGroupAffected,10> affectedVehicles;
+};
+
+
+struct LaneInfo
+{
+    RSMLanePosition lanePosition;           //-- Where lanePosition 1 is always the leftmost lane
+    LaneClosed laneClosed;                // -- TRUE:lane closed, FALSE:lane open
+    @optional ObstacleDistance laneCloseOffset; // -- Distance from ref point to lane closure in meters
+};
+
+struct RegionInfo
+{
+    Position3D referencePoint;
+//    -- Reference position, may be start of event (default) or arbitrary location.
+    @optional RegionUncertainty locationUncertainty ;
+    @optional ReferencePointType referencePointType;
+    @optional DescriptiveName descriptiveName;
+    @optional Zoom scale;
+    @optional AreaType approachRegion;
+};
+
+struct CommonContainer
+{
+    EventInfo eventInfo;
+    sequence<RegionInfo,4> regionInfo;
+    @optional CrossLinking crossLinking;
+};
+
+
+struct CurveContainer
+{
+    SpeedAdvice advisorySpeed;
+    @optional FrictionInformation surfaceCondition;
+    @optional Radius minRadius;
+    @optional BankAngle bankAngle;
+    @optional RegionInfo curveRegion;
+};
+enum DynamicInfoPriority
+{
+   dip_low,
+   dip_medium,
+   dip_high,
+   dip_critical
+};
+struct DynamicInfoContainer
+{
+    DynamicInfoPriority priority;
+    sequence<string,12> dmsSignString;
+    RegionInfo applicableRegion;
+};
+
+struct IncidentsContainer
+{
+    @optional sequence<ResponderGroupAffected,5> responderType;
+    RegionInfo incidentLocation;
+};
+
+struct LaneClosureContainer
+{
+    @optional sequence<LaneInfo,10> laneStatus;
+    @optional Activity laneStatusVaries;
+    RegionInfo closureRegion;
+};
+
+struct ReducedSpeedZoneContainer
+{
+    RegulatorySpeedLimit speedLimit;
+    RegionInfo rszRegion;
+};
+
+struct SituationalContainer
+{
+    @optional Obstructions obstructions;
+    @optional NTCIPEssVisibility visibility;
+    @optional Activity peoplePresent;
+    @optional Activity anomalousTraffic;
+    RegionInfo applicableRegion;
+};
+
+union ContentContainer switch(octet)
+{
+case 0:
+    ReducedSpeedZoneContainer rszContainer;
+case 1:
+    LaneClosureContainer laneClosureContainer;
+case 2:
+    CurveContainer curveContainer;
+case 3:
+    DynamicInfoContainer dynamicInfoContainer;
+case 4:
+    IncidentsContainer incidentsContainer;
+case 5:
+    SituationalContainer situationalContainer;
+};
+
+struct RoadSafetyMessage
+{
+    CommonContainer commonContainer;
+    sequence<ContentContainer, 4> content;
+};
+
+};
+};

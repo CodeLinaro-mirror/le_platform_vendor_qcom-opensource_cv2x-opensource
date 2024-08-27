@@ -1,0 +1,29 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+#ifndef J2735_PDU_IDL_
+#define J2735_PDU_IDL_
+
+module J2735 {
+module idl {
+
+/* the enum value is aligned with SPLITS::Core::MsgFormat enum class definitions*/
+enum MsgFormat {
+    IDL_MSG_FORMAT_BLOB,    /*(0) encoded, signed, with network/transport header */
+    IDL_MSG_FORMAT_SIGNED,  /*(1) encoded, signed, no network/transport header */
+    IDL_MSG_FORMAT_UNSIGNED /*(2) encoded, but not signed, and no network/transport header */
+};
+
+struct MsgData
+{
+    unsigned long serviceId;
+    MsgFormat format;
+    unsigned short length;
+    sequence<octet, 1024> msg;
+};
+
+};
+};
+#endif

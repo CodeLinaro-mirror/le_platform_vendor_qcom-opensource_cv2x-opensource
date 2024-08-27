@@ -1,0 +1,34 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 RTCMcorrection types based on ASN.1 notation
+ * ASN definition file J2735-RTCMcorrections-2024-rel-v1.1
+ */
+
+#include "J2735_Common.idl"
+
+module J2735 {
+module idl {
+
+enum RTCMRevision
+{
+    rtcmv_unknown,
+    rtcmv_rtcmRev2,
+    rtcmv_rtcmRev3,
+    rtcmv_reserved
+};
+struct RTCMcorrection
+{
+    MsgCount msgCnt;
+    RTCMRevision rev;
+    @optional MinuteOfTheYear timeStamp;
+    @optional FullPositionVector anchorPoint;
+    @optional RTCMheader rtcmHeader;
+    RTCMmessageList msgs;
+    /* Not supporting regional extension */
+};
+};
+};

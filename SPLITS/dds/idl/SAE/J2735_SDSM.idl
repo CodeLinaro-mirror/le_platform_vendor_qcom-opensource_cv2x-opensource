@@ -1,0 +1,223 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 Sensor Data Sharing Message types based on ASN.1 notation
+ * ASN definition file J2735_SensorDataSharingMessage_2024_rel_v1.1
+ */
+#include "J2735_Common.idl"
+#include "J2735_ITIS.idl"
+#include "J2735_PSM.idl"
+#include "J2735_PVD.idl"
+
+module J2735 {
+module idl {
+
+/* integers typedef */
+typedef unsigned short ObjectID;
+typedef octet ClassificationConfidence;
+typedef short MeasurementTimeOffset;
+typedef short ObjectDistance;
+typedef short PitchDetected;
+typedef short RollDetected;
+typedef short YawDetected;
+typedef short PitchRate;
+typedef short RollRate;
+typedef unsigned short SizeValue;
+/* Enums */
+enum EquipmentType
+{
+    et_unknown,
+    et_rsu,
+    et_obu,
+    et_vru
+};
+enum ObjectType
+{
+    ot_unknown,
+    ot_vehicle,
+    ot_vru,
+    ot_animal
+};
+enum PitchRateConfidence
+{
+    prc_unavailable, /*-- B'000 Not Equipped with angular velocity status
+    -- or angular velocity status is unavailable */
+    prc_degSec_100_00, /*-- B'001 100 deg/sec */
+    prc_degSec_010_00, /*-- B'010 10 deg/sec */
+    prc_degSec_005_00, /*-- B'011 5 deg/sec */
+    prc_degSec_001_00, /*-- B'100 1 deg/sec*/
+    prc_degSec_000_10, /*-- B'101 0.1 deg/sec */
+    prc_degSec_000_05, /*-- B'110 0.05 deg/sec */
+    prc_degSec_000_01  /*-- B'111 0.01 deg/sec*/
+};
+
+enum RollRateConfidence
+{
+    rrc_unavailable,   /*-- B'000 Not Equipped with angular velocity status or angular velocity
+    status is unavailable*/
+    rrc_degSec_100_00, /*-- B'001 100 deg/sec */
+    rrc_degSec_010_00, /*-- B'010 10 deg/sec*/
+    rrc_degSec_005_00, /*-- B'011 5 deg/sec*/
+    rrc_degSec_001_00, /*-- B'100 1 deg/sec*/
+    rrc_degSec_000_10, /*-- B'101 0.1 deg/sec*/
+    rrc_degSec_000_05, /*-- B'110 0.05 deg/sec*/
+    rrc_degSec_000_01  /*-- B'111 0.01 deg/sec*/
+};
+
+enum SizeValueConfidence
+{
+    svc_unavailable,
+    svc_size_100_00,    //-- (100 m)
+    svc_size_050_00,    //-- (50 m)
+    svc_size_020_00,    //-- (20 m)
+    svc_size_010_00,    //-- (10 m)
+    svc_size_005_00,    //-- (5 m)
+    svc_size_002_00,    //-- (2 m)
+    svc_size_001_00,    //-- (1 m)
+    svc_size_000_50,    //-- (50 cm)
+    svc_size_000_20,    //-- (20 cm)
+    svc_size_000_10,   //-- (10 cm)
+    svc_size_000_05,   //-- (5 cm)
+    svc_size_000_02,   //-- (2 cm)
+    svc_size_000_01    //-- (1 cm)
+};
+
+/* Compound types */
+struct ObstacleSize
+{
+    SizeValue width;
+    SizeValue length;
+    @optional SizeValue height;
+};
+
+struct ObstacleSizeConfidence
+{
+    SizeValueConfidence widthConfidence;
+    SizeValueConfidence lengthConfidence;
+    @optional SizeValueConfidence heightConfidence;
+};
+
+struct PositionOffsetXYZ
+{
+    ObjectDistance offsetX;
+    ObjectDistance offsetY;
+    @optional ObjectDistance offsetZ;
+};
+
+struct Attitude
+{
+    PitchDetected pitch;
+    RollDetected roll;
+    YawDetected yaw;
+};
+
+struct AttitudeConfidence
+{
+    HeadingConfidence pitchConfidence;
+    HeadingConfidence rollConfidence;
+    HeadingConfidence yawConfidence;
+};
+
+struct AngularVelocity
+{
+    PitchRate pitchRate;
+    RollRate rollRate;
+};
+
+struct AngularVelocityConfidence
+{
+    @optional PitchRateConfidence pitchRateConfidence;
+    @optional RollRateConfidence rollRateConfidence;
+};
+
+struct VehicleSizeConfidence
+{
+    SizeValueConfidence vehicleWidthConfidence;
+    SizeValueConfidence vehicleLengthConfidence;
+    @optional SizeValueConfidence vehicleHeightConfidence;
+};
+
+
+struct DetectedVRUData
+{
+    @optional PersonalDeviceUserType basicType;
+    @optional PropelledInformation propulsion;
+    @optional Attachment attachment;
+    @optional AttachmentRadius radius;
+};
+
+struct DetectedObstacleData
+{
+    ObstacleSize obstSize;
+    ObstacleSizeConfidence obstSizeConfidence;
+};
+struct DetectedObjectCommonData
+{
+    ObjectType objType;
+    ClassificationConfidence objTypeCfd;
+    ObjectID objectID;
+    MeasurementTimeOffset measurementTime;
+    TimeConfidence timeConfidence;
+    PositionOffsetXYZ pos;
+    PositionConfidenceSet posConfidence;
+    Speed speed;
+    SpeedConfidence speedConfidence;
+    @optional Speed speedZ;
+    @optional SpeedConfidence speedConfidenceZ;
+    Heading heading;
+    HeadingConfidence  headingConf;
+    @optional AccelerationSet4Way accel4way;
+    @optional AccelerationConfidence accCfdX;
+    @optional AccelerationConfidence accCfdY;
+    @optional AccelerationConfidence accCfdZ;
+    @optional YawRateConfidence accCfdYaw;
+};
+
+struct DetectedVehicleData
+{
+    @optional ExteriorLights lights;
+    @optional Attitude vehAttitude;
+    @optional AttitudeConfidence vehAttitudeConfidence;
+    @optional AngularVelocity vehAngVel;
+    @optional AngularVelocityConfidence vehAngVelConfidence;
+    @optional VehicleSize size;
+    @optional VehicleHeight height;
+    @optional VehicleSizeConfidence vehicleSizeConfidence;
+    @optional BasicVehicleClass vehicleClass;
+    @optional ClassificationConfidence classConf;
+};
+
+union DetectedObjectOptionalData switch(octet)
+{
+    case 0:
+        DetectedVehicleData detVeh;
+    case 1:
+        DetectedVRUData detVRU;
+    case 2:
+        DetectedObstacleData detObst;
+};
+
+struct DetectedObjectData
+{
+    DetectedObjectCommonData detObjCommon;
+    @optional DetectedObjectOptionalData detObjOptData;
+};
+typedef sequence<DetectedObjectData,256> DetectedObjectList;
+
+struct SensorDataSharingMessage
+{
+    MsgCount msgCnt ;
+    TemporaryID sourceID;
+    EquipmentType equipmentType;
+    DDateTime sDSMTimeStamp;
+    Position3D refPos;
+    PositionalAccuracy refPosXYConf;
+    @optional ElevationConfidence refPosElConf;
+    DetectedObjectList objects;
+};
+
+};
+};

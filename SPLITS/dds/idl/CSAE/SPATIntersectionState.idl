@@ -1,0 +1,141 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in SPATIntersectionState.asn
+ */
+
+#ifndef SPAT_INTERSECTION_STATE_
+#define SPAT_INTERSECTION_STATE_
+
+#include "DefCommon.idl"
+
+#include "MapNode.idl"
+
+module Csae {
+module idl {
+
+/*
+    -- The value 0 shall be used when the ID is
+    -- not available or not known
+    -- the value 255 is reserved to indicate a
+	-- permanent green movement state
+    -- therefore a simple 8 phase signal controller
+    -- device might use 1..9 as its groupIDs
+*/
+typedef octet PhaseID;
+
+enum LightState {
+    ls_unavailable,
+    dark,
+    flashing_red,
+    red,
+    flashing_green,
+    permissive_green,
+    protected_green,
+    yellow,
+    flashing_yellow
+};
+
+struct TimeCountingDown {
+    /*
+		-- When this phase state started,
+		-- if already started, the value is 0
+    */
+    J2735::idl::TimeMark startTime;
+    /*
+		-- Expected shortest end time
+		-- the value is the min left time from now
+    */
+    @optional J2735::idl::TimeMark minEndTime;
+    /*
+		-- Expected longest end time
+		-- the value is the max left time from now
+    */
+    @optional J2735::idl::TimeMark maxEndTime;
+    /*
+		-- Best predicted value based on other data
+		-- the value is the likely left time from now
+    */
+    J2735::idl::TimeMark likelyEndTime;
+    /*
+		-- Confidence of likelyTime
+    */
+    @optional J2735::idl::Confidence timeConfidence;
+    /*
+		-- A rough estimate of time from now when this phase state may next occur again
+		-- used to support various ECO driving power management needs.
+		-- If already started, this value is recommended to be delivered.
+    */
+    @optional J2735::idl::TimeMark nextStartTime;
+    /*
+		-- A rough estimate of the time length of this phase state
+		-- when it may next occur again.
+		-- used to support various ECO driving power management needs.
+		-- If already started, this value is recommended to be delivered.
+    */
+    @optional J2735::idl::TimeMark nextDuration;
+};
+
+struct UTCTiming {
+    J2735::idl::TimeMark startUTCTime;
+    @optional J2735::idl::TimeMark minEndUTCTime;
+    @optional J2735::idl::TimeMark maxEndUTCTime;
+    J2735::idl::TimeMark likelyEndUTCTime;
+    /* Confidence of likelyEndUTCTime */
+    @optional J2735::idl::Confidence timeConfidence;
+    @optional J2735::idl::TimeMark nextStartUTCTime;
+    @optional J2735::idl::TimeMark nextEndUTCTime;	
+};
+
+union TimeChangeDetails switch(octet) {
+    case 0:
+        TimeCountingDown counting;
+    case 1:
+        UTCTiming utcTiming;
+};
+
+struct PhaseState {
+    LightState light;
+    /*
+		-- Timing Data in UTC time stamps for event
+		-- includes start and min/max end times of phase
+		-- confidence and estimated next occurrence
+    */
+    @optional TimeChangeDetails timing;
+};
+typedef sequence<PhaseState, 16> PhaseStateList;
+
+struct Phase {
+    PhaseID id;
+    PhaseStateList phaseStates;
+};
+typedef sequence<Phase, 16> PhaseList;
+ 
+struct IntersectionState {
+    /*
+		-- A globally unique value set, consisting of a
+		-- regionID and intersection ID assignment
+		-- provides a unique mapping to the MAP Node
+	*/
+    NodeReferenceID intersectionId;
+	/* general status of the controller(s) */
+    J2735::idl::IntersectionStatusObject status;
+    @optional J2735::idl::MinuteOfTheYear moy;
+    @optional J2735::idl::DSecond timeStamp;
+    @optional J2735::idl::TimeConfidence timeConfidence;
+    /*
+		-- Each Movement is given in turn
+		-- and contains its signal phase state,
+		-- mapping to the lanes it applies to, and
+		-- point in time it will end, and it
+		-- may contain both active and future states	
+	*/
+    PhaseList phases;
+};
+typedef sequence<IntersectionState, 32> IntersectionStateList;
+};
+};
+#endif

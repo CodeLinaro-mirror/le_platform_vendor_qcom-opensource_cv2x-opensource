@@ -1,0 +1,5 @@
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/install_prefix/lib
+export COMMONAPI_CONFIG=/path/to/commonapi4someip.ini
+export VSOMEIP_CONFIGURATION=/path/to/vsomeip-client-server.json
+
+route add -nv 224.244.224.245 dev eth0

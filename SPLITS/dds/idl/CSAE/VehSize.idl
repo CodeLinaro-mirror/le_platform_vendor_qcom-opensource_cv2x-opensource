@@ -1,0 +1,24 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in VehSize.asn
+ */
+#ifndef VEH_SIZE_
+#define VEH_SIZE_
+
+#include "DefCommon.idl"
+
+module Csae {
+module idl {
+
+struct VehicleSize {
+    J2735::idl::VehicleWidth width;
+    J2735::idl::VehicleLength length;
+    @optional J2735::idl::VehicleHeight height;
+};
+};
+};
+#endif

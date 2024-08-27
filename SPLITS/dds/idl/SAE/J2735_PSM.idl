@@ -1,0 +1,74 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 Personal Safety message types based on ASN.1 notation
+ * ASN definition file J2735_PersonalSafetyMessage_2024_rel_v1.1
+ * 
+ * NOTE: Only partial types are defined!!!!!!!
+ */
+#include "J2735_Common.idl"
+module J2735 {
+module idl {
+
+typedef octet AttachmentRadius;
+
+enum Attachment
+{
+   attachment_unavailable,
+   attachment_stroller,
+   attachment_bicycleTrailer,
+   attachment_cart,
+   attachment_wheelchair,
+   attachment_otherWalkAssistAttachments,
+   attachment_pet
+};
+
+enum PersonalDeviceUserType
+{
+   pdut_unavailable,
+   pdut_aPEDESTRIAN,
+   pdut_aPEDALCYCLIST,
+   pdut_aPUBLICSAFETYWORKER,
+   pdut_anANIMAL
+};
+enum AnimalPropelledType
+{
+   apt_unavailable,
+   apt_otherTypes,
+   apt_animalMounted,
+   apt_animalDrawnCarriage
+};
+enum HumanPropelledType
+{
+   hpt_unavailable,
+   hpt_otherTypes,
+   hpt_onFoot,
+   hpt_skateboard,
+   hpt_pushOrKickScooter,
+   hpt_wheelchair
+};
+enum MotorizedPropelledType
+{
+   mpt_unavailable,
+   mpt_otherTypes,
+   mpt_wheelChair,
+   mpt_bicycle,
+   mpt_scooter,
+   mpt_selfBalancingDevice
+};
+
+union PropelledInformation switch(octet)
+{
+   case 0:
+   HumanPropelledType human;
+   case 1:
+   AnimalPropelledType animal;
+   case 2:
+   MotorizedPropelledType motor;
+};
+
+};
+};

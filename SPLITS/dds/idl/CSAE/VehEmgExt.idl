@@ -1,0 +1,24 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in VehEmgExt.asn
+ */
+#ifndef VEH_EMG_EXT_
+#define VEH_EMG_EXT_
+
+#include "DefCommon.idl"
+
+module Csae {
+module idl {
+
+struct VehicleEmergencyExtensions {
+    @optional J2735::idl::ResponseType responseType;
+    @optional J2735::idl::SirenInUse sirenUse;
+    @optional J2735::idl::LightbarInUse lightsUse;
+};
+};
+};
+#endif

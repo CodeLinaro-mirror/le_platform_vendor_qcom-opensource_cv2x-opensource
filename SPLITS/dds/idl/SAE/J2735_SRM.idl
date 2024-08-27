@@ -1,0 +1,154 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 Signal Request Message types based on ASN.1 notation
+ * ASN definition file J2735_SignalRequestMessage_2024_rel_v1.1
+ */
+#include "J2735_Common.idl"
+#include "J2735_ITIS.idl"
+
+module J2735 {
+module idl {
+
+typedef char DeltaTime;
+
+enum PriorityRequestType
+{
+     priorityRequestTypeReserved,
+     priorityRequest,
+     priorityRequestUpdate,
+     priorityCancellation
+};
+
+enum TransitVehicleOccupancy
+{
+    occupancyUnknown,
+    occupancyEmpty,
+    occupancyVeryLow,
+    occupancyLow,
+    occupancyMed,
+    occupancyHigh,
+    occupancyNearlyFull,
+    occupancyFull
+};
+
+@bit_bound(8)
+bitmask TransitVehicleStatus
+{
+    @position(0) tvs_loading,
+    @position(1) tvs_anADAuse,
+    @position(2) tvs_aBikeLoad,
+    @position(3) tvs_doorOpen,
+    @position(4) tvs_charging,
+    @position(5) tvs_atStopLine
+};
+struct RequestorPositionVector
+{
+   Position3D position;
+   @optional Angle heading;
+   @optional TransmissionAndSpeed speed;
+};
+struct RequestorDescription
+{
+   VehicleID id;
+                     /*-- The ID used in the BSM or CAM of the requestor
+                     -- This ID is presumed not to change 
+                     -- during the exchange*/
+   @optional RequestorType type;
+                     /*-- Information regarding all type and class data
+                     -- about the requesting vehicle  */
+   @optional RequestorPositionVector position;
+                     /*-- The location of the requesting vehicle */
+   @optional DescriptiveName name;
+   @optional DescriptiveName routeName;
+                     /*-- A string for transit operations use*/
+   @optional TransitVehicleStatus transitStatus;
+                     /*-- current vehicle state (loading, etc.) */
+   @optional TransitVehicleOccupancy transitOccupancy;
+                     /*-- current vehicle occupancy */
+   @optional DeltaTime transitSchedule;
+                     /*-- current vehicle schedule adherence  */
+/*
+   regional          SEQUENCE (SIZE(1..4)) OF 
+                     RegionalExtension {{Reg-RequestorDescription}} OPTIONAL,
+   ... */
+};
+
+struct SignalRequest
+{
+   IntersectionReferenceID id;
+   RequestID requestID;
+
+/*   -- The type of request or cancel for priority or preempt use
+   -- when a prior request is canceled, only the requestID is needed */
+   PriorityRequestType requestType;
+
+/*   -- In typical use either an approach or a lane number would
+   -- be given, this indicates the requested 
+   -- path through the intersection to the degree it is known. */
+   IntersectionAccessPoint inBoundLane;
+                 /*-- desired entry approach or lane*/
+   @optional IntersectionAccessPoint outBoundLane;
+                 /*-- desired exit approach or lane
+                 -- the values zero is used to indicate 
+                 -- intent to stop within the intersection*/
+/*   regional      SEQUENCE (SIZE(1..4)) OF 
+                 RegionalExtension {{Reg-SignalRequest}} OPTIONAL,
+   ...*/
+};
+
+struct SignalRequestPackage
+{
+   SignalRequest request;
+/*                  -- The specific request to the intersection
+                  -- contains IntersectionID, request type,
+                  -- requested action (approach/lane request)
+
+   -- The Estimated Time of Arrival (ETA) when the service is requested */
+   @optional MinuteOfTheYear minute;
+   @optional DSecond second;
+   @optional DSecond duration;
+/*                  -- The duration value is used to provide a short interval that
+                  -- extends the ETA so that the requesting vehicle can arrive at 
+                  -- the point of service with uncertainty or with some desired
+                  -- duration of service. This concept can be used to avoid needing 
+                  -- to frequently update the request.
+                  -- The requester must update the ETA and duration values if the
+                  -- period of services extends beyond the duration time.  
+                  -- It should be assumed that if the vehicle does not clear the
+                  -- intersection when the duration is reached, the request will 
+                  -- be cancelled and the intersection will revert to 
+                  -- normal operation.
+   
+   regional       SEQUENCE (SIZE(1..4)) OF 
+                  RegionalExtension {{Reg-SignalRequestPackage}} OPTIONAL,
+   ... */
+};
+typedef sequence<SignalRequestPackage, 32> SignalRequestList;
+
+struct SignalRequestMessage
+{
+   @optional MinuteOfTheYear timeStamp;
+   DSecond second;
+   @optional MsgCount sequenceNumber;
+   @optional SignalRequestList requests;
+                   /*-- Request Data for one or more signalized 
+                   -- intersections that support SRM dialogs*/
+
+   RequestorDescription requestor;
+                   /*-- Requesting Device and other User Data
+                   -- contains vehicle ID (if from a vehicle)
+                   -- as well as type data and current position
+                   -- and may contain additional transit data*/
+/*
+   regional        SEQUENCE (SIZE(1..4)) OF 
+                   RegionalExtension {{Reg-SignalRequestMessage}} OPTIONAL,
+   ...
+   */
+};
+
+};
+};

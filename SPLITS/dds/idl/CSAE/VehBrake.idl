@@ -1,0 +1,29 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in VehBrake.asn
+ */
+#ifndef VEH_BRAKE_
+#define VEH_BRAKE_
+
+#include "DefCommon.idl"
+
+module Csae {
+module idl {
+typedef octet BrakePedalStatus;
+
+struct BrakeSystemStatus {
+    @optional BrakePedalStatus brakePadel;
+    @optional J2735::idl::BrakeAppliedStatus wheelBrakes;
+    @optional J2735::idl::TractionControlStatus traction;
+    @optional J2735::idl::AntiLockBrakeStatus abs;
+    @optional J2735::idl::StabilityControlStatus scs;
+    @optional J2735::idl::BrakeBoostApplied brakeBoost;
+    @optional J2735::idl::AuxiliaryBrakeStatus auxBrakes;
+};
+};
+};
+#endif

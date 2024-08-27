@@ -1,0 +1,13 @@
+if (${BUILD_TARGET} STREQUAL "client")
+    add_subdirectory(interface)
+    add_subdirectory(apps)
+    add_subdirectory(logger)
+else()
+    add_subdirectory(core)
+    add_subdirectory(interface)
+    add_subdirectory(codec)
+    add_subdirectory(radio)
+    add_subdirectory(apps)
+    add_subdirectory(logger)
+endif()
+

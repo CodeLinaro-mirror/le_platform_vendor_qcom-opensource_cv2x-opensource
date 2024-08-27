@@ -1,0 +1,91 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 Signal Status Message types based on ASN.1 notation
+ * ASN definition file J2735_SignalStatusMessage_2024_rel_v1.1
+ */
+#include "J2735_Common.idl"
+#include "J2735_ITIS.idl"
+
+module J2735 {
+module idl {
+
+struct SignalRequesterInfo
+{
+   /*-- These three items serve to uniquely identify the requester
+   -- and the specific request to all parties */
+   VehicleID id;
+   RequestID request;
+   MsgCount sequenceNumber;
+   @optional BasicVehicleRole role;
+
+   @optional RequestorType typeData;
+                  /*-- Used when addition data besides the role
+                  -- is needed, at which point the role entry
+                  -- above is not sent.*/
+};
+struct SignalStatusPackage
+{
+/*   -- The party that made the initial SRM request */
+   @optional SignalRequesterInfo requester;
+/*   -- The lanes or approaches used in the request*/
+   IntersectionAccessPoint inboundOn;
+   @optional IntersectionAccessPoint outboundOn;
+
+/*   -- The Estimated Time of Arrival (ETA) when the service is requested
+   -- This data echos the data of the request  */
+   @optional MinuteOfTheYear minute;
+   @optional DSecond second;
+   @optional DSecond duration;
+
+/*   -- the SRM status for this request */
+   PrioritizationResponseStatus status;
+/*                -- Status of request, this may include rejection */
+
+/*   regional     SEQUENCE (SIZE(1..4)) OF 
+                RegionalExtension {{Reg-SignalStatusPackage}} OPTIONAL,
+   ...*/
+};
+
+typedef sequence<SignalStatusPackage,32> SignalStatusPackageList;
+
+struct SignalStatus
+{
+   MsgCount sequenceNumber;
+                  /*-- changed whenever the below contents have change*/
+   IntersectionReferenceID id;
+                  /*-- this provides a unique mapping to the 
+                  -- intersection map in question
+                  -- which provides complete location 
+                  -- and approach/movement/lane data
+                  -- as well as zones for priority/preemption */
+   SignalStatusPackageList sigStatus;
+                  /*-- a list of detailed status containing all
+                  -- priority or preemption state data, both
+                  -- active and pending, and who requested it
+                  -- requests which are denied are also listed
+                  -- here for a short period of time */
+   /*regional       SEQUENCE (SIZE(1..4)) OF 
+                  RegionalExtension {{Reg-SignalStatus}} OPTIONAL,
+   ... */
+};
+typedef sequence<SignalStatus, 32> SignalStatusList;
+
+struct SignalStatusMessage
+{
+   @optional MinuteOfTheYear timeStamp;
+   DSecond second;
+   @optional MsgCount sequenceNumber;
+
+   SignalStatusList status;
+/* 
+   regional        SEQUENCE (SIZE(1..4)) OF 
+                   RegionalExtension {{Reg-SignalStatusMessage}} OPTIONAL,
+   ... */
+};
+
+};
+};

@@ -1,0 +1,163 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+#include "Ieee1609Dot3Wee.idl"
+
+module IEEE1609Dot3{
+module idl {
+
+typedef octet RsvAdvPrtVersion; //::= INTEGER (0..15)
+
+typedef octet c_rsvAdvPrtVersionNo;	//INTEGER (0..15) ::= 3
+
+typedef octet SrvAdvID;  //::= INTEGER (0..15)
+
+typedef octet SrvAdvContentCount; //::= INTEGER (0..15)
+typedef octet MedType; //::= INTEGER (0..255)
+typedef octet ChannelIndex; /*::= INTEGER {
+	notUsed	(0), -- Indicates ChannelInfos not used 
+	firstEntry	(1)  -- >0 == Index to ChannelInfo instance
+}(0..31)*/
+
+typedef octet OperatingClass80211; //::= INTEGER (0..255)
+typedef unsigned short RouterLifetime; //::= INTEGER (0..65535)
+
+typedef octet IpV6Prefix[16]; //::= OCTET STRING (SIZE (16))
+
+typedef octet IpV6PrefixLength; //::= INTEGER (0..255)
+
+
+struct SrvAdvChangeCount
+{
+	SrvAdvID saID;
+	SrvAdvContentCount contentCount;
+};
+
+
+union ServiceInfoExt switch(octet)
+{
+    case 8:
+    ProviderServiceContext providerServiceContent;
+    case 9:
+    IPv6Address ipv6Address;
+    case 10:
+    ServicePort servicePort;
+    case 11:
+    ProviderMacAddress providerMacAddress;
+    case 19:
+    RcpiThreshold rcpiThreshold;
+    case 20:
+    WsaCountThreshold wsaCountThreshold;
+    case 22:
+    WsaCountThresholdInterval wsaCountThresholdInt;
+    case 24:
+    ProtocolType protocolType;
+    case 85:
+    ApplicationData applicationData;
+};
+typedef sequence<ServiceInfoExt, 10> ServiceInfoExts;
+
+struct ChannelOptions
+{
+	@optional ServiceInfoExts extensions;
+};
+struct ServiceInfo
+{
+	VarLengthNumber serviceID;
+	ChannelIndex channelIndex;
+	ChannelOptions chOptions;
+};
+typedef sequence<ServiceInfo,16> ServiceInfos;
+
+struct WsaChInfoDataRate
+{
+    boolean adaptable;
+	octet dataRate;
+};
+
+union ChannelInfoExt switch(octet)
+{
+    case 12:
+    EdcaParameterSet edcaParameterSet;
+    case 21:
+    ChannelAccess80211 channelAccess80211;
+};
+typedef sequence<ChannelInfoExt,16> ChannelInfoExts;
+struct ChInfoOptions
+{
+	@optional ChannelInfoExts extensions;
+};
+
+struct ChannelInfo
+{
+	OperatingClass80211 operatingClass;
+	ChannelNumber80211 channelNumber;
+	TXpower80211 powerLevel;
+	WsaChInfoDataRate dataRate;
+	ChInfoOptions extensions;
+};
+typedef sequence<ChannelInfo,16> ChannelInfos;
+
+union ExtendedChannelInfo switch(octet)
+{
+    case 5:
+    ChannelInfo channelInfo;
+    case 12:
+    LTEv2xChannelInfo lteV2xChannelInfo;
+};
+typedef sequence<ExtendedChannelInfo,2> ExtendedChannelInfos;
+
+union SrvAdvMsgHeaderExt switch(octet)
+{
+    case 17:
+        RepeatRate repeatRate;
+    case 5:
+        TwoDLocation twoDLocation;
+    case 6:
+        ThreeDLocation threeDLocation;
+    case 7:
+        AdvertiserIdentifier advertiserIdentifier;
+    case 84:
+        ExtendedChannelInfos extendedChannelInfos;
+};
+typedef sequence<SrvAdvMsgHeaderExt,5> SrvAdvMsgHeaderExts;
+
+union RoutAdvertExt switch(octet)
+{
+    case 0:
+    SecondaryDns secondaryDns;
+    case 1:
+    GatewayMacAddress gatewayMacAddress;
+};
+
+typedef sequence<RoutAdvertExt,2> RoutAdvertExts;
+
+struct RoutingAdvertisement
+{
+	RouterLifetime lifetime;
+	IpV6Prefix ipPrefix;
+	IpV6PrefixLength ipPrefixLength;
+	IPv6Address defaultGateway;
+	IPv6Address primaryDns;
+	RoutAdvertExts extensions;
+};
+
+struct SrvAdvBody
+{
+	SrvAdvChangeCount changeCount;
+	@optional SrvAdvMsgHeaderExts extensions;
+	@optional ServiceInfos serviceInfos;
+	@optional ChannelInfos channelInfos;
+	@optional RoutingAdvertisement routingAdvertisement;
+};
+struct SrvAdvMsg
+{
+	RsvAdvPrtVersion version;
+	SrvAdvBody body;
+};
+
+};
+};
+

@@ -1,0 +1,142 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 BasicSafetyMessage types based on ASN.1 notation
+ * ASN definition file J2735-BasicSafetyMessage-2024-rel-v1.1
+ */
+#include "J2735_ITIS.idl"
+#include "J2735_Common.idl"
+module J2735 {
+module idl {
+
+struct VehicleData
+{
+   @optional VehicleHeight height;
+   @optional boolean trailerPresent;
+   @optional BumperHeights bumpers;
+   @optional VehicleMass mass;
+   @optional PivotPointDescription pivotPoint;
+   @optional Axles axles_;
+   @optional short rollAngle;
+   /*-- In 1 deg increments, for motorcycles only
+   deprecated 		TrailerWeight   		OPTIONAL, */
+};
+struct DisabledVehicle
+{
+   ITIScodes statusDetails;
+                     /*ITIScodes(523..541),   
+                     -- Codes 532 to 541, as taken from J2540:
+                     -- Disabled, etc.
+                       -- stalled-vehicle (532),
+                       -- abandoned-vehicle (533),
+                       -- disabled-vehicle (534),
+                       -- disabled-truck (535),
+                       -- disabled-semi-trailer (536), -^- Alt: disabled
+                     -- tractor-trailer
+                       -- disabled-bus (537),
+                       -- disabled-train (538),
+                       -- vehicle-spun-out (539),
+                       -- vehicle-on-fire (540),
+                       -- vehicle-in-water (541), */
+   @optional GenericLocations locationDetails;
+};
+
+struct EventDescription
+{
+    ITIScodes typeEvent;
+    @optional sequence<ITIScodes, 8> description;
+    @optional Priority  priority;
+    @optional HeadingSlice heading;
+    @optional Extent extent;
+    /*@optional Reg-EventDescription; */
+};
+
+struct SpecialVehicleExtensions
+{
+    @optional EmergencyDetails vehicleAlerts;
+    @optional EventDescription description;
+    /*@optional TrailerData deprecated; */
+};
+
+struct  SupplementalVehicleExtensions
+{
+   @optional BasicVehicleClass classification;
+   @optional VehicleClassification classDetails;
+   @optional VehicleData vehicleData_;
+
+   /*-- Various V2V Probe Data
+   deprecated1       WeatherReport           OPTIONAL, 
+   --To be deprecated in next revision of J2735
+   deprecated2       WeatherProbe            OPTIONAL, 
+   --To be deprecated in next revision of J2735
+
+   -- Detected Obstacle data
+   deprecated3       ObstacleDetection       OPTIONAL, 
+   --To be deprecated in next revision of J2735
+   */
+   @optional DisabledVehicle status;
+
+   /*-- Oncoming lane speed reporting
+   deprecated4       SpeedProfile            OPTIONAL, 
+   --To be deprecated in next revision of J2735
+
+   -- Raw GNSS measurements
+   deprecated5       RTCMPackage             OPTIONAL, 
+   --To be deprecated in next revision of J2735
+
+   regional  SEQUENCE (SIZE(1..4)) OF 
+             RegionalExtension {{Reg-SupplementalVehicleExtensions}} OPTIONAL,
+   */
+
+};
+union PartIIcontent switch(octet)
+{
+    case 0:
+        VehicleSafetyExtensions safetyExt;
+    case 1:
+        SpecialVehicleExtensions specialVehicleExt;
+    case 2:
+        SupplementalVehicleExtensions supplementVehicleExt;
+};
+
+struct BasicSafetyMessage
+{
+    BSMCoreData coreData;
+    @optional sequence<PartIIcontent,8> PartIIlist;
+    /* No currently defined regional extension for J2735*/
+};
+
+typedef Angle ObstacleDirection;
+struct ObstacleDetection
+{
+   ObstacleDistance obDist;
+   ObstacleDirection obDirect;
+   @optional ITIScodes description;/*     ITIScodes(523..541) OPTIONAL, */
+   @optional GenericLocations locationDetails;
+   DDateTime dateTime;
+   @optional VerticalAccelerationThreshold vertEvent;
+};
+/* moved pivotPoint to J2735_Common.idl
+typedef boolean PivotingAllowed;
+struct PivotPointDescription
+{
+   Offset_B11 pivotOffset;
+   Angle pivotAngle;
+   PivotingAllowed pivots;
+};
+*/
+/*struct RTCMPackage ::= SEQUENCE {  
+   -- precise antenna position and noise data for a rover
+   rtcmHeader  RTCMheader OPTIONAL,  
+
+   -- one or more RTCM messages
+   msgs        RTCMmessageList,
+
+}*/
+
+
+};
+};
