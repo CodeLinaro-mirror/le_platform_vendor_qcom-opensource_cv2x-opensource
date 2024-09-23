@@ -313,6 +313,10 @@ void Cv2xRadioStubImpl::closeRxSubscription(const std::shared_ptr<CommonAPI::Cli
     };
     if (cv2xRadio_ != nullptr) {
         if (rxSubs_.find(_subscriptionId) != rxSubs_.end()) {
+            if (shutdown(rxSubs_[_subscriptionId]->getSock(), SHUT_RD) == -1) {
+                int temp_error = errno;
+                COMMONAPI_ERROR("Failed to shutdown read direction ", temp_error);
+            }
             auto status = cv2xRadio_->closeRxSubscription(rxSubs_[_subscriptionId], closeRxSubCallback);
             if (status != Status::SUCCESS) {
                 error = ErrorCode::GENERIC_FAILURE;

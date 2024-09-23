@@ -53,7 +53,7 @@ private:
     eprosima::fastdds::dds::TypeSupport type_;
     std::shared_ptr<telux::cv2x::ICv2xRxSubscription>rxSub_ = nullptr;
     uint32_t txFlowId_;
-    int udSockets[2];
+    int udSockets[2] = {-1};
     std::thread td;
     int32_t currentMatchedCount = 0;
 };

@@ -271,7 +271,7 @@ Status CapiCv2xRadio::createRxSubscription(
                 //creae DDS subscriber and rxSubscription objects
                 std::shared_ptr<Cv2xDataSubscriber> ddsSub = std::make_shared<Cv2xDataSubscriber>();
 
-                if (ddsSub->init() != false) {
+                if (ddsSub->init(rxSubId) != false) {
                     rxSub = std::make_shared<CapiCv2xRxSubscription>(ddsSub->getClientSock(),
                             rxSubId);
                     subs_.push_back(ddsSub);
@@ -375,19 +375,19 @@ telux::common::Status CapiCv2xRadio::createTxSpsFlow(TrafficIpType ipType,
                 //creae DDS publishers and txFlow objects
                 std::shared_ptr<Cv2xDataPublisher> ddsSpsPub = std::make_shared<Cv2xDataPublisher>();
                 if (ddsSpsPub->init(spsFlowId) != false ) {
-                    txSpsFlow = std::make_shared<CapiCv2xTxSpsFlow>(spsFlowId, ipType, serviceId, 
+                    txSpsFlow = std::make_shared<CapiCv2xTxSpsFlow>(spsFlowId, ipType, serviceId,
                             ddsSpsPub->getServerSock(), flowInfo);
-                    pubs_.push_back(ddsSpsPub);
+                    pubs_[spsFlowId]= ddsSpsPub;
                     teluxError = ErrorCode::SUCCESS;
                     //create event flow and publisher
-                    if (eventSrcPortValid && 
+                    if (eventSrcPortValid &&
                             eventError == capitelux::CommonDefines::ErrorCode::SUCCESS) {
                         std::shared_ptr<Cv2xDataPublisher> ddsEventPub =
                             std::make_shared<Cv2xDataPublisher>();
                         if (ddsEventPub->init(eventFlowId) != false) {
                             txEventFlow = std::make_shared<CapiCv2xTxEventFlow>(ipType,
                                     serviceId, ddsEventPub->getServerSock(), eventFlowId);
-                            pubs_.push_back(ddsEventPub);
+                            pubs_[eventFlowId] = ddsEventPub;
                             teluxEventError = ErrorCode::SUCCESS;
                         } else {
                             COMMONAPI_ERROR("Failed to init dds publisher for event");
@@ -472,7 +472,7 @@ telux::common::Status CapiCv2xRadio::createTxEventFlow(TrafficIpType ipType,
                 } else {
                     txEventFlow = std::make_shared<CapiCv2xTxEventFlow>(ipType, serviceId,
                             ddsPub->getServerSock(), flowId);
-                    pubs_.push_back(ddsPub);
+                    pubs_[flowId] = ddsPub;
                     teluxError = ErrorCode::SUCCESS;
                 }
             } else {
@@ -566,6 +566,9 @@ telux::common::Status CapiCv2xRadio::closeTxFlow(std::shared_ptr<ICv2xTxFlow> tx
         if (callStatus != CommonAPI::CallStatus::SUCCESS) {
             status = Status::FAILED;
         } else {
+            if (pubs_.find(txFlow->getFlowId()) != pubs_.end()) {
+                pubs_.erase(txFlow->getFlowId());
+            }
             status = Status::SUCCESS;
         }
     } else {
@@ -579,12 +582,13 @@ telux::common::Status CapiCv2xRadio::closeTxFlow(std::shared_ptr<ICv2xTxFlow> tx
             }
         };
         //std::future<CommonAPI::CallStatus>
-        auto rpcStatus = proxy_->closeTxFlowAsync(
-                txFlow->getFlowId(),
-                fcb);
+        auto rpcStatus = proxy_->closeTxFlowAsync(txFlow->getFlowId(), fcb);
         if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
             status =  Status::FAILED;
         } else {
+            if (pubs_.find(txFlow->getFlowId()) != pubs_.end()) {
+                pubs_.erase(txFlow->getFlowId());
+            }
             status = Status::SUCCESS;
         }
     }
