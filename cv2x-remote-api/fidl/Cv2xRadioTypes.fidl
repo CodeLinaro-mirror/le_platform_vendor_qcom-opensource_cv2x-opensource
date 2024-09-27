@@ -103,9 +103,9 @@ interface Cv2xRadioTypes extends CommonDefines {
         Boolean autoRetransEnabledValid
         Boolean autoRetransEnabled
         Boolean peakTxPowerValid
-        Boolean peakTxPower
+        Int32 peakTxPower
         Boolean mcsIndexValid
-        Boolean mcsIndex
+        UInt8 mcsIndex
         Boolean txPoolIdValid
         UInt8 txPoolId
         Boolean isUnicast
