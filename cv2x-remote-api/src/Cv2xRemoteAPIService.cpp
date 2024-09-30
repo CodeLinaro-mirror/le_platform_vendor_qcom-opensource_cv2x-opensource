@@ -9,8 +9,15 @@
 #include <CommonAPI/CommonAPI.hpp>
 #include "Cv2xRadioManagerStubImpl.hpp"
 #include "Cv2xRadioStubImpl.hpp"
+#include "Utils.hpp"
 
 int main() {
+
+    std::vector<std::string> groups{"system", "diag", "radio", "logd", "dlt"};
+    if (-1 == Utils::setSupplementaryGroups(groups)){
+        std::cout << "Adding supplementary group failed!" << std::endl;
+    }
+
     CommonAPI::Runtime::setProperty("LogContext", "Cv2xRemoteAPI");
     CommonAPI::Runtime::setProperty("LogApplication", "Cv2xRemoteAPI");
     CommonAPI::Runtime::setProperty("LibraryBase", "Cv2xRemoteAPI");
