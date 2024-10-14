@@ -22,7 +22,7 @@ public:
 
     bool init(uint32_t rxSubId) {
         rxSubId_ = rxSubId;
-        return bool();
+        return init();
     };
     bool init(std::shared_ptr<telux::cv2x::ICv2xTxFlow> txFlow ) {
         txFlow_ = txFlow;

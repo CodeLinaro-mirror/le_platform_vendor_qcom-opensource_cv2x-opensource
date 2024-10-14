@@ -33,6 +33,20 @@ Cv2xDataPublisher::Cv2xDataPublisher()
 
 Cv2xDataPublisher::~Cv2xDataPublisher()
 {
+    if (udSockets[UD_SOCK_CLIENT_ID] > 0)
+    {
+        if (shutdown(udSockets[UD_SOCK_CLIENT_ID], SHUT_RD) == -1)
+        {
+            int temp_error = errno;
+            std::cout << "Failed to shutdown read direction " << temp_error << std::endl;
+        }
+    }
+
+    if (td.joinable())
+    {
+        td.join();
+    }
+
     if (writer_ != nullptr)
     {
         publisher_->delete_datawriter(writer_);
@@ -124,9 +138,6 @@ void Cv2xDataPublisher::on_publication_matched(
     {
         currentMatchedCount = info.current_count;
         std::cout << "DataWriter matched." << std::endl;
-        if (td.joinable()) {
-            td.join();
-        }
         if (rxSub_) {
             td = std::thread(FuncHandleRxDDS);
         } else {
@@ -148,7 +159,7 @@ void Cv2xDataPublisher::on_publication_matched(
 //Handle Rx from socket and publish it, called from vsomeip stub side
 void Cv2xDataPublisher::handleRxDDS()
 {
-    size_t rlen;
+    ssize_t rlen;
     struct sockaddr_in6 from;
     socklen_t fromLen = sizeof(from);
     char control[CMSG_SPACE(sizeof(int))];
@@ -157,6 +168,11 @@ void Cv2xDataPublisher::handleRxDDS()
     int sock = rxSub_->getSock();
     uint8_t buf[CV2X_BUFFER_SIZE];
     uint8_t *p = &buf[0];
+
+    if (sock < 0) {
+        std::cout << "sock does not exist, the child thread exits" << std::endl;
+        return;
+    }
 
     iov[0].iov_base = buf;
     iov[0].iov_len = CV2X_BUFFER_SIZE;
@@ -171,8 +187,9 @@ void Cv2xDataPublisher::handleRxDDS()
 
     while (currentMatchedCount)
     {
-        if ((rlen = recvmsg(sock, &rxmsg, 0)) < 0) {
-            std::cout << "Failed to rx message for rxsub id " << rxSub_->getSubscriptionId() << std::endl;
+        if ((rlen = recvmsg(sock, &rxmsg, 0)) <= 0) {
+            std::cout << "Failed to rx message for rxsub id "
+                      << rxSub_->getSubscriptionId() << std::endl;
             return;
         } else {
             Cv2xData data;
@@ -191,7 +208,7 @@ void Cv2xDataPublisher::handleRxDDS()
 //handle tx, read packets from UDS socket and publish it, called from vsomeip client wrapper side
 void Cv2xDataPublisher::handleTxDDS(void)
 {
-    size_t rlen;
+    ssize_t rlen;
     struct msghdr msg = {};
     struct iovec iov[1] = {0};
     uint8_t buf[CV2X_BUFFER_SIZE];
@@ -207,7 +224,7 @@ void Cv2xDataPublisher::handleTxDDS(void)
     while (currentMatchedCount)
     {
         //receive packets from UDS
-        if ((rlen = recvmsg(udSockets[UD_SOCK_CLIENT_ID], &msg, 0)) < 0) {
+        if ((rlen = recvmsg(udSockets[UD_SOCK_CLIENT_ID], &msg, 0)) <= 0) {
             close(udSockets[UD_SOCK_CLIENT_ID]);
             std::cout << "uds rx failed " << strerror(errno) << std::endl;
             return;

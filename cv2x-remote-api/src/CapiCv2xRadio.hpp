@@ -123,6 +123,10 @@ public:
             telux::common::ResponseCallback cb) {
         return Status::NOTALLOWED;
     };
+    telux::common::Status injectVehicleSpeed(uint32_t speed, telux::common::ResponseCallback cb) {
+        return Status::NOTALLOWED;
+    };
+
     Cv2xRadioCapabilities getCapabilities() const {
         return Cv2xRadioCapabilities();
     };
@@ -146,7 +150,7 @@ private:
 
     std::vector<std::weak_ptr<ICv2xRadioListener>> listeners_;
     std::vector<std::shared_ptr<Cv2xDataSubscriber>> subs_;
-    std::vector<std::shared_ptr<Cv2xDataPublisher>> pubs_;
+    std::map<uint32_t, std::shared_ptr<Cv2xDataPublisher>> pubs_;
     std::shared_ptr<capicv2x::Cv2xRadioProxy<>> proxy_;
     ServiceStatus serviceStatus = ServiceStatus::SERVICE_UNAVAILABLE;
     std::mutex mutex_;

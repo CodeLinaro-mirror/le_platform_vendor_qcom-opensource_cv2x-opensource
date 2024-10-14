@@ -2,11 +2,11 @@
 
 # Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause-Clear
-# 
+#
 
 #This script build cv2x-remote-api client side proxy libraries, and acme if telux source path is
 #specified
-#The build machine should have libboost-dev, libasio-dev, tinyxml2 package installed
+#The build machine should have libboost-all-dev, libasio-dev, libtinyxml2-dev package installed
 #usage: do_build_native telux_header_path
 
 #--------------------------------------- Function--------------------------------------------------
@@ -60,7 +60,7 @@ COMMONAPI_SOMEIP_PATH=capicxx-someip-runtime
 FASTDDS_PATH=Fast-DDS
 FASTCDR_PATH=Fast-CDR
 ASIO_PATH=asio
-FOONATHAN_PATH=foonathan_memory_vendor
+FOONATHAN_PATH=memory
 TINYXML2_PATH=tinyxml2
 VSOMEIP_PATH=vsomeip
 CV2X_REMOTE_GEN_PATH=cv2x-remote-gen
@@ -180,7 +180,11 @@ if [ ! -f $INSTALL_PREFIX/lib/libfastcdr.so.2.1.0 ]; then
         mkdir build
     fi
     cd build
-    cmake ../  -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX
+    cmake ../  -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
+        -DBUILD_TESTING=OFF \
+        -DCHECK_DOCUMENTATION=OFF \
+        -DBUILD_DOCUMENTATION=OFF \
+        -DGENERATE_PDF_DOC=OFF
     make
     make install
 fi
@@ -193,8 +197,8 @@ if [ ! -d $INSTALL_PREFIX/$FOONATHAN_PATH ]; then
         cd $FOONATHAN_PATH
     else
         echo "Downloading  source"
-        download_source "https://github.com/eProsima/foonathan_memory_vendor.git" \
-            "48e5e2c9a1e4948c80e11d5aec78e23dc27b6714" \
+        download_source "https://github.com/foonathan/memory.git" \
+            "0f0775770fd1c506fa9c5ad566bd6ba59659db66" \
             "$FOONATHAN_PATH"
         if [ $? -ne 0 ]; then
           exit
@@ -207,16 +211,21 @@ if [ ! -d $INSTALL_PREFIX/$FOONATHAN_PATH ]; then
         mkdir build
     fi
     cd build
-    echo "Running cmake for foonathan_memory_vendor"
-    cmake ../  -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX
-    echo "running make for foonathan_memory_vendor"
+    echo "Running cmake for ${WORKSPACE}/${FOONATHAN_PATH} "
+    cmake ../  -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
+        -DFOONATHAN_MEMORY_BUILD_EXAMPLES=OFF \
+        -DFOONATHAN_MEMORY_BUILD_TESTS=OFF \
+        -DFOONATHAN_MEMORY_BUILD_TOOLS=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DBUILD_MEMORY_TOOLS=OFF
+    echo "running make for ${WORKSPACE}/${FOONATHAN_PATH}"
     make
     if [ $? -ne 0 ]; then
         echo "make failed slfkjslfj"
         #first time build could fail if the build machine cmake version is older.
         #apply patch
         echo "applying patch"
-        cd foo_mem-ext-prefix/src/foo_mem-ext
+        cd $WORKSPACE/$FOONATHAN_PATH/
         git apply $WORKSPACE/../foo_mem-ext_cmake.patch
         cd $WORKSPACE/$FOONATHAN_PATH/build
         #build again
@@ -229,7 +238,7 @@ fi
 if [ ! -f $INSTALL_PREFIX/lib/libfastrtps.so.2.13.0 ]; then
     cd $WORKSPACE
     if [ -d $FASTDDS_PATH ]; then
-        echo "Skipped downloading Fast-CDR"
+        echo "Skipped downloading Fast-DDS"
         cd $FASTDDS_PATH
     else
         echo "Downloading source for Fast-DDS"
@@ -248,7 +257,18 @@ if [ ! -f $INSTALL_PREFIX/lib/libfastrtps.so.2.13.0 ]; then
         mkdir build
     fi
     cd build
-    cmake ../  -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX
+    cmake ../  -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
+        -DCOMPILE_TOOLS=OFF \
+        -DEPROSIMA_BUILD=OFF \
+        -DCHECK_DOCUMENTATION=OFF \
+        -DBUILD_DOCUMENTATION=OFF \
+        -DSQLITE3_SUPPORT=OFF \
+        -DFASTDDS_STATISTICS=OFF \
+        -DCOMPILE_EXAMPLES=OFF \
+        -DINSTALL_EXAMPLES=OFF \
+        -DINSTALL_TOOLS=OFF \
+        -DINTERNAL_DEBUG=OFF \
+        -DIS_THIRDPARTY_BOOST_OK=OFF
     make
     make install
 fi
