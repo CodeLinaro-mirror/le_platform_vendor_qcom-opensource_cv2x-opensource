@@ -60,9 +60,7 @@ public:
                                             uint32_t serviceId,
                                             const EventFlowInfo& flowInfo,
                                             uint16_t eventSrcPort,
-                                            CreateTxEventFlowCallback cb){
-        return Status::NOTALLOWED;
-    };
+                                            CreateTxEventFlowCallback cb);
 
     telux::common::Status closeRxSubscription(std::shared_ptr<ICv2xRxSubscription> rxSub,
                                               CloseRxSubscriptionCallback cb);

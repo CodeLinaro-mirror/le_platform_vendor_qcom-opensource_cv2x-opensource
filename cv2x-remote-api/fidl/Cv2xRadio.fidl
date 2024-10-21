@@ -61,6 +61,7 @@ interface Cv2xRadio extends Cv2xRadioTypes {
         in {
             commonapi.telux.cv2x.Cv2xRadioTypes.TrafficIpType ipTyp
             UInt32 serviceId
+            commonapi.telux.cv2x.Cv2xRadioTypes.EventFlowInfo flowInfo
             UInt16 eventSrcPort
         }
         out {

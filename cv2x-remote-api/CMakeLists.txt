@@ -109,7 +109,7 @@ if (${TARGET} STREQUAL "CLIENT")
     # Build Client
     message("Configuring for client")
 
-    #need to include telSDK public header, the version should be the same as the cross-toolchain 
+    #need to include telSDK public header, the version should be the same as the cross-toolchain
     include_directories(AFTER include)
     add_library (${PRJ_NAME_CLIENT} SHARED ${CLIENT_WRAPPER_SRCS})
     set_target_properties(${PRJ_NAME_CLIENT} PROPERTIES LINKER_LANGUAGE CXX)
@@ -135,32 +135,11 @@ if (${TARGET} STREQUAL "CLIENT")
         add_library(${LIB_V2X_RADIO} SHARED ${LIB_V2X_RADIO_SRCS})
         set_target_properties(${LIB_V2X_RADIO} PROPERTIES LINKER_LANGUAGE CXX)
         target_link_libraries(${LIB_V2X_RADIO} ${PRJ_NAME_CLIENT})
-        install(TARGETS ${LIB_V2X_RADIO} 
+        install(TARGETS ${LIB_V2X_RADIO}
              ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
              LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
              PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
-    endif()
-
-    #build "acme"
-    if (DEFINED BUILD_ACME)
-        if ("${TELUX_SRC_PATH}" STREQUAL "")
-            message(STATUS "TELUX_SRC_PATH is not specified, not building acme")
-        else()
-            set(ACME_SRCS 
-               ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/apps/src/acme.c
-               ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/apps/src/tunnel_mode.c
-               ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/apps/src/message_parse.c
-            )
-            add_definitions(-DUSE_IVSS)
-            add_executable(acme ${ACME_SRCS})
-            include_directories(AFTER ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/apps/inc
-                ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/inc)
-            target_link_libraries(acme ${GLIB_LIBRARIES} ${LIB_V2X_RADIO} rt m)
-            install(TARGETS acme
-                  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} bin
-            )
-        endif()
     endif()
 else()
     # Build service
@@ -168,6 +147,6 @@ else()
     add_executable(${PRJ_NAME_SERVICE} ${PRJ_SERVICE_SRCS})
     target_link_libraries(${PRJ_NAME_SERVICE} ${LINK_LIBRARIES} ${CV2X_DATA_LIB} telux_cv2x fastcdr fastrtps)
 
-    install(TARGETS ${PRJ_NAME_SERVICE} 
+    install(TARGETS ${PRJ_NAME_SERVICE}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()

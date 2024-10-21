@@ -434,6 +434,22 @@ telux::common::Status CapiCv2xRadio::createTxEventFlow(TrafficIpType ipType,
                                             uint16_t eventSrcPort,
                                             CreateTxEventFlowCallback cb)
 {
+
+    EventFlowInfo flowInfo;
+    flowInfo.autoRetransEnabledValid = false;
+    flowInfo.peakTxPowerValid        = false;
+    flowInfo.mcsIndexValid           = false;
+    flowInfo.txPoolIdValid           = false;
+
+    return this->createTxEventFlow(ipType, serviceId, flowInfo, eventSrcPort, cb);
+}
+
+telux::common::Status CapiCv2xRadio::createTxEventFlow(TrafficIpType ipType,
+                                            uint32_t serviceId,
+                                            const EventFlowInfo& flowInfo,
+                                            uint16_t eventSrcPort,
+                                            CreateTxEventFlowCallback cb)
+{
     CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
     Status status = Status::FAILED;
     capitelux::CommonDefines::ErrorCode error;
@@ -444,11 +460,23 @@ telux::common::Status CapiCv2xRadio::createTxEventFlow(TrafficIpType ipType,
         return Status::NOTREADY;
     }
 
+    capicv2x::Cv2xRadioTypes::EventFlowInfo capiEventInfo(
+        flowInfo.autoRetransEnabledValid,
+        flowInfo.autoRetransEnabled,
+        flowInfo.peakTxPowerValid,
+        flowInfo.peakTxPower,
+        flowInfo.mcsIndexValid,
+        flowInfo.mcsIndex,
+        flowInfo.txPoolIdValid,
+        flowInfo.txPoolId,
+        flowInfo.isUnicast);
+
     if (not cb) {
         //sync call
         proxy_->createTxEventFlow(
                 static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
                 serviceId,
+                capiEventInfo,
                 eventSrcPort,
                 callStatus,
                 error,
@@ -487,6 +515,7 @@ telux::common::Status CapiCv2xRadio::createTxEventFlow(TrafficIpType ipType,
         auto rpcStatus = proxy_->createTxEventFlowAsync(
                 static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
                 serviceId,
+                capiEventInfo,
                 eventSrcPort,
                 fcb);
         if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
