@@ -294,32 +294,6 @@ if [ ! -f $INSTALL_PREFIX/lib/libtelux_cv2x_remote.so ]; then
     if [ ! -d $CV2X_REMOTE_API_PATH ]; then
         mkdir $CV2X_REMOTE_API_PATH
     fi
-    if [[ ! -z $2 ]]; then
-        #telsdk source path is availabe, will build cv2x radio C API, this needs nanopb
-        #check if nanopb is in install path
-        if [ ! -f $INSTALL_PREFIX/lib/libprotobuf-nanopb.a ]; then
-            if [ -d nanopb ]; then
-                echo "skipped downloading nanopb"
-            else
-                echo "Downloading nanopb"
-                download_source "https://github.com/nanopb/nanopb.git" \
-                     "nanopb-0.3.8" \
-                     "nanopb"
-                if [ $? -ne 0 ]; then
-                    exit
-                fi
-                if [ ! -d build ]; then
-                    mkdir build
-                fi
-                cd build
-                cmake ../ -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
-                  -Dnanopb_BUILD_GENERATOR=OFF \
-                  -Dnanopb_MSVC_STATIC_RUNTIME=OFF
-                make
-                make install
-            fi
-        fi
-    fi
     cd $WORKSPACE/$CV2X_REMOTE_API_PATH
     cmake $WORKSPACE/../../ -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
         -DTARGET=CLIENT \
