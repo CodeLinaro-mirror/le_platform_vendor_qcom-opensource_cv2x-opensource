@@ -65,6 +65,7 @@ TINYXML2_PATH=tinyxml2
 VSOMEIP_PATH=vsomeip
 CV2X_REMOTE_GEN_PATH=cv2x-remote-gen
 CV2X_REMOTE_API_PATH=cv2x-remote-api
+CV2X_APPS="$WORKSPACE/cv2x-apps"
 
 if [ -d $WORKSPACE ]; then
     echo "reuse WORKSPACE: $WORKSPACE"
@@ -289,7 +290,7 @@ if [ ! -f $INSTALL_PREFIX/lib/libCv2xRemoteAPI-someip.so ]; then
 fi
 
 #build cv2x-remote-api client libraries
-if [ ! -f $INSTALL_PREFIX/lib/libtelux_cv2x_remote.so ]; then
+if [ ! -f $INSTALL_PREFIX/lib/libtelux_cv2x.so ]; then
     cd $WORKSPACE
     if [ ! -d $CV2X_REMOTE_API_PATH ]; then
         mkdir $CV2X_REMOTE_API_PATH
@@ -301,8 +302,48 @@ if [ ! -f $INSTALL_PREFIX/lib/libtelux_cv2x_remote.so ]; then
         -DTELUX_HEADER_PATH=$1 \
         -DTELUX_SRC_PATH=$2 \
         -DSYS_INCLUDE=$INSTALL_PREFIX/include \
-        -DCMAKE_LIBRARY_PATH=$INSTALL_PREFIX \
-        -DBUILD_ACME=ON
+        -DCMAKE_LIBRARY_PATH=$INSTALL_PREFIX
+    make
+    make install
+fi
+
+if [ $INSTALL_PREFIX/lib/libtelux_cv2x.so ]; then
+    cd $WORKSPACE
+    if [ ! -d $CV2X_APPS ]; then
+        mkdir $CV2X_APPS
+    fi
+    cd $CV2X_APPS
+
+    if [ ! -d build ]; then
+        mkdir build
+    fi
+
+    CV2X_APPS_SRC_PATH=$2/../../public/apps
+
+    rsync -av  --include="samples"  --include="samples/cv2x" --include="samples/cv2x/**" \
+    --include="tests"  --include="tests/CMakeLists.txt" --include="tests/*cv2x*" --include="tests/*cv2x*/**" \
+    --include="common" --include="common/utils"  --include="common/utils/**" \
+    --include="common/console_app_framework**"  \
+    --exclude="*/*"    \
+     $CV2X_APPS_SRC_PATH $CV2X_APPS
+
+    sed -i '/telsdk_console_app/s/^/#/' $CV2X_APPS/apps/tests/CMakeLists.txt
+
+    echo \
+    "cmake_minimum_required(VERSION 2.8.9)
+    link_directories(\${CMAKE_INSTALL_PREFIX}/lib)
+    add_subdirectory(apps/samples/cv2x)
+    add_subdirectory(apps/tests)" > CMakeLists.txt
+    cd build
+
+    cmake .. \
+      -DBUILD_ALL_SAMPLES=ON \
+      -DMACHINE_HAS_CV2X=ON \
+      -DTELSDK_FEATURE_CV2X=ON \
+      -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX \
+      -DCMAKE_INSTALL_BINDIR=$INSTALL_PREFIX/bin \
+      -DCMAKE_CXX_FLAGS="-I$1" \
+      -Dtelematics-apps_SOURCE_DIR=$CV2X_APPS/apps
     make
     make install
 fi
