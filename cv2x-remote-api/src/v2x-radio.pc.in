@@ -1,0 +1,9 @@
+Name: libv2x_radio
+Version: 1.1.0
+Description: This library contains implementation of legacy C Cv2x Radio APIs
+
+prefix=@CMAKE_INSTALL_PREFIX@
+includedir=@CMAKE_INSTALL_INCLUDEDIR@
+libdir=@CMAKE_INSTALL_LIBDIR@
+Cflags:-I${includedir} -I${includedir}/telux
+Libs: -L${libdir} -lv2x_radio

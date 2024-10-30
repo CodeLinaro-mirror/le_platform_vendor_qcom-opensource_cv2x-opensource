@@ -108,6 +108,8 @@ set(LINK_LIBRARIES -Wl,--as-needed CommonAPI)
 if (${TARGET} STREQUAL "CLIENT")
     # Build Client
     message("Configuring for client")
+    configure_file("src/telux-cv2x.pc.in" "src/telux-cv2x.pc" @ONLY)
+    configure_file("src/v2x-radio.pc.in" "src/v2x-radio.pc" @ONLY)
 
     #need to include telSDK public header, the version should be the same as the cross-toolchain
     include_directories(AFTER include)
@@ -141,6 +143,15 @@ if (${TARGET} STREQUAL "CLIENT")
              PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
     endif()
+
+    install (FILES "${CMAKE_CURRENT_BINARY_DIR}/src/telux-cv2x.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig/")
+    install (FILES "${CMAKE_CURRENT_BINARY_DIR}/src/v2x-radio.pc"
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig/")
+
+    install(FILES config/commonapi4someip.ini
+        config/vsomeip-client.json
+        DESTINATION ${CMAKE_INSTALL_SYSCONFDIR})
 else()
     # Build service
     message("Configuring for service")
