@@ -68,6 +68,7 @@ set(PRJ_SERVICE_SRCS
         ${PRJ_SRC_PATH}/${PRJ_NAME_SERVICE}.cpp
         ${PRJ_SRC_PATH}/Cv2xRadioManagerStubImpl.cpp
         ${PRJ_SRC_PATH}/Cv2xRadioStubImpl.cpp
+        ${PRJ_SRC_PATH}/Utils.cpp
     )
 #client library name
 set(PRJ_NAME_CLIENT telux_cv2x)
@@ -149,4 +150,12 @@ else()
 
     install(TARGETS ${PRJ_NAME_SERVICE}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+    install(FILES scripts/Cv2xRemoteAPI.service
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/../lib/systemd/system)
+
+    install(FILES config/commonapi4someip.ini
+        config/vsomeip-service.json
+        DESTINATION /etc/cv2x)
+
 endif()
