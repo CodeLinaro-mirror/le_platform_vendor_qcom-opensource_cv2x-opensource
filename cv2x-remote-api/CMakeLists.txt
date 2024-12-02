@@ -96,12 +96,13 @@ include_directories( ${Boost_INCLUDE_DIR} )
 message(STATUS "TELUX_HEADER_PATH: ${TELUX_HEADER_PATH}")
 include_directories(
     AFTER
+    ${SYS_INCLUDE}
     ${SYS_INCLUDE}/cv2x-remote-gen/core
     ${SYS_INCLUDE}/cv2x-remote-gen/someip
-    src/dds
     ${COMMONAPI_INCLUDE_DIRS}
     ${VSOMEIP_INCLUDE_DIRS}
     ${TELUX_HEADER_PATH}
+    src/dds
 )
 
 set(LINK_LIBRARIES -Wl,--as-needed CommonAPI)
