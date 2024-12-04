@@ -22,36 +22,66 @@ using telux::cv2x::Cv2xPoolStatus;
 using telux::cv2x::ICv2xListener;
 using telux::cv2x::ICv2xRadioManager;
 
-namespace capi = v1::commonapi::telux;
-namespace capicv2x = v1::commonapi::telux::cv2x;
+Cv2xMgrListener::Cv2xMgrListener(RpcCv2xMgrFires fireMethods) {
+    rpcFireMethods_ = fireMethods;
+}
+
+void Cv2xMgrListener::onServiceStatusChange(telux::common::ServiceStatus status) {
+    COMMONAPI_DEBUG("Cv2xMgrListener::onServiceStatusChange ", static_cast<int>(status));
+}
+
+void Cv2xMgrListener::onStatusChanged(telux::cv2x::Cv2xStatusEx statusEx) {
+    COMMONAPI_DEBUG("Cv2xMgrListener::onStatusChanged");
+    auto rpcOverallCv2xStatus = Cv2xRemoteServerHelper::telux2capiCv2xStatus(statusEx.status);
+
+    std::vector<capicv2x::Cv2xRadioTypes::Cv2xPoolStatus> rpcPools;
+    for (auto itr : statusEx.poolStatus) {
+        capicv2x::Cv2xRadioTypes::Cv2xPoolStatus rpcPool(itr.poolId,
+            Cv2xRemoteServerHelper::telux2capiCv2xStatus(itr.status));
+        rpcPools.emplace_back(rpcPool);
+    }
+
+    capicv2x::Cv2xRadioTypes::Cv2xStatusEx rpcStatusEx(rpcOverallCv2xStatus, rpcPools,
+        statusEx.timeUncertaintyValid, statusEx.timeUncertainty);
+    rpcFireMethods_.fireCv2xStatus(rpcStatusEx);
+}
+
+void Cv2xMgrListener::onSlssRxInfoChanged(const telux::cv2x::SlssRxInfo& slssInfo) {
+    COMMONAPI_DEBUG("Cv2xMgrListener::onSlssRxInfoChanged");
+}
+
 
 Cv2xRadioManagerStubImpl::Cv2xRadioManagerStubImpl() {
+    RpcCv2xMgrFires fireMethods;
+    fireMethods.fireCv2xStatus = std::bind(
+        &capicv2x::Cv2xRadioManagerStubDefault::fireCv2xStatusExEvent, this,
+        std::placeholders::_1);
 
-    bool cv2xRadioManagerStatusUpdated = false;
-    telux::common::ServiceStatus cv2xRadioManagerStatus =
-            telux::common::ServiceStatus::SERVICE_UNAVAILABLE;
-    std::condition_variable cv;
-    std::mutex mtx;
-    auto statusCb = [&](telux::common::ServiceStatus status) {
-            std::lock_guard<std::mutex> lock(mtx);
-            cv2xRadioManagerStatusUpdated = true;
-            cv2xRadioManagerStatus = status;
-            cv.notify_all();
-    };
+    cv2xMgrListener_ = std::make_shared<Cv2xMgrListener>(fireMethods);
+    if (!cv2xMgrListener_) {
+        COMMONAPI_ERROR("Cv2xRadioManagerStubImpl: Failed to make cv2xMgrListener_");
+        return;
+    }
+
     // Get handle to Cv2xRadioManager
     if (cv2xRadioManager_ == nullptr) {
         auto & cv2xFactory = Cv2xFactory::getInstance();
-        cv2xRadioManager_ = cv2xFactory.getCv2xRadioManager(statusCb);
+        cv2xRadioManager_ = cv2xFactory.getCv2xRadioManager(std::bind(
+            &Cv2xMgrListener::onServiceStatusChange, cv2xMgrListener_, std::placeholders::_1));
     }
     if (!cv2xRadioManager_) {
         COMMONAPI_ERROR("Cv2xRadioManagerStubImpl: Failed to get Cv2xRadioManager");
-    } else {
-        std::unique_lock<std::mutex> lck(mtx);
-        cv.wait(lck, [&] { return cv2xRadioManagerStatusUpdated; });
+        return;
+    }
+
+    if (Status::SUCCESS != cv2xRadioManager_->registerListener(cv2xMgrListener_)) {
+        COMMONAPI_ERROR("Cv2xRadioManagerStubImpl: failed to register listener");
     }
 }
 
 Cv2xRadioManagerStubImpl::~Cv2xRadioManagerStubImpl() {
+    COMMONAPI_DEBUG("~Cv2xRadioManagerStubImpl");
+    cv2xMgrListener_ = nullptr;
 }
 
 void Cv2xRadioManagerStubImpl::GetServiceStatus(const std::shared_ptr<CommonAPI::ClientId> _client,
@@ -114,18 +144,6 @@ void Cv2xRadioManagerStubImpl::stopCv2x(const std::shared_ptr<CommonAPI::ClientI
             static_cast<capi::common::CommonDefines::Status::Literal>(status));
 }
 
-capicv2x::Cv2xRadioTypes::Cv2xStatus Cv2xRadioManagerStubImpl::telux2capiCv2xStatus(const Cv2xStatus &status)
-{
-        capicv2x::Cv2xRadioTypes::Cv2xStatus capiStatus(
-            static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(status.rxStatus),
-            static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(status.txStatus),
-            static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(status.rxCause),
-            static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(status.txCause),
-            status.cbrValue,
-            status.cbrValueValid);
-
-        return capiStatus;
-}
 void Cv2xRadioManagerStubImpl::requestCv2xStatusEx(const std::shared_ptr<CommonAPI::ClientId> _client, requestCv2xStatusExReply_t _reply)
 {
 
@@ -144,22 +162,16 @@ void Cv2xRadioManagerStubImpl::requestCv2xStatusEx(const std::shared_ptr<CommonA
         if (res == Status::SUCCESS) {
             error = prom.get_future().get();
         }
-        //Meanwhile, register a Cv2x status listener if it hasn't
-        if (not isListenerRegistered) {
-            if (Status::SUCCESS !=  cv2xRadioManager_->registerListener(getptr())) {
-                COMMONAPI_ERROR("Cv2xRadioManagerStubImpl: failed to register listener");
-            }
-            isListenerRegistered = true;
-        }
     } else {
         error = ErrorCode::RADIO_NOT_AVAILABLE;
     }
-    capicv2x::Cv2xRadioTypes::Cv2xStatus capiStatus = Cv2xRadioManagerStubImpl::telux2capiCv2xStatus(gStatusEx.status);
+    capicv2x::Cv2xRadioTypes::Cv2xStatus capiStatus =
+        Cv2xRemoteServerHelper::telux2capiCv2xStatus(gStatusEx.status);
     std::vector<capicv2x::Cv2xRadioTypes::Cv2xPoolStatus> capiPoolStatus;
     for (auto ps : gStatusEx.poolStatus) {
         capicv2x::Cv2xRadioTypes::Cv2xPoolStatus capips;
         capips.setPoolId(ps.poolId);
-        capips.setStatus(Cv2xRadioManagerStubImpl::telux2capiCv2xStatus(ps.status));
+        capips.setStatus(Cv2xRemoteServerHelper::telux2capiCv2xStatus(ps.status));
         capiPoolStatus.push_back(capips);
     }
 
@@ -185,46 +197,12 @@ void Cv2xRadioManagerStubImpl::requestCv2xStatus(const std::shared_ptr<CommonAPI
         if (res == Status::SUCCESS) {
             error = prom.get_future().get();
         }
-        //Meanwhile, register a Cv2x status listener if it hasn't
-        if (not isListenerRegistered) {
-            if (Status::SUCCESS !=  cv2xRadioManager_->registerListener(getptr())) {
-                COMMONAPI_ERROR("Cv2xRadioManagerStubImpl: failed to register listener");
-            }
-            isListenerRegistered = true;
-        }
     } else {
         error = ErrorCode::RADIO_NOT_AVAILABLE;
     }
 
-    _reply(static_cast<capi::common::CommonDefines::ErrorCode::Literal>(error),
-            capicv2x::Cv2xRadioTypes::Cv2xStatus(
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(gStatus.rxStatus),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(gStatus.txStatus),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(gStatus.rxCause),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(gStatus.txCause),
-                gStatus.cbrValue,
-                gStatus.cbrValueValid));
-}
-void Cv2xRadioManagerStubImpl::onStatusChanged(Cv2xStatus status)
-{
-    //cast from telux Cv2xStatus to CommonAPI Cv2xStatus
-    std::lock_guard<std::mutex> lock(m_);
-    if (status.txStatus != currentStatus_.txStatus
-        or status.rxStatus != currentStatus_.rxStatus
-        or status.txCause != currentStatus_.txCause
-        or status.rxCause != currentStatus_.rxCause) {
-            currentStatus_ = status;
-            std::cout << "fire event" << std::endl;
-            fireCurrentCv2xStatusEvent(
-                capicv2x::Cv2xRadioTypes::Cv2xStatus(
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(status.rxStatus),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(status.txStatus),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(status.rxCause),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(status.txCause),
-                status.cbrValue,
-                status.cbrValueValid)
-        );
-    }
+    auto rpcCv2xStatus = Cv2xRemoteServerHelper::telux2capiCv2xStatus(gStatus);
+    _reply(static_cast<capi::common::CommonDefines::ErrorCode::Literal>(error), rpcCv2xStatus);
 }
 
 void Cv2xRadioManagerStubImpl::setPeakTxPower(

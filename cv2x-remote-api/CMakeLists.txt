@@ -73,7 +73,7 @@ set(PRJ_SERVICE_SRCS
 #client library name
 set(PRJ_NAME_CLIENT telux_cv2x)
 set(CLIENT_WRAPPER_SRCS
-        ${PRJ_SRC_PATH}/Utils.cpp
+        ${PRJ_SRC_PATH}/Cv2xRemoteRadioHelper.cpp
         ${PRJ_SRC_PATH}/Cv2xUtil.cpp
         ${PRJ_SRC_PATH}/CapiCv2xRadio.cpp
         ${PRJ_SRC_PATH}/CapiCv2xRadioManager.cpp

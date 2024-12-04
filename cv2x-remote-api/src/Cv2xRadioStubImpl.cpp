@@ -25,6 +25,77 @@ using telux::cv2x::ICv2xListener;
 using telux::cv2x::ICv2xRxSubscription;
 using telux::cv2x::ICv2xRadioManager;
 
+Cv2xRemoteSrvRadioListener::Cv2xRemoteSrvRadioListener(RpcRadioFires fireMethods) {
+    COMMONAPI_DEBUG(__FUNCTION__);
+    rpcRadionFires_ = fireMethods;
+}
+
+void Cv2xRemoteSrvRadioListener::onStatusChanged(telux::cv2x::Cv2xStatusEx statusEx) {
+    COMMONAPI_DEBUG("Cv2xRadioListener::onStatusChanged");
+    auto rpcOverallCv2xStatus = Cv2xRemoteServerHelper::telux2capiCv2xStatus(statusEx.status);
+
+    std::vector<capicv2x::Cv2xRadioTypes::Cv2xPoolStatus> rpcPools;
+    for (auto itr : statusEx.poolStatus) {
+        capicv2x::Cv2xRadioTypes::Cv2xPoolStatus rpcPool(itr.poolId,
+            Cv2xRemoteServerHelper::telux2capiCv2xStatus(itr.status));
+        rpcPools.emplace_back(rpcPool);
+    }
+
+    capicv2x::Cv2xRadioTypes::Cv2xStatusEx rpcStatusEx(rpcOverallCv2xStatus, rpcPools,
+        statusEx.timeUncertaintyValid, statusEx.timeUncertainty);
+    rpcRadionFires_.fireCv2xStatus(rpcStatusEx);
+}
+
+void Cv2xRemoteSrvRadioListener::onL2AddrChanged(uint32_t newL2Addr) {
+    rpcRadionFires_.fireL2AddrEvent(newL2Addr);
+}
+
+void Cv2xRemoteSrvRadioListener::onSpsOffsetChanged(int spsId, telux::cv2x::MacDetails details) {
+
+    rpcRadionFires_.fireSpsOffsetEvent(spsId,
+            capicv2x::Cv2xRadioTypes::MacDetails(details.periodicityInUseNs,
+                details.currentlyReservedPeriodicBytes,
+                details.txReservationOffsetNs));
+}
+
+void Cv2xRemoteSrvRadioListener::onSpsSchedulingChanged(
+    const telux::cv2x::SpsSchedulingInfo & schedulingInfo) {
+    //TODO: fire event not defined
+}
+
+void Cv2xRemoteSrvRadioListener::onCapabilitiesChanged(
+    const telux::cv2x::Cv2xRadioCapabilities & capabilities) {
+    std::vector<capicv2x::Cv2xRadioTypes::TxPoolIdInfo> txPoolIdsSupported;
+    for (telux::cv2x::TxPoolIdInfo teluxPoolIdInfo : capabilities.txPoolIdsSupported) {
+        capicv2x::Cv2xRadioTypes::TxPoolIdInfo capiPoolIdInfo(teluxPoolIdInfo.poolId,
+                teluxPoolIdInfo.minFreq, teluxPoolIdInfo.maxFreq);
+        txPoolIdsSupported.push_back(capiPoolIdInfo);
+    }
+    rpcRadionFires_.fireCapabilitiesEvent(
+            capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities(capabilities.linkIpMtuBytes,
+                capabilities.linkNonIpMtuBytes,
+                static_cast<capicv2x::Cv2xRadioTypes::RadioConcurrencyMode::Literal>(
+                    capabilities.maxSupportedConcurrency),
+                capabilities.nonIpTxPayloadOffsetBytes,
+                capabilities.nonIpRxPayloadOffsetBytes,
+                Cv2xRemoteServerHelper::bitset2Uint8(capabilities.periodicitiesSupported),
+                capabilities.periodicities,
+                capabilities.maxNumAutoRetransmissions,
+                capabilities.layer2MacAddressSize,
+                Cv2xRemoteServerHelper::bitset2Uint8(capabilities.prioritiesSupported),
+                capabilities.maxNumSpsFlows,
+                capabilities.maxNumNonSpsFlows,
+                capabilities.maxTxPower,
+                capabilities.minTxPower,
+                txPoolIdsSupported,
+                capabilities.isUnicastSupported));
+}
+
+void Cv2xRemoteSrvRadioListener::onMacAddressCloneAttack(const bool detected) {
+    rpcRadionFires_.fireMacAddrCloneEvent(detected);
+}
+
+
 Cv2xRadioStubImpl::Cv2xRadioStubImpl() {
     ErrorCode error;
     bool cv2xRadioManagerStatusUpdated = false;
@@ -68,6 +139,7 @@ Cv2xRadioStubImpl::Cv2xRadioStubImpl() {
             COMMONAPI_ERROR("Cv2xRadioStubImpl: Failed to get Cv2xRadio");
             error = ErrorCode::RADIO_NOT_AVAILABLE;
         } else {
+            initListener(cv2xRadio_);
             std::unique_lock<std::mutex> lck(mtx);
             cv.wait(lck, [&] { return cv2xRadioStatusUpdated; });
             error = ErrorCode::SUCCESS;
@@ -77,6 +149,30 @@ Cv2xRadioStubImpl::Cv2xRadioStubImpl() {
 
 Cv2xRadioStubImpl::~Cv2xRadioStubImpl() {
     //TODO: empty the FlowInfo, and RxSub
+}
+
+void Cv2xRadioStubImpl::initListener(std::shared_ptr<telux::cv2x::ICv2xRadio> radio) {
+    RpcRadioFires fireMethods;
+    fireMethods.fireCv2xStatus = std::bind(&capicv2x::Cv2xRadioStubDefault::fireCv2xStatusExEvent,
+        this, std::placeholders::_1);
+    fireMethods.fireL2AddrEvent = std::bind(&capicv2x::Cv2xRadioStubDefault::fireCurrentL2AddrEvent,
+        this, std::placeholders::_1);
+    fireMethods.fireSpsOffsetEvent = std::bind(
+        &capicv2x::Cv2xRadioStubDefault::fireCurrentSpsOffsetEvent, this, std::placeholders::_1,
+        std::placeholders::_2);
+    fireMethods.fireCapabilitiesEvent = std::bind(
+        &capicv2x::Cv2xRadioStubDefault::fireCurrentCapabilitiesEvent, this, std::placeholders::_1);
+    fireMethods.fireMacAddrCloneEvent = std::bind(
+        &capicv2x::Cv2xRadioStubDefault::fireMacAddrCloneEvent, this, std::placeholders::_1);
+
+    radioListener_ = std::make_shared<Cv2xRemoteSrvRadioListener>(fireMethods);
+    if (radioListener_ == nullptr) {
+        COMMONAPI_ERROR("Cv2xRadioStubImpl: initListener Failed.");
+        return;
+    }
+    if (radio) {
+        radio->registerListener(radioListener_);
+    }
 }
 
 void Cv2xRadioStubImpl::getServiceStatus(const std::shared_ptr<CommonAPI::ClientId> _client,
@@ -545,11 +641,13 @@ void Cv2xRadioStubImpl::requestCapability(const std::shared_ptr<CommonAPI::Clien
 
             capiCapabilities.setNonIpTxPayloadOffsetBytes(capabilities.nonIpTxPayloadOffsetBytes);
             capiCapabilities.setNonIpRxPayloadOffsetBytes(capabilities.nonIpRxPayloadOffsetBytes);
-            capiCapabilities.setPeriodicitiesSupported(bitset2Uint8(capabilities.periodicitiesSupported));
+            capiCapabilities.setPeriodicitiesSupported(Cv2xRemoteServerHelper::bitset2Uint8(
+                capabilities.periodicitiesSupported));
             capiCapabilities.setPeriodicities(capabilities.periodicities);
             capiCapabilities.setMaxNumAutoRetransmissions(capabilities.maxNumAutoRetransmissions);
             capiCapabilities.setLayer2MacAddressSize(capabilities.layer2MacAddressSize);
-            capiCapabilities.setPrioritiesSupported(bitset2Uint8(capabilities.prioritiesSupported));
+            capiCapabilities.setPrioritiesSupported(Cv2xRemoteServerHelper::bitset2Uint8(
+                capabilities.prioritiesSupported));
             capiCapabilities.setMaxNumSpsFlows(capabilities.maxNumSpsFlows);
             capiCapabilities.setMaxNumNonSpsFlows(capabilities.maxNumNonSpsFlows);
             capiCapabilities.setMaxTxPower(capabilities.maxTxPower);
@@ -590,131 +688,6 @@ capicv2x::Cv2xRadioTypes::Cv2xStatus Cv2xRadioStubImpl::teluxCv2xStatus2capi(
                 status.cbrValue,
                 status.cbrValueValid
     );
-}
-void Cv2xRadioStubImpl::onStatusChanged(Cv2xStatus status)
-{
-    std::lock_guard<std::mutex> lock(m_);
-#if 0
-    std::cout << "onStatusChanged tx=" << static_cast<int32_t>(status.txStatus) <<
-        "rx=" << static_cast<int32_t>(status.rxStatus) <<
-        "tx_cause=" << static_cast<int32_t>(status.txCause) <<
-        "rx_cause=" << static_cast<int32_t>(status.rxCause) << std::endl;
-    
-    std::cout << "onStatusChanged current tx=" << static_cast<int32_t>(currentStatus_.txStatus) <<
-        "rx=" << static_cast<int32_t>(currentStatus_.rxStatus) <<
-        "tx_cause=" << static_cast<int32_t>(currentStatus_.txCause) <<
-        "rx_cause=" << static_cast<int32_t>(currentStatus_.rxCause) << std::endl;
-#endif
-    if (cv2xStatusChanged(status)) {
-            currentCv2xStatusEx_.status = status;
-            fireCurrentCv2xStatusEvent(
-                capicv2x::Cv2xRadioTypes::Cv2xStatus(
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(status.rxStatus),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(status.txStatus),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(status.rxCause),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(status.txCause),
-                status.cbrValue,
-                status.cbrValueValid)
-        );
-    }
-}
-
-void Cv2xRadioStubImpl::onStatusChanged(Cv2xStatusEx statusEx)
-{
-#if 0
-    std::lock_guard<std::mutex> lock(m_);
-    if (cv2xStatusChanged(statusEx.status)) {
-            currentCv2xStatusEx_.status = status;
-            fireCurrentCv2xStatusEvent(
-                capicv2x::Cv2xRadioTypes::Cv2xStatus(
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(status.rxStatus),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xStatusType::Literal>(status.txStatus),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(status.rxCause),
-                static_cast<capicv2x::Cv2xRadioTypes::Cv2xCauseType::Literal>(status.txCause),
-                status.cbrValue,
-                status.cbrValueValid)
-        );
-    }
-#endif
-}
-
-
-void Cv2xRadioStubImpl::onL2AddrChanged(uint32_t newL2Addr) 
-{
-    std::lock_guard<std::mutex> lock(m_);
-    fireCurrentL2AddrEvent(newL2Addr);
-}
-
-void Cv2xRadioStubImpl::onSpsOffsetChanged(int spsId, telux::cv2x::MacDetails details) {
-    std::lock_guard<std::mutex> lock(m_);
-    fireCurrentSpsOffsetEvent(spsId,
-            capicv2x::Cv2xRadioTypes::MacDetails(details.periodicityInUseNs,
-                details.currentlyReservedPeriodicBytes,
-                details.txReservationOffsetNs));
-}
-
-void Cv2xRadioStubImpl::onSpsSchedulingChanged(const telux::cv2x::SpsSchedulingInfo & schedulingInfo)
-{
-    std::lock_guard<std::mutex> lock(m_);
-    //TODO: fire event not defined
-}
-
-void Cv2xRadioStubImpl::onCapabilitiesChanged(const telux::cv2x::Cv2xRadioCapabilities & capabilities)
-{
-    std::lock_guard<std::mutex> lock(m_);
-    std::vector<capicv2x::Cv2xRadioTypes::TxPoolIdInfo> txPoolIdsSupported;
-    for (telux::cv2x::TxPoolIdInfo teluxPoolIdInfo : capabilities.txPoolIdsSupported) {
-        capicv2x::Cv2xRadioTypes::TxPoolIdInfo capiPoolIdInfo(teluxPoolIdInfo.poolId,
-                teluxPoolIdInfo.minFreq, teluxPoolIdInfo.maxFreq);
-        txPoolIdsSupported.push_back(capiPoolIdInfo);
-    }
-    fireCurrentCapabilitiesEvent(
-            capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities(capabilities.linkIpMtuBytes,
-                capabilities.linkNonIpMtuBytes,
-                static_cast<capicv2x::Cv2xRadioTypes::RadioConcurrencyMode::Literal>(capabilities.maxSupportedConcurrency),
-                capabilities.nonIpTxPayloadOffsetBytes,
-                capabilities.nonIpRxPayloadOffsetBytes,
-                bitset2Uint8(capabilities.periodicitiesSupported),
-                capabilities.periodicities,
-                capabilities.maxNumAutoRetransmissions,
-                capabilities.layer2MacAddressSize,
-                bitset2Uint8(capabilities.prioritiesSupported),
-                capabilities.maxNumSpsFlows,
-                capabilities.maxNumNonSpsFlows,
-                capabilities.maxTxPower,
-                capabilities.minTxPower,
-                txPoolIdsSupported,
-                capabilities.isUnicastSupported));
-}
-
-void Cv2xRadioStubImpl::onMacAddressCloneAttack(const bool detected)
-{
-    std::lock_guard<std::mutex> lock(m_);
-    fireMacAddrCloneEvent(detected);
-}
-
-bool Cv2xRadioStubImpl::cv2xStatusChanged(telux::cv2x::Cv2xStatus status)
-{
-    if (status.txStatus != currentCv2xStatusEx_.status.txStatus
-        or status.rxStatus != currentCv2xStatusEx_.status.rxStatus
-        or status.txCause != currentCv2xStatusEx_.status.txCause
-        or status.rxCause != currentCv2xStatusEx_.status.rxCause) {
-        return true;
-    }
-    return false;
-}
-
-uint8_t Cv2xRadioStubImpl::bitset2Uint8(const std::bitset<8> bits)
-{
-    //convert std::bitset<8> to uint8_t
-    uint8_t data = 0;
-    std::size_t idx = 0;
-    while (idx < bits.size() && bits.test(idx)) {
-        data |= (1 << idx);
-        ++idx;
-    }
-
-    return data;
 }
 
 void Cv2xRadioStubImpl::requestDataSessionSettings(const std::shared_ptr<CommonAPI::ClientId> _client,

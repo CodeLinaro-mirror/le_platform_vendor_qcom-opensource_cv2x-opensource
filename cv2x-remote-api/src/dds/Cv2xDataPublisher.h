@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef _CV2XDATAPUBLISHER_HPP__
 #define _CV2XDATAPUBLISHER_HPP__
+
+#include <condition_variable>
 
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/publisher/DataWriter.hpp>
@@ -45,6 +47,7 @@ public:
 
 private:
     bool init();
+    void shutdownUds();
 
     eprosima::fastdds::dds::DomainParticipant* participant_;
     eprosima::fastdds::dds::Publisher* publisher_;
@@ -54,6 +57,8 @@ private:
     std::shared_ptr<telux::cv2x::ICv2xRxSubscription>rxSub_ = nullptr;
     uint32_t txFlowId_;
     int udSockets[2] = {-1};
+    std::mutex udsMutex_;
+    std::condition_variable udsCv_;
     std::thread td;
     int32_t currentMatchedCount = 0;
 };

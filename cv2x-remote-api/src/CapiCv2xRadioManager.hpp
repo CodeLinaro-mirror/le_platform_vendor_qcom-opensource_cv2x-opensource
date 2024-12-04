@@ -5,6 +5,8 @@
 #ifndef _CAPICV2XRADIOMANAGER_HPP__
 #define _CAPICV2XRADIOMANAGER_HPP__
 
+#include <stdint.h>
+
 #include <vector>
 #include <condition_variable>
 #include <v1/commonapi/telux/cv2x/Cv2xRadioManagerProxy.hpp>
@@ -30,8 +32,7 @@ public:
     CapiCv2xRadioManager();
     ~CapiCv2xRadioManager();
 
-    bool isReady()
-    {
+    bool isReady() {
         /*deprecated */
         COMMONAPI_ERROR("deprecated API: isReady()");
         return false;
@@ -71,21 +72,31 @@ public:
     telux::common::Status injectCoarseUtcTime(uint64_t utc, telux::common::ResponseCallback cb);
 private:
     void initSync(InitResponseCb callback);
+    bool initProxy();
     void onGetCv2xRadioResponse(telux::common::ServiceStatus status);
+    void onConnectionChange(const CommonAPI::AvailabilityStatus& s);
+    void getAvailableListeners(std::vector<std::weak_ptr<ICv2xListener>> &vec);
+    void cv2xStatusCallback(telux::cv2x::Cv2xStatusEx status, telux::common::ErrorCode error);
+    telux::common::Status onServiceStatusChange(const telux::common::ServiceStatus subsysStatus);
+    telux::common::Status onCv2xStatusExChange(
+        const capicv2x::Cv2xRadioTypes::Cv2xStatusEx &cv2xStatusEx);
 
     bool exiting_ = false;
     std::condition_variable exitCv_;
     std::mutex exitMutex_;
     std::weak_ptr<telux::common::AsyncTaskQueue<void>> taskQ_;
     std::weak_ptr<CapiCv2xRadioManager> myself_;
-    std::shared_ptr<capicv2x::Cv2xRadioManagerProxy<>> proxy_;
+    std::shared_ptr<capicv2x::Cv2xRadioManagerProxy<>> proxy_ = nullptr;
     std::vector<std::weak_ptr<ICv2xListener>> listeners_;
     std::vector<telux::common::InitResponseCb> cv2xRadioInitCallbacks_;
     std::weak_ptr<ICv2xRadio> radio_;
     ServiceStatus cv2xRadioInitStatus_ = ServiceStatus::SERVICE_UNAVAILABLE;
+    std::atomic<telux::common::ServiceStatus> subSysStatus_{
+        telux::common::ServiceStatus::SERVICE_UNAVAILABLE};
     std::mutex radioMutex_;
     std::mutex listenersMutex_;
     std::condition_variable radioCv_;
+    uint32_t subscription_ = UINT32_MAX;
 };
 
 } //namespace cv2x

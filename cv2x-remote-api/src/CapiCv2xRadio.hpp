@@ -22,25 +22,6 @@ namespace capicv2x = v1::commonapi::telux::cv2x;
 namespace telux{
 namespace cv2x{
 
-class Capi2teluxHelper {
-public:
-    static Cv2xStatus capi2teluxCv2xStatus(const capicv2x::Cv2xRadioTypes::Cv2xStatus &status);
-    static Cv2xStatusEx capi2teluxCv2xStatusEx(
-        const capicv2x::Cv2xRadioTypes::Cv2xStatusEx statusEx);
-    static std::vector<Cv2xPoolStatus> capi2teluxCv2xPoolStatus(
-        const std::vector<capicv2x::Cv2xRadioTypes::Cv2xPoolStatus> &status);
-    static std::vector<TxPoolIdInfo> capi2teluxSupportedPoolIds(
-        const std::vector<capicv2x::Cv2xRadioTypes::TxPoolIdInfo> &idInfos);
-    static Cv2xRadioCapabilities capi2teluxRadioCapbilities(
-        const capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities &capbilities);
-    static std::vector<TrustedUEInfo> capi2teluxTrustedUEs(
-        const std::vector<capicv2x::Cv2xRadioTypes::TrustedUEInfo> &capiTrustedUEs);
-    static SpsFlowInfo capi2teluxSpsFlowInfo(
-        const capicv2x::Cv2xRadioTypes::SpsFlowInfo &flowInfo);
-    static SlssRxInfo capi2teluxSlssRxInfo(
-        const capicv2x::Cv2xRadioTypes::SlssRxInfo &flowInfo);
-};
-
 class CapiCv2xRadio : public ICv2xRadio ,
                       public std::enable_shared_from_this<CapiCv2xRadio> {
 public:
@@ -134,20 +115,28 @@ public:
 
 private:
     void initSync(InitResponseCb callback);
+    bool initProxy();
+    void getAvailableListeners(std::vector<std::weak_ptr<ICv2xRadioListener>> &vec);
+    void onConnectionChange(const CommonAPI::AvailabilityStatus& s);
+    void cv2xStatusCallback(telux::cv2x::Cv2xStatusEx status);
+    telux::common::Status onCv2xStatusExChange(
+        const capicv2x::Cv2xRadioTypes::Cv2xStatusEx &cv2xStatusEx);
 
     bool exiting_ = false;
     std::vector<std::weak_ptr<ICv2xRadioListener>> listeners_;
     std::map<uint32_t, std::shared_ptr<Cv2xDataSubscriber>> subs_;
     std::map<uint32_t, std::shared_ptr<Cv2xDataPublisher>> pubs_;
     std::shared_ptr<capicv2x::Cv2xRadioProxy<>> proxy_;
-    ServiceStatus serviceStatus = ServiceStatus::SERVICE_UNAVAILABLE;
-    std::condition_variable exitCv_;
-    std::mutex exitMutex_;
+    telux::common::ServiceStatus serviceStatus_ =
+        telux::common::ServiceStatus::SERVICE_UNAVAILABLE;
     std::mutex mutex_;
     std::mutex listenersMutex_;
     std::atomic<bool> isInitialized_;
     std::weak_ptr<telux::common::AsyncTaskQueue<void>> taskQ_;
     std::weak_ptr<CapiCv2xRadio> myself_;
+    std::condition_variable exitCv_;
+    std::mutex exitMutex_;
+    uint32_t subscription_ = UINT32_MAX;
 };
 
 } //namespace cv2x

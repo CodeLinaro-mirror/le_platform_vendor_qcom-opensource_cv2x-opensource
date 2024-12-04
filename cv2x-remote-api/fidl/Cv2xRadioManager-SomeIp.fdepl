@@ -9,17 +9,17 @@ import "Cv2xRadioManager.fidl"
 define org.genivi.commonapi.someip.deployment for interface commonapi.telux.cv2x.Cv2xRadioManager {
     SomeIpServiceID = 4660
 
-    method GetServiceStatus {
-        SomeIpMethodID = 30000
-        SomeIpReliable = false
+    broadcast cv2xStatusEx {
+        SomeIpEventID = 33010
+        SomeIpEventGroups = { 33010 }
 
         out {
         }
     }
 
-    broadcast currentCv2xStatus {
-        SomeIpEventID = 33010
-        SomeIpEventGroups = { 33010 }
+    method GetServiceStatus {
+        SomeIpMethodID = 30000
+        SomeIpReliable = false
 
         out {
         }

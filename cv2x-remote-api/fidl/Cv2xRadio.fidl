@@ -206,7 +206,7 @@ interface Cv2xRadio extends Cv2xRadioTypes {
         }
     }
 
-    broadcast currentCv2xStatusEx {
+    broadcast cv2xStatusEx {
         out {
             commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xStatusEx statusEx
         }

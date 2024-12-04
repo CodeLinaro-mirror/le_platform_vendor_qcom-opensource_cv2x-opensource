@@ -12,19 +12,31 @@
 #include "Cv2xDataPublisher.h"
 #include "Cv2xDataSubscriber.h"
 
+#include "Cv2xRemoteServerHelper.hpp"
+
 namespace capiteluxcommon = v1::commonapi::telux::common;
 namespace capicv2x = v1::commonapi::telux::cv2x;
 
-class Cv2xRadioStubImpl: public v1::commonapi::telux::cv2x::Cv2xRadioStubDefault,
-    public telux::cv2x::ICv2xRadioListener,
-    public std::enable_shared_from_this<Cv2xRadioStubImpl> {
+class Cv2xRemoteSrvRadioListener : public telux::cv2x::ICv2xRadioListener {
+ public:
+    Cv2xRemoteSrvRadioListener(RpcRadioFires fireMethods);
+    void onStatusChanged(telux::cv2x::Cv2xStatusEx statusEx) override;
+    void onL2AddrChanged(uint32_t newL2Address) override;
+    void onSpsOffsetChanged(int spsId, telux::cv2x::MacDetails details) override;
+    void onSpsSchedulingChanged(const telux::cv2x::SpsSchedulingInfo & schedulingInfo) override;
+    void onCapabilitiesChanged(const telux::cv2x::Cv2xRadioCapabilities & capabilities) override;
+    void onMacAddressCloneAttack(const bool detected) override;
+
+ private:
+    RpcRadioFires rpcRadionFires_;
+};
+
+
+class Cv2xRadioStubImpl: public v1::commonapi::telux::cv2x::Cv2xRadioStubDefault {
 
 public:
     Cv2xRadioStubImpl();
     virtual ~Cv2xRadioStubImpl();
-    std::shared_ptr<Cv2xRadioStubImpl> getptr() {
-        return shared_from_this();
-    }
 
     virtual void createRxSubscription(const std::shared_ptr<CommonAPI::ClientId> _client,
         ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::TrafficIpType _ipType,
@@ -105,21 +117,11 @@ public:
     virtual void injectVehicleSpeed(const std::shared_ptr<CommonAPI::ClientId> _client,
         uint32_t _speed, injectVehicleSpeedReply_t _reply);
 
-    void onStatusChanged(telux::cv2x::Cv2xStatus status) override;
-    void onStatusChanged(telux::cv2x::Cv2xStatusEx status) override;
-    void onL2AddrChanged(uint32_t newL2Addr) override;
-    void onSpsOffsetChanged(int spsId, telux::cv2x::MacDetails details) override;
-    void onSpsSchedulingChanged(const telux::cv2x::SpsSchedulingInfo & schedulingInfo) override;
-    void onCapabilitiesChanged(const telux::cv2x::Cv2xRadioCapabilities & capabilities) override;
-    void onMacAddressCloneAttack(const bool detected) override;
-
     static capicv2x::Cv2xRadioTypes::Cv2xStatus teluxCv2xStatus2capi(
         const telux::cv2x::Cv2xStatus status);
 
 private:
-    inline uint8_t bitset2Uint8(const std::bitset<8> bits);
-    bool cv2xStatusChanged(const telux::cv2x::Cv2xStatus status);
-
+     void initListener(std::shared_ptr<telux::cv2x::ICv2xRadio> radio);
 
     std::shared_ptr<telux::cv2x::ICv2xRadioManager>cv2xRadioManager_ = nullptr;
     std::shared_ptr<telux::cv2x::ICv2xRadio>cv2xRadio_ = nullptr;
@@ -128,7 +130,7 @@ private:
     std::map<uint32_t, std::shared_ptr<Cv2xDataPublisher>> pubs_;
     std::map<uint32_t, std::shared_ptr<Cv2xDataSubscriber>> subs_;
 
-    telux::cv2x::Cv2xStatusEx currentCv2xStatusEx_;
+    std::shared_ptr<Cv2xRemoteSrvRadioListener> radioListener_ = nullptr;
     std::mutex m_;
     std::map<uint32_t, std::shared_ptr<telux::cv2x::ICv2xTxRxSocket>> sockets_;
     telux::cv2x::Cv2xRadioCapabilities capabilities_;
