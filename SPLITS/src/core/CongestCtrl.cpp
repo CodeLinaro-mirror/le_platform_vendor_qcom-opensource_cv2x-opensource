@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <sstream>
@@ -57,44 +57,7 @@ void CongestCtrlListener::onCongestionControlDataReady (
     }
 }
 
-Status CongestCtrl::init(const CongCtrlConfig &config, std::shared_ptr<RadioTransmit>spsTransmit)
-{
-    auto &v2xPropFactory = V2xPropFactory::getInstance();
-    congestCtrlMgr_ =  v2xPropFactory.getCongestionControlManager();
-    congestCtrlListener_ = std::make_shared<CongestCtrlListener>(spsTransmit);
-    congestCtrlMgr_->registerListener(congestCtrlListener_);
 
-    congestCtrlMgr_->updateCongestionControlType
-               ((CongestionControlType)config.congCtrlType);
-    CongestionControlUtility::setLoggingLevel(config.enableCongCtrlLogging);
-    congestCtrlMgr_->updateCbpConfig(config.cbpWeightFactor,
-            config.cbpMeasInterval);
-    congestCtrlMgr_->enableSpsEnhancements(config.enableSpsEnhancements);
-    congestCtrlMgr_->updatePERConfig(config.perMax,
-            config.perInterval, config.perSubInterval);
-    congestCtrlMgr_->updateDensConfig(config.vDensityCoefficient, config.vDensityWeightFactor,
-            config.vDensityMinPerRange);
-    congestCtrlMgr_->updateTeConfig(config.txCtrlInterval, config.hvTEMinTimeDiff,
-               config.hvTEMaxTimeDiff, config.rvTEMinTimeDiff,
-               config.rvTEMaxTimeDiff, config.teMinThresh,
-               config.teMaxThresh, config.teErrSensitivity);
-    congestCtrlMgr_->updateIttConfig(config.reschedThresh,
-           config.timeAccuracy,config.minItt, config.maxItt, config.txRand);
-
-    if(config.enableSpsEnhancements){
-        congestCtrlMgr_->updateSpsEnhanceConfig(config.spsEnhIntervalRound, config.spsEnhDelayPerc,
-                   config.spsEnhHysterPerc);
-    }
-    if(CCErrorCode::SUCCESS != congestCtrlMgr_->startCongestionControl()){
-        std::cerr << "Congestion control manager failed start up\n";
-        return Status::FAILED;
-    }
-    config_ = config;
-    congestCtrlCbData_ = std::make_shared<CongestionControlUserData>();
-    sem_wait(congestCtrlMgr_->getCongestionControlUserData()->congestionControlSem);
-
-    return Status::SUCCESS;
-}
 void CongestCtrl::onDetailedLocationUpdate(const shared_ptr<ILocationInfoEx> &locationInfo)
 {
     Position pos = {0};
@@ -125,7 +88,8 @@ void CongestCtrl::loadConfig(std::map<std::string, std::string> configs)
         config_.congCtrlType = stoi(configs["congCtrlType"]);
     }
     if(configs.find("enableCongCtrlLogging") != configs.end()){
-        config_.enableCongCtrlLogging = stoi(configs["enableCongCtrlLogging"]);
+        //config_.enableCongCtrlLogging = stoi(configs["enableCongCtrlLogging"]);
+        config_.enableCongCtrlLogging = 10;
     }
     if(configs.find("cbpMeasInterval") != configs.end()){
         config_.cbpMeasInterval = stoi(configs["cbpMeasInterval"]);
@@ -239,6 +203,70 @@ void CongestCtrl::loadConfig(std::map<std::string, std::string> configs)
         }
 
     }
+}
+
+Status CongestCtrl::init(const CongCtrlConfig &config, std::shared_ptr<RadioTransmit> spsTransmit)
+{
+    std::cout << " in cong ctrl init \n";
+    congestCtrlMgr_ = V2xPropFactory::getInstance().getCongestionControlManager();
+    std::cout << " got instance\n";
+    std::cout << " got manager\n";
+    congestCtrlListener_ = std::make_shared<CongestCtrlListener>(spsTransmit);
+    std::cout << " made cong ctrl listener \n";
+    congestCtrlMgr_->registerListener(congestCtrlListener_);
+    std::cout << " registered listener\n";
+    std::cout << " got past manager creation and listener registering \n";
+
+   // CongestionControlUtility::setLoggingLevel(10);
+/*     congestCtrlMgr_->updateCongestionControlType
+               ((CongestionControlType)config.congCtrlType);
+    CongestionControlUtility::setLoggingLevel(config.enableCongCtrlLogging);
+    congestCtrlMgr_->updateCbpConfig(config.cbpWeightFactor,
+            config.cbpMeasInterval);
+    congestCtrlMgr_->enableSpsEnhancements(config.enableSpsEnhancements);
+    congestCtrlMgr_->updatePERConfig(config.perMax,
+            config.perInterval, config.perSubInterval);
+    congestCtrlMgr_->updateDensConfig(config.vDensityCoefficient, config.vDensityWeightFactor,
+            config.vDensityMinPerRange);
+    congestCtrlMgr_->updateTeConfig(config.txCtrlInterval, config.hvTEMinTimeDiff,
+               config.hvTEMaxTimeDiff, config.rvTEMinTimeDiff,
+               config.rvTEMaxTimeDiff, config.teMinThresh,
+               config.teMaxThresh, config.teErrSensitivity);
+    congestCtrlMgr_->updateIttConfig(config.reschedThresh,
+           config.timeAccuracy,config.minItt, config.maxItt, config.txRand);
+
+    if(config.enableSpsEnhancements){
+        congestCtrlMgr_->updateSpsEnhanceConfig(config.spsEnhIntervalRound, config.spsEnhDelayPerc,
+                   config.spsEnhHysterPerc);
+    } */
+    std::cout << "starting cong ctrl\n";
+    if(CCErrorCode::SUCCESS != congestCtrlMgr_->startCongestionControl()){
+        std::cerr << "Congestion control manager failed start up\n";
+        return Status::FAILED;
+    }
+    std::cout << " started \n";
+    config_ = config;
+    congestCtrlCbData_ = std::make_shared<CongestionControlUserData>();
+    sem_wait(congestCtrlMgr_->getCongestionControlUserData()->congestionControlSem);
+   // std::cout << "sem wait on cong ctr user data sem \n";
+    return Status::SUCCESS;
+}
+
+bool CongestCtrl::addCongestionControlData(uint64_t id,
+    double latitude, double longitude, double heading, double speed,
+    uint64_t timestamp, uint64_t msgCount){
+    CCErrorCode ccErr = congestCtrlMgr_->addCongestionControlData(
+                                id,
+                                latitude,
+                                longitude,
+                                heading,
+                                speed,
+                                timestamp,
+                                msgCount);
+    if(ccErr == CCErrorCode::SUCCESS){
+        return true;
+    }
+    return false;
 }
 
 void CongestCtrl::writeLog(char* tmpLogStr, uint32_t maxBufSize, FILE *myfp, bool validPkt,

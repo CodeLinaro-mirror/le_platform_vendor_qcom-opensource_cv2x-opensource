@@ -6,8 +6,8 @@
 
 /**
  * @file SplitsCodec.hpp
- * 
- * @brief abstract class to encapsulate v2x codec 
+ *
+ * @brief abstract class to encapsulate v2x codec
  */
 #ifndef SPLITS_CODEC_HPP_
 #define SPLITS_CODEC_HPP_
@@ -28,10 +28,16 @@ class SplitsCodec {
 public:
     /**
      * Initialze the codec
-     * 
+     *
      * @returns 0 on success or negavie on failure.
      */
     virtual int init(int logLevel, bool syslog) = 0;
+    /**
+     * Deinitialze the frames
+     *
+     * @returns 0 on success or negavie on failure.
+     */
+    //virtual int freeFrame(std::shared_ptr<v2xMsg> msg, bool encode) = 0;
 
     /**
      * destructor
@@ -43,7 +49,7 @@ public:
      *
      * @returns 0 on success or negative on failure.
      */
-    virtual int decodeFrame(std::shared_ptr<v2xMsg> msg) = 0;
+    virtual int decodeFrame(std::shared_ptr<v2xMsg> msg, bool secure, uint32_t type, uint8_t* inPayload, uint32_t inLen)= 0;
 
     /**
      * encode a v2x message, the message to be decoded is stored in @ref v2xMsg frame pointer
@@ -56,7 +62,11 @@ public:
      * @returns 0 on success or negative on failure.
      */
     virtual int encodeWsmp(std::shared_ptr<v2xMsg> msg, bool secured) = 0;
-
+    /** decode WSMP header only
+     *
+     * @returns 0 on success or negative on failure.
+     */
+    virtual int decodeWsmp(std::shared_ptr<v2xMsg> msg) = 0;
 protected:
     StackType stackType_;    /**< type of the stack, e.g. SAE or C-SAE */
 };

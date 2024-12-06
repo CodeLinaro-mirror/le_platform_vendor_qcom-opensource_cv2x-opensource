@@ -116,10 +116,12 @@ public:
     virtual std::shared_ptr<v2xMsg> getFreeMsg(void) {
         std::lock_guard<std::mutex> lk(rxPoolMtx_);
         if (rxPool_.empty()) {
+            //std::cout<< "rx pool is empty\n";
             return nullptr;
         } else {
             auto msg = rxPool_.front();
             rxPool_.pop();
+            //std::cout << "get: rxpool size is: " << rxPool_.size() <<"\n";
             return msg;
         }
     }
@@ -131,6 +133,7 @@ public:
     virtual void putFreeMsg(std::shared_ptr<v2xMsg> msg) {
         std::lock_guard<std::mutex> lk(rxPoolMtx_);
         rxPool_.push(msg);
+        //std::cout << "put: rxpool size is: " << rxPool_.size() <<"\n";
     }
 
     /**
@@ -144,6 +147,7 @@ public:
         rxQueueCv_.wait(lk, [this]{return rxQueue_.empty() == false;});
         auto msg = rxQueue_.front();
         rxQueue_.pop();
+        //std::cout << "dequeue: rx queue size is: " << rxQueue_.size() <<"\n";
         return msg;
     }
     /**
@@ -155,6 +159,7 @@ public:
         std::unique_lock<std::mutex> lk(rxQueueMtx_);
         rxQueue_.push(msg);
         rxQueueCv_.notify_all();
+        //std::cout << "enqueue: rx queue size is: " << rxQueue_.size() <<"\n";
     }
 protected:
     StackType st_;

@@ -16,7 +16,7 @@
 #include "utils.h"
 #include "v2xMsgSae.hpp"
 
-#define RX_POOL_SIZE    16
+#define RX_POOL_SIZE    6000
 #define DEFAULT_BSM_PRIORITY    5
 
 using SPLITS::Codec::SplitsCodecFactory;
@@ -24,14 +24,18 @@ using SPLITS::Codec::SplitsCodec;
 using SPLITS::Core::Role;
 using SPLITS::MsgSource;
 using SPLITS::MsgFormat;
-
+using namespace telux::cv2x::prop;
 //Testing variables
 #include <cstdio>
 char gRxBuf[512];
 char gTxBuf[512];
 int gRxBufLen;
 int gTxBufLen;
-
+std::atomic<uint64_t> totalVerifSuccess {0};
+std::atomic<uint64_t> totalExtracted {0};
+std::atomic<uint64_t> lastTimeStamp {0};
+std::atomic<uint64_t> numPublished {0};
+std::atomic<uint64_t> numRxed {0};
 namespace SPLITS {
 
 namespace Core {
@@ -262,7 +266,7 @@ int SplitsCoreImpl::init(std::string cfgFileName, std::string rxpduFileName, std
         useTxPduFile_ = true;
     }
 
-    // Initialize Tx/Rx messages 
+    // Initialize Tx/Rx messages
     initMsgs();
 
     // Codec
@@ -293,10 +297,11 @@ int SplitsCoreImpl::init(std::string cfgFileName, std::string rxpduFileName, std
     }
     locListeners.push_back(bsmGenerator_);
 
-    if (coreCfg.getEnableCongCtrl() == true) {
+   // if (configData_->getCoreConfig().getEnableCongCtrl() == true) {
+       std::cout << "making cong ctrl\n";
         congestCtrl_ = std::make_shared<CongestCtrl>();
         locListeners.push_back(congestCtrl_);
-    }
+   // }
     //location
     kinematic_ = std::make_shared<KinematicsReceive>(locListeners, 100);
     //tx Scheduler
@@ -353,11 +358,10 @@ int SplitsCoreImpl::init(std::string cfgFileName, std::string rxpduFileName, std
 }
 int SplitsCoreImpl::receive(const uint8_t rxid, const uint16_t bufLen)
 {
-    int ret;
+    int ret = 0;
     auto rxMsg = getFreeMsg();
 
     if (rxMsg == nullptr) {
-        std::cout << "rxpool overrun!" << std::endl;
         return -1;
     }
     rxMsg->macAddrLen_ = CV2X_MAC_ADDR_LEN;
@@ -365,74 +369,330 @@ int SplitsCoreImpl::receive(const uint8_t rxid, const uint16_t bufLen)
         rxMsg->buf = gRxBuf;
         rxMsg->bufLen = gRxBufLen;
     } else {
-         ret = radioReceives_[rxid].receive(rxMsg->buf, rxMsg->bufLen, rxMsg->srcMac_, rxMsg->macAddrLen_);
+         ret = radioReceives_[rxid].receive(rxMsg->buf, MAX_PACKET_LEN, rxMsg->srcMac_, rxMsg->macAddrLen_);
          if (ret < MIN_PACKET_LEN || ret > MAX_PACKET_LEN ) {
-            //std::cout << "Rx error" << std::endl;
             goto exit;
         }
         rxMsg->bufLen = ret;
     }
     enqueueMsg(rxMsg);
+    numRxed++;
     return 0;
 exit:
-    putFreeMsg(rxMsg);
 
+    putFreeMsg(rxMsg);
+    // only queue a message structure if it was actually valid
+    // a return value of 0 means that polling just expired
+    if(ret != 0){
+        enqueueMsg(rxMsg);
+    }
     return ret;
 }
-void SplitsCoreImpl::processReceive(void)
+int SplitsCoreImpl::processReceive(void)
 {
-    int ret;
+    int ret = 0;
+    char* bufStart;
     uint64_t time_start_ms, time_finish_ms, time_start_us, time_finish_us;
+    // process all queued rxed messages
     while(stop_ == false) {
+
         auto rxMsg = dequeueMsg();
-        time_start_ms = timestamp_now();
-        time_start_us = timestamp_now_us();
-
-        ret = codec_->decodeFrame(rxMsg);
-
-        time_finish_us = timestamp_now_us();
-        time_finish_ms = timestamp_now();
-        if (time_start_ms == time_finish_ms) {
-            std::cout << "ts: " << time_finish_us - time_start_us << " (us)" << std::endl;
-        } else {
-            std::cout << "ts: > 1ms" << std::endl;
+        if(rxMsg == nullptr){
+            ret = -1;
+            goto handleMsg;
         }
 
-        if (ret != 0) {
-            std::cerr << "decode error" << std::endl;
-            putFreeMsg(rxMsg);
-            continue;
-        }
-        //TODO: Security Verification.
-        //handle locally consumed messages
-        if (st_ == StackType::STACK_TYPE_SAE) {
-            std::shared_ptr<v2xMsgSae> saeMsg = std::dynamic_pointer_cast<v2xMsgSae>(rxMsg);
-            if (saeMsg->msgType_ == v2xMsgType::V2X_SAE_MSG_WSA) {
-                std::cout << "Received WSA" << std::endl;
-                auto wsaBody = saeMsg->SrvAdvMsg()->body();
-                if (role_ == Role::OBU and wsaBody.routingAdvertisement().has_value() and 
-                        wra_ != nullptr) {
-                    std::cout << "settting IP" << std::endl;
-                    ret = wra_->onReceiveWra(wsaBody.routingAdvertisement().value(),
-                                saeMsg->srcMac_, saeMsg->macAddrLen_);
-                    putFreeMsg(rxMsg);
-                    continue;
-                }
-            } else if (saeMsg->msgType_ == v2xMsgType::V2X_SAE_MSG_RTCM) {
-                std::cout << "Received RTCM" << std::endl;
-                if (role_ == Role::OBU and rtcm_ != nullptr) {
-                    if(rtcm_->onReceiveRTCM(*(saeMsg->RTCMcorrection())) != Status::SUCCESS) {
-                        std::cout << "failed to inject RTCM" << std::endl;
+        // enum class MsgFormat {
+        /*     MSG_FORMAT_BLOB,     //encoded, signed, with network and transport header.
+        MSG_FORMAT_SIGNED,   //encoded, signed, no network and transport header.
+        MSG_FORMAT_UNSIGNED, //encoded, but not signed, no network and transport header.
+        MSG_FORMAT_UNENCODED, //unencoded, unsigned, no network and transport header.
+        MSG_FORMAT_UNKNOWN   //don't know */
+
+        // todo... detect that this is a secured frame
+        // or just assume by default that it is secured and if not secured, reject it
+        asyncCbData_t* asyncCbData;
+        bufStart = rxMsg->buf;
+        if(configData_->getCoreConfig().getEnableSecurity() && secInterface_ != nullptr){
+            // find an available callback data struct for this verification
+            asyncCbData = secInterface_->getFreeVerifData();
+            // extract the ieee 1609.2 header
+            if(asyncCbData == nullptr){
+                std::cout << "Invalid async cb for this msg\n";
+                ret = -1;
+                goto handleMsg;
+            }
+            uint8_t const *payload = NULL;
+            uint32_t payloadLen = 0;
+            uint32_t dot2HdrLen = 0;
+
+            // just decode wsmp
+            int msgType = 0;
+            int origLen = rxMsg->bufLen;
+            msgType = codec_->decodeWsmp(rxMsg);
+            int offset = origLen - rxMsg->bufLen;
+            if(msgType == -1){
+                std::cerr <<" Error decoding wsmp header of signed pdu\n";
+                ret = -1;
+                goto handleMsg;
+            }
+            uint32_t sizeBeforeExtract = rxMsg->bufLen;
+            // provide the details of the message to aerolink
+            // buffer length needs to be large enough...
+            // to do... somehow when an SPDU is signed with cert digest and not with full cert, 
+            // the SPDU gets rejected by aerolink due to smaller received packet size.
+            // to do.. use proper method for the offset (6 bytes) to bypass the original wsmp header
+            ret = secInterface_->extractMsg(&asyncCbData->smp,
+                (uint8_t*)rxMsg->buf, rxMsg->bufLen-6,
+                payload, payloadLen, dot2HdrLen);
+            if(ret == -1){
+                std::cerr << "Error extracting security header\n";
+                // error in extracting the payload and secured information
+                goto handleMsg;
+            }else{
+                totalExtracted++;
+            }
+            asyncCbData->asyncState=FREE;
+
+            // NOTE: following may change based on the packet type
+            rxMsg->buf = (char*)rxMsg->buf+dot2HdrLen;
+            rxMsg->bufLen = sizeBeforeExtract-dot2HdrLen;
+            ret = codec_->decodeFrame(rxMsg, true, msgType, (uint8_t*)rxMsg->buf, rxMsg->bufLen);
+            if(ret == -1){
+                std::cout << "Decode failure \n";
+                goto handleMsg;
+            }
+
+            //handle locally consumed messages
+            if (st_ == StackType::STACK_TYPE_SAE) {
+                std::shared_ptr<v2xMsgSae> saeMsg = std::dynamic_pointer_cast<v2xMsgSae>(rxMsg);
+                if (saeMsg->msgType_ == v2xMsgType::V2X_SAE_MSG_WSA) {
+                    std::cout << "Received WSA" << std::endl;
+                    auto wsaBody = saeMsg->SrvAdvMsg()->body();
+                    if (role_ == Role::OBU and wsaBody.routingAdvertisement().has_value() and
+                            wra_ != nullptr) {
+                        std::cout << "settting IP" << std::endl;
+                        ret = wra_->onReceiveWra(wsaBody.routingAdvertisement().value(),
+                                    rxMsg->srcMac_, rxMsg->macAddrLen_);
+                        enqueueMsg(rxMsg);
+                        goto handleMsg;
                     }
-                    putFreeMsg(rxMsg);
-                    continue;
+                } else if (saeMsg->msgType_ == v2xMsgType::V2X_SAE_MSG_RTCM) {
+                    std::cout << "Received RTCM" << std::endl;
+                    if (role_ == Role::OBU and rtcm_ != nullptr) {
+                        if(rtcm_->onReceiveRTCM(*(saeMsg->RTCMcorrection())) == Status::SUCCESS) {
+                            ret = 0;
+                        } else {
+                            ret = -1;
+                        }
+                        goto handleMsg;
+                    }
+                } else if (saeMsg->msgType_ == v2xMsgType::V2X_SAE_MSG_BSM) {
+                    // add more message types up here for any packets that are expected
+                    // to be signed
+                    // verify .. continue
+                    // extract the specific data from the RX msg struct and copy to
+                    // data type that aerolink expects
+                    auto bsm = saeMsg->BSM();
+                    auto coreData = bsm->coreData();
+                    asyncCbData->rvBsmData.version = 1;
+                    asyncCbData->rvBsmData.dataType = (uint32_t)SAE_PSID_BSM; // should be 0x20 or 32
+                    asyncCbData->rvBsmData.id = 0;
+                    for(int i =7; i >= 0 ; i--){
+                        asyncCbData->rvBsmData.id |= ((coreData.id()[i] << 8*i) & 0x00);
+                    }
+                    asyncCbData->rvBsmData.msgCount = coreData.msgCnt();
+                    asyncCbData->rvBsmData.latitude = coreData.lat();
+                    asyncCbData->rvBsmData.longitude = coreData.longitude();
+                    asyncCbData->rvBsmData.elevation =  coreData.elev();
+                    asyncCbData->rvBsmData.speed =  coreData.speed();
+                    asyncCbData->rvBsmData.heading =  coreData.heading();
+                    //AccelerationSet4Way
+                    asyncCbData->rvBsmData.longitudeAcceleration =  coreData.accelSet().longitude();
+                    asyncCbData->rvBsmData.latitudeAcceleration =  coreData.accelSet().lat();
+                    asyncCbData->rvBsmData.verticalAcceleration =  coreData.accelSet().vert();
+                    asyncCbData->rvBsmData.yawAcceleration =  coreData.accelSet().yaw();
+                    // J2735::idl::BrakeSystemStatus
+                    int i = 0;
+                    for(; i < sizeof(coreData.brakes().wheelBrakes()); i++){
+                        asyncCbData->rvBsmData.brakes = ((coreData.brakes().wheelBrakes() << i) & (0x01 << i));
+                    }
+                    for(; i < sizeof(coreData.brakes().traction()); i++){
+                        asyncCbData->rvBsmData.brakes = ((coreData.brakes().traction() << i) & (0x01 << i));
+                    }
+                    for(; i < sizeof(coreData.brakes().abs()); i++){
+                        asyncCbData->rvBsmData.brakes = ((coreData.brakes().abs() << i) & (0x01 << i));
+                    }
+                    for(; i < sizeof(coreData.brakes().brakeBoost()); i++){
+                        asyncCbData->rvBsmData.brakes = ((coreData.brakes().brakeBoost() << i) & (0x01 << i));
+                    }
+                    for(; i < sizeof(coreData.brakes().auxBrakes()); i++){
+                        asyncCbData->rvBsmData.brakes = ((coreData.brakes().auxBrakes() << i) & (0x01 << i));
+                    }
+
+                    // this function will check the consistency, relevancy, signature, and mbd
+                    // the async verify function will then call your callback
+                    // checkMsgSecurity(asyncCbData, priority, callbackFn);
+                    // provide aerolink the exact location given by sender in its BSM
+                    if(secInterface_->setGenLocation(&asyncCbData->smp, &asyncCbData->rvBsmData) < 0){
+                        ret = -1;
+                    }
+                    // check consistency
+                    if(secInterface_->checkConsistency(&asyncCbData->smp) < 0){
+                        ret = -1;
+                    }
+                    // check relevancy
+                    if(secInterface_->checkRelevance(&asyncCbData->smp) < 0){
+                        ret = -1;
+                    }
+                    // verify the packet
+                    // extract priority from traffic class of packet
+                    uint8_t priority = (uint8_t)TrafficIpType::TRAFFIC_NON_IP;
+                    asyncCbData->rxMsg = std::dynamic_pointer_cast<void>(saeMsg);
+                    if(congCtrlInit_){
+                        asyncCbData->congCtrl = static_cast<void*>(congestCtrl_.get());
+                    }
+                    asyncCbData->asyncState = VERIFYING;
+                    secInterface_->asyncVerify(
+                        asyncCbData,
+                        priority,
+                        &(asyncCbData->smp),
+                        [] (
+                            AEROLINK_RESULT returnCode,
+                            void           *userData)  -> void
+                        {
+                            asyncCbData_t* cbData = (asyncCbData_t*) userData;
+                            if(cbData == nullptr){
+                                printf("cb_data is a null pointer\n");
+                                return;
+                            }
+                            std::shared_ptr<v2xMsgSae> rxV2xMsgSae =
+                                std::static_pointer_cast<v2xMsgSae>(cbData->rxMsg);
+                            if(returnCode != WS_SUCCESS){
+                                cbData->verifSuccess = false;
+                                cbData->asyncState = VERIF_DONE;
+                                cbData->asyncState = PP_DONE;
+                                cbData->asyncState = FREE;
+                                return;
+                            }
+                            else
+                            {
+                                totalVerifSuccess++;
+                                if(lastTimeStamp == 0){
+                                    lastTimeStamp = timestamp_now();
+                                }
+                                if(totalVerifSuccess % 1000 == 0){
+                                    uint64_t currTime = timestamp_now();
+                                    double rate = (1000.0 / (double)(currTime - lastTimeStamp));
+                                    std::cout << "Average rate is: " << rate << "k Vhz\n";
+                                    lastTimeStamp = currTime;
+                                }
+                                cbData->verifSuccess = true;
+                                cbData->asyncState = VERIF_DONE;
+                            }
+
+                            // misbehavior detection
+                            AEROLINK_RESULT result;
+                            MisbehaviorDetectedType misbehaviorResult;
+                            result = smp_checkMisbehavior(cbData->smp,
+                                    static_cast<void*>(&cbData->rvBsmData),
+                                    &misbehaviorResult);
+                            if (result != WS_SUCCESS){
+                                if(result == WS_ERR_MISBEHAVIOR_DETECTED){
+                                    fprintf(stdout, "Detected Misbehavior Class is %llu\n",
+                                            misbehaviorResult.detectedMisbehavior);
+                                }else{
+                                    fprintf(stderr, "Error in checking misbehavior\n");
+                                }
+                                // don't forward if mbd fail
+                            }
+                            // filtering
+                                // don't forward if filtered out
+                            // postprocessing
+                            // congestion control
+                            uint64_t timestamp_ms = timestamp_now();
+                            CongestCtrl* congCtrl = static_cast<CongestCtrl*>(cbData->congCtrl);
+                            if(congCtrl != nullptr){
+                                congCtrl->addCongestionControlData(
+                                    cbData->rvBsmData.id,
+                                    (cbData->rvBsmData.latitude)/10000000.0,
+                                    (cbData->rvBsmData.longitude)/10000000.0,
+                                    cbData->rvBsmData.heading,
+                                    cbData->rvBsmData.speed,
+                                    timestamp_ms,
+                                    cbData->rvBsmData.msgCount);
+                            }
+                            // everything else (e.g., logging, statistics...)
+                            cbData->asyncState = PP_DONE;
+                            cbData->asyncState = FREE;
+                        });
+                    ret = 0;
+                    // technically dont want to free or enqueue until postprocess
+                } else {
+                    // enqueue rest of message types, if successful
+                    std::cout << "queued and freeing decoded unsigned msg" << std::endl;
+                    ret = 0;
+                }
+
+            }
+        }else{
+            //unsecured case
+
+            time_start_ms = timestamp_now();
+            time_start_us = timestamp_now_us();
+            ret = codec_->decodeFrame(rxMsg, false, 0, nullptr, 0);
+
+            time_finish_us = timestamp_now_us();
+            time_finish_ms = timestamp_now();
+            if (time_start_ms == time_finish_ms) {
+                std::cout << "ts: " << time_finish_us - time_start_us << " (us)" << std::endl;
+            } else {
+                std::cout << "ts: > 1ms" << std::endl;
+            }
+
+            //handle locally consumed messages
+            if (st_ == StackType::STACK_TYPE_SAE) {
+                std::shared_ptr<v2xMsgSae> saeMsg = std::dynamic_pointer_cast<v2xMsgSae>(rxMsg);
+                if (saeMsg->msgType_ == v2xMsgType::V2X_SAE_MSG_WSA) {
+                    std::cout << "Received WSA" << std::endl;
+                    auto wsaBody = saeMsg->SrvAdvMsg()->body();
+                    if (role_ == Role::OBU and wsaBody.routingAdvertisement().has_value() and
+                            wra_ != nullptr) {
+                        std::cout << "setting IP" << std::endl;
+                        ret = wra_->onReceiveWra(wsaBody.routingAdvertisement().value(),
+                                    saeMsg->srcMac_, saeMsg->macAddrLen_);
+                        putFreeMsg(rxMsg);
+                        continue;
+                    }
+                } else if (saeMsg->msgType_ == v2xMsgType::V2X_SAE_MSG_RTCM) {
+                    std::cout << "Received RTCM" << std::endl;
+                    if (role_ == Role::OBU and rtcm_ != nullptr) {
+                        if(rtcm_->onReceiveRTCM(*(saeMsg->RTCMcorrection())) != Status::SUCCESS) {
+                            std::cout << "failed to inject RTCM" << std::endl;
+                        }
+                        putFreeMsg(rxMsg);
+                        continue;
+                    }
                 }
             }
+
+            if (ret != 0) {
+                std::cerr << "decode error" << std::endl;
+                ret = -1;
+                goto handleMsg;
+            }
         }
-        std::cout << "queued msg" << std::endl;
-        publisher_->publish(rxMsg);
-        putFreeMsg(rxMsg);
+handleMsg:
+        if(ret != -1){
+            numPublished++;
+            publisher_->publish(rxMsg);
+        }
+        if(rxMsg != nullptr){
+            rxMsg->buf = bufStart;
+            putFreeMsg(rxMsg);
+        }
     }
+    return ret;
 }
 std::shared_ptr<v2xMsg> SplitsCoreImpl::fillLocalMsg(int serviceId)
 {
@@ -516,8 +776,6 @@ int SplitsCoreImpl::send(int serviceId, std::shared_ptr<v2xMsg> msg) {
     Priority priority;
     std::map<int, RadioTransmit>::iterator it;
 
-//    std::shared_ptr<v2xMsgSae> msg = nullptr;
-
     if (msg == nullptr) {
         //called by txScheduler for local generation
         msg = fillLocalMsg(serviceId);
@@ -542,20 +800,19 @@ int SplitsCoreImpl::send(int serviceId, std::shared_ptr<v2xMsg> msg) {
 
         //sign message based on psid and ssp
         if(configData_->getCoreConfig().getEnableSecurity() && secInterface_){
-            //std::cout << "current message buffer size: " << msg->bufLen << "\n";
-            //std::cout << "size of output signed msg buffer: " << signedPduLen << "\n";
             auto secConfig = configData_->getSecConfig();
+            //std::cout << "Psid and ssp for sign are: " << secConfig.getPsidValue()<< ", " << secConfig.getSspValue().data() <<"\n";
             if((ret = secInterface_->signMsg(&smg_, (uint8_t*)msg->buf, msg->bufLen,
                 signedPdu, signedPduLen, secConfig.getPsidValue(),
                 secConfig.getEnableSsp(), secConfig.getSspValue().data(),secConfig.getSspLength(),
                 secConfig.getEnableSspMask(), secConfig.getSspMask().data(), secConfig.getSspMaskLength(),
                 SignerTypeOverride::STO_AUTO))  == 0){
                 //optimize this
-                std::cout << "New signed payload length is: " << signedPduLen << "\n";
+               // std::cout << "New signed payload length is: " << signedPduLen << "\n";
                 msg->bufLen = signedPduLen;
                 std::memcpy(msg->buf, signedPdu, signedPduLen);
                 //encode Wsmp header and prepend to begining of buffer
-                if (codec_->encodeFrame(msg)) {
+                if (codec_->encodeWsmp(msg, true)) {
                      std::cerr << "Failed to encode WSMP header" << std::endl;
                     goto out;
                 }
@@ -569,6 +826,12 @@ int SplitsCoreImpl::send(int serviceId, std::shared_ptr<v2xMsg> msg) {
     priority = static_cast<Priority>(DEFAULT_BSM_PRIORITY);
     it = spsTransmits_.find(serviceId);
     if (it != spsTransmits_.end()) {
+        // following initialization should only occur once and for the BSM PSID
+        if(!congCtrlInit_ && serviceId == SAE_PSID_BSM){
+            congestCtrl_->init(congCtrlConfig_,
+                std::make_shared<RadioTransmit>(it->second));
+            congCtrlInit_ = true;
+        }
         ret = it->second.transmit(msg->buf, msg->bufLen, priority);
         if (ret) {
             std::cerr << "Transmit failure" << std::endl;
@@ -596,7 +859,6 @@ int SplitsCoreImpl::send(int serviceId, std::shared_ptr<v2xMsg> msg) {
         msg->bufLen = TX_BUF_LEN;
         //TODO: properly delete and reallocate structure
         // perhaps even make a cache per msg type
-        //codec_->freeFrame(msg);
     }
     return ret;
 }
@@ -623,6 +885,7 @@ void SplitsCoreImpl::run(void)
      processRxThread_ = std::thread(&SplitsCoreImpl::processReceive, this);
 
      int rxid = 0;
+     while(!congCtrlInit_){}
      for (auto const & radioRx : radioReceives_) {
          auto rxThread = std::thread([&, rxid]() {
                  while(!stop_) {
@@ -634,7 +897,9 @@ void SplitsCoreImpl::run(void)
          rxid++;
      }
      while(stop_ == false) {
-        //receive(0, RX_BUF_LEN);
+        if(congCtrlInit_){
+            receive(0, RX_BUF_LEN);
+        }
         std::this_thread::sleep_for(std::chrono::microseconds(10000));
     }
 }

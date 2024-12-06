@@ -21,9 +21,12 @@ public:
     virtual ~SplitsCodecImpl();
 
     virtual int init(int logLevel, bool syslog) override;
-    virtual int decodeFrame(std::shared_ptr<v2xMsg> msg) override;
+
+    //virtual int freeFrame(std::shared_ptr<v2xMsg> msg, bool encode) override;
+    virtual int decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint32_t type, uint8_t* inPayload, uint32_t inLen) override;
     virtual int encodeFrame(std::shared_ptr<v2xMsg> msg) override;
     virtual int encodeWsmp(std::shared_ptr<v2xMsg> msg, bool secured) override;
+    virtual int decodeWsmp(std::shared_ptr<v2xMsg> msg) override;
 private:
 
     void convertMsgType(v2xMsgType src, SaeMsgType &dest);

@@ -27,7 +27,7 @@ Status TxScheduler::scheduleEventTransmit(int id, int interval_ms)
 {
     Status ret;
     if (interval_ms > 0) {
-        //schedule periodic event msg 
+        //schedule periodic event msg
         ret = calculateTimerPeriod(id, interval_ms, eventIntervalsMap_);
     } else {
         //one time event msg, send immediately
@@ -98,8 +98,9 @@ void TxScheduler::stop(void)
 
 void TxScheduler::runCongestCtrl(void)
 {
+    while(congestCtrl_->getCurrCongestionCtrlMgr() == nullptr){}
     while(stop_ == false) {
-       sem_wait(congestCtrl_->getCongestionCtrlMgr()->
+       sem_wait(congestCtrl_->getCurrCongestionCtrlMgr()->
                     getCongestionControlUserData()->congestionControlSem);
        //only support 100ms sps msgs
        auto msgList = spsIntervalsMap_.find(100);
@@ -122,7 +123,7 @@ void TxScheduler::run(void)
             timerCount_ += 1;
         }
         if (congestCtrl_ == nullptr) {
-            //use timer for SPS transmit if congestion control not enabled, 
+            //use timer for SPS transmit if congestion control not enabled,
             for (auto const & spsInt : spsIntervalsMap_) {
                 if (!((timerCount_ * timerPeriod_) % spsInt.first)) {
                     for (auto const & msgId : spsInt.second) {

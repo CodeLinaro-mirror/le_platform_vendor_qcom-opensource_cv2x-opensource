@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __CONGESTCTRL_HPP__
@@ -16,6 +16,7 @@
 using telux::common::Status;
 using namespace telux::cv2x::prop;
 using telux::cv2x::prop::ICongestionControlManager;
+using telux::cv2x::prop::V2xPropFactory;
 
 namespace SPLITS {
 namespace Core {
@@ -127,7 +128,8 @@ class CongestCtrl : public ILocationListener,
 public:
     CongestCtrl(){}
     virtual ~CongestCtrl(){}
-    Status init(const CongCtrlConfig & config, std::shared_ptr<RadioTransmit>spsTransmit);
+    Status init(const CongCtrlConfig & config, std::shared_ptr<RadioTransmit> spsTransmit);
+
     std::shared_ptr<CongestCtrl> getptr() {
         return shared_from_this();
     }
@@ -135,9 +137,12 @@ public:
     void loadConfig(std::map<std::string, std::string> configs);
     void writeLog(char* tmpLogStr, uint32_t maxBufSize, FILE *myfp, bool validPkt,
             uint16_t eventsData );
-    const std::shared_ptr<ICongestionControlManager> getCongestionCtrlMgr() {
+    const std::shared_ptr<ICongestionControlManager> getCurrCongestionCtrlMgr() {
         return congestCtrlMgr_;
     }
+    bool addCongestionControlData(uint64_t id,
+    double latitude, double longitude, double heading, double speed,
+    uint64_t timestamp, uint64_t msgCount);
 
 private:
     void onDetailedLocationUpdate(const shared_ptr<ILocationInfoEx> &locationInfo) override;

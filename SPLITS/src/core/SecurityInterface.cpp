@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -14,9 +14,9 @@ namespace Core {
 
 /* STATIC VARIABLES */
 /* Asynchronous Function Variables */
-static      int secVerbosity = 0;
-static AEROLINK_RESULT completeChangeId_status;
-static bool retChangeId_status; // tells thread if callback has completed
+//static      int secVerbosity = 0;
+//static AEROLINK_RESULT completeChangeId_status;
+//static bool retChangeId_status; // tells thread if callback has completed
 
 /* Semaphores */
 
@@ -61,7 +61,7 @@ int SecurityInterface::setLeapSeconds(uint32_t leapSeconds){
 void SecurityInterface::onDetailedLocationUpdate
     (const shared_ptr<ILocationInfoEx> &locationInfo)
 {
-    AEROLINK_RESULT result;
+    int result = -1;
     if(locationInfo){
         std::cout << "Updating security position\n";
         {
@@ -78,76 +78,6 @@ void SecurityInterface::onDetailedLocationUpdate
         }
     }
 }
-
-
-
-/* CERT CHANGE FUNCTIONS */
-/* The following type defines a callback function prototype for initiation of the ID-change
-    protocol. A local certificate manager (LCM) manages sets of end-entity certificates for one or
-    more applications (PSID/SSPs) that share those certificates (are authorized by those
-    certificates to sign messages).
-    numCerts provides the number of simultaneously valid certificates for the registered
-    LCM(), e.g. 20, and on its return, this function can specify the next certificate to be used
-    by setting cert_index to a value from 1 – 20. A value of 0 is used to indicate no
-    preference, and Aerolink will choose the next certificate. An invalid value (greater than
-    the number of certificates) will be treated as a value of 0.
-    typedef void (*IdChangeInitCallback)(
-    void *userData, // IN
-    uint8_t numCerts, // IN
-    uint8_t *certIndex); // OUT
-*/
-
-void SecurityInterface::initIdChangeCbFn(void *userData, uint8_t numCerts, uint8_t *certIndex){
-    // on call back, this function provides the new cert index for the complete id change cb fn
-    static uint8_t rng_data = 0;
-    int rng_ret = -1;
-    auto app = static_cast<QUtils*>(userData);
-    rng_ret = app->hwTRNGChar(&rng_data);
-    if(rng_ret){
-        fprintf(stderr,"Failure in Randon Number Generation for Cert ID \n");
-    }
-    rng_data = (rng_data % numCerts) + 1;
-    std::cout << "Random CertIndex within 1 to " << numCerts << " is : " << rng_data << std::endl;
-    memcpy(certIndex,&rng_data,sizeof(uint8_t));
-}
-
-/* The following type defines a callback function prototype for completion of the ID-change
- *   protocol. returnCode indicates whether the ID change was aborted, or whether the
- *   data-signing certificates for all LCMs were changed and all other identifiers should now
- *   be changed. If the ID change was not aborted, certId will contain the last eight bytes of
- *   the whole-certificate hash of the new data-signing certificate for the registered LCM.
- *   The certId pointer is no longer valid after this function returns.
- *   typedef void (*IdChangeDoneCallback)(
- *   AEROLINK_RESULT returnCode, // IN
- *   void *userData, // IN
- *   uint8_t const *certId); // IN
- */
-void SecurityInterface::completeIdChangeCbFn(AEROLINK_RESULT returnCode, void *userData,  uint8_t const *certId){
-    // tells the user whether the id change was completed successfully or not.
-    //completeChangeId_status = returnCode;
-    // cast userdata to the user data type struct
-    IDChangeData* tempIdChangePtr = (IDChangeData*)userData;
-    if(returnCode == WS_SUCCESS){
-        if(tempIdChangePtr && certId){
-            memcpy(tempIdChangePtr->tempId, certId, sizeof(tempIdChangePtr->tempId)); // start at offset of 2 to get last 6 bytes
-            tempIdChangePtr->idChanged = true;
-        }
-    }
-    else{
-        std::cerr << "Failed to Perform ID Change" <<std::endl;
-    }
-
-    // perform l2 src randomization
-    std::cout << "perform l2 src randomization\n";
-/*      for(int index = 0 ; index < spsTransmits.size(); index++){
-        this->spsTransmits[index].updateSrcL2();
-    } */
-    //retChangeId_status = true;
-    if(tempIdChangePtr){
-        sem_post(&tempIdChangePtr->idChangeSem);
-    }
-}
-
 
 bool SecurityInterface::changeIdNow(){
     //if(!criticalState){
@@ -173,14 +103,14 @@ bool SecurityInterface::changeIdNow(){
         if(initIdChange_){
             distSinceLastIdChange_ =
                  splitsFilter_->bsmCompute2dDistance(hvLatOld, hvLonOld, hvLatNew, hvLonNew);
-            std::cout << "Curr lat and long are: " <<
+/*             std::cout << "Curr lat and long are: " <<
                 hvLatNew << ", " << hvLonNew << "\n";
             std::cout << " Last lat and long are: " <<
                 hvLatOld << ", " << hvLonOld << "\n";
             std::cout << "Dist since last id change is now: " <<
                 timeSinceLastIdChange_ << "\n";
             std::cout << "Time since last id change is now: " <<
-                timeSinceLastIdChange_ << "\n";
+                timeSinceLastIdChange_ << "\n"; */
         }else{
             timeSinceLastIdChange_ = 0;
         }
@@ -196,7 +126,7 @@ bool SecurityInterface::changeIdNow(){
 }
 
 int SecurityInterface::lockIdChange() {
-    AEROLINK_RESULT result;
+    int result = -1;
     result = securityServices_idChangeLock();
     if (result != WS_SUCCESS) {
         return -1;
@@ -206,7 +136,7 @@ int SecurityInterface::lockIdChange() {
 }
 
 int SecurityInterface::unlockIdChange() {
-    AEROLINK_RESULT result;
+    int result = -1;
     result = securityServices_idChangeUnlock();
     if (result != WS_SUCCESS) {
         return -1;
@@ -217,7 +147,7 @@ int SecurityInterface::unlockIdChange() {
 
 int SecurityInterface::idChange (){
 
-    AEROLINK_RESULT result;
+    int result = -1;
     result = securityServices_idChangeInit();
     if(result != WS_SUCCESS){
         return -1;
@@ -242,7 +172,7 @@ int SecurityInterface::init(const std::string ctxName, uint16_t countryCode) {
         std::cout << "Aerolink Library Version: " << aerolinkLibVersion << std::endl;
     }
 
-    AEROLINK_RESULT result;
+    int result = -1;
     if ((result = securityServices_initialize()) != WS_SUCCESS) {
         fprintf(stderr, "securityServices initialization failed (%s)\n",
             ws_errid(result));
@@ -259,6 +189,13 @@ int SecurityInterface::init(const std::string ctxName, uint16_t countryCode) {
         return -1;
     }
 
+    // make the asynchronous verification callback data pool
+    asyncVerifDataPool_ = std::make_shared<AsyncVerifDataPool>();
+    if(!initVerifDataPool(PP_BUFFER_MAX_SIZE)){
+        fprintf(stderr, "Failed to initialize async verif data pool\n");
+        return -1;
+    }
+
     splitsFilter_ = std::make_shared<SplitsFilter>();
     {
         if(!initIdChange_){
@@ -270,7 +207,7 @@ int SecurityInterface::init(const std::string ctxName, uint16_t countryCode) {
         }
     }
 
-    return 0;
+    return result;
 }
 
 // Deinitialize aerolink services when process is finished
@@ -300,7 +237,7 @@ void SecurityInterface::setPermissions(
 
 // Function to create a new SecuredMessageParser object -- for verification
 int SecurityInterface::createNewSmp(SecuredMessageParserC* smpPtr){
-    int result;
+    int result = -1;
     result = smp_new(secContext_, smpPtr);
     if (result != WS_SUCCESS){
         if(secVerbosity > 4)
@@ -313,7 +250,7 @@ int SecurityInterface::createNewSmp(SecuredMessageParserC* smpPtr){
 
 // Function to create a new SecuredMessageGenerator object -- for signing
 int SecurityInterface::createNewSmg(SecuredMessageGeneratorC* smgPtr){
-    int result;
+    int result = -1;
     result = smg_new(secContext_, smgPtr);
     if (result != WS_SUCCESS) {
         if(secVerbosity > 7)
@@ -324,17 +261,71 @@ int SecurityInterface::createNewSmg(SecuredMessageGeneratorC* smgPtr){
     return result;
 }
 
+bool SecurityInterface::initVerifDataPool(int dataPoolSize){
+    // create dataPoolSize entries for the data struct
+    for (int i = 0; i < PP_BUFFER_MAX_SIZE; i++) {
+        asyncCbData_t tmpData;
+        if(createNewSmp(
+            (SecuredMessageParserC*)(&tmpData.smp)) <= -1){
+            printf("Error creating secure message generator for this packet.\n");
+            return false;
+        }
+        tmpData.asyncState = FREE;
+        asyncVerifDataPool_->add(tmpData);
+    }
+    return true;
+}
+
+asyncCbData_t* SecurityInterface::getFreeVerifData(){
+    return asyncVerifDataPool_->getFreeVerifData();
+}
+
 int SecurityInterface::registerIdChange(const std::string lcmName, IDChangeData* idChangeData){
-    int result;
+    int result = -1;
     fprintf(stdout, "Aerolink:: Lcm name is: %s\n", lcmName);
     result = securityServices_idChangeRegister(
-            secContext_,
-            lcmName.c_str(),
-            idChangeData,  // void* cb data struct - user data
-            &initIdChangeCbFn,
-            &completeIdChangeCbFn
-            );
+                secContext_,
+                lcmName.c_str(),
+                idChangeData,  // void* cb data struct - user data
+                [](void *userData, uint8_t numCerts, uint8_t *certIndex) -> void {
+                    // on call back, this function provides the new cert index for the complete id change cb fn
+                    static uint8_t rng_data = 0;
+                    int rng_ret = -1;
+                    auto app = static_cast<QUtils*>(userData);
+                    rng_ret = app->hwTRNGChar(&rng_data);
+                    if(rng_ret){
+                        fprintf(stderr,"Failure in Random Number Generation for Cert ID \n");
+                    }
+                    rng_data = (rng_data % numCerts) + 1;
+                    std::cout << "Random CertIndex within 1 to " << numCerts << " is : " << rng_data << std::endl;
+                    memcpy(certIndex,&rng_data,sizeof(uint8_t));
+                   },
+                [](AEROLINK_RESULT returnCode, void *userData,  uint8_t const *certId) -> void {
+                    // tells the user whether the id change was completed successfully or not.
+                    //completeChangeId_status = returnCode;
+                    // cast userdata to the user data type struct
+                    IDChangeData* tempIdChangePtr = (IDChangeData*)userData;
+                    if(returnCode == WS_SUCCESS){
+                        if(tempIdChangePtr && certId){
+                            memcpy(tempIdChangePtr->tempId, certId, sizeof(tempIdChangePtr->tempId)); // start at offset of 2 to get last 6 bytes
+                            tempIdChangePtr->idChanged = true;
+                        }
+                    }
+                    else{
+                        std::cerr << "Failed to Perform ID Change" <<std::endl;
+                    }
 
+                    // perform l2 src randomization
+                    std::cout << "perform l2 src randomization\n";
+                /*      for(int index = 0 ; index < spsTransmits.size(); index++){
+                        this->spsTransmits[index].updateSrcL2();
+                    } */
+                    //retChangeId_status = true;
+                    if(tempIdChangePtr){
+                        sem_post(&tempIdChangePtr->idChangeSem);
+                    }
+                   }
+                );
     if(result != WS_SUCCESS) {
         std::cerr << "Failed to register the ID change callback: "
                     << ws_errid(result) << std::endl;
@@ -345,45 +336,20 @@ int SecurityInterface::registerIdChange(const std::string lcmName, IDChangeData*
     return result;
 }
 
-/* VERIFICATION FUNCTIONS */
-// More realistic callback function for async verification
-static void handle_verify_result(
-    AEROLINK_RESULT returnCode,
-    void           *userData)
-{
-    sem_t* cb_sem = (sem_t*) userData;
-    if(cb_sem == nullptr){
-        fprintf(stderr,"Callback data was not properly set\n");
-        return;
-    }
-    if(returnCode != WS_SUCCESS){
-        if(secVerbosity > 4)
-                fprintf(stderr,
-                "\n------------Unable to verify signature: (%s)------------\n\n",
-                 ws_errid(returnCode));
-    }else{
-        if(secVerbosity > 4)
-                fprintf(stdout,
-                "\n------------Successful verification! (%s)-------------\n\n",
-                ws_errid(returnCode));
-    }
-    sem_post(cb_sem);
-}
-
 void print_exception(std::exception& e){
     fprintf(stderr, "Exception caught : %s\n", e.what());
 }
 
 // A function to extract the security header and cert from a signed packet
 int SecurityInterface::extractMsg(SecuredMessageParserC* smp, const uint8_t * msg,
-                    uint32_t msgLen, uint8_t const *payload, uint32_t payloadLen,
+                    uint32_t msgLen, uint8_t const *payload, uint32_t &payloadLen,
                     uint32_t &dot2HdrLen){
     // return nullptr if still nullptr
     if(smp == nullptr){
         return -1;
     }
 
-    AEROLINK_RESULT result;
+    int result = -1;
     // smp_extract
     PayloadType    spduType, payloadType;
     uint8_t const *externData;
@@ -399,14 +365,13 @@ int SecurityInterface::extractMsg(SecuredMessageParserC* smp, const uint8_t * ms
         return -1;
     }
     dot2HdrLen = (uint32_t)(payload - msg);
-    return 0;
+    return result;
 }
 
-// A function to check consistency and relevancy of a signed packet
-int SecurityInterface::checkConsistencyandRelevancy
+int SecurityInterface::setGenLocation
                         (SecuredMessageParserC* smp, BsmData* rvBsmInfo) {
     // Add new smp (if none exists) for this thread
-    AEROLINK_RESULT result;
+    int result = -1;
     if(smp == nullptr){
         return -1;
     }
@@ -417,6 +382,40 @@ int SecurityInterface::checkConsistencyandRelevancy
     {
         if(secVerbosity > 4)
             fprintf(stderr,"Unable to set the generation location (%s)\n", ws_errid(result));
+        return -1;
+    }
+    return result;
+}
+
+int SecurityInterface::checkConsistency
+                        (SecuredMessageParserC* smp) {
+    // Add new smp (if none exists) for this thread
+    int result = -1;
+    if(smp == nullptr){
+        return -1;
+    }
+
+    if(secVerbosity > 7) {
+        fprintf(stdout, "Now checking consistency of signed message\n");
+    }
+    // smp_checkConsistency
+    if(enableConsistency){
+        result = smp_checkConsistency(*smp);
+        if(result != WS_SUCCESS){
+            if(secVerbosity > 4)
+                fprintf(stderr,"Unable to check consistency (%s)\n", ws_errid(result));
+            return -1;
+        }
+    }
+    return WS_SUCCESS;
+}
+
+// A function to check consistency and relevancy of a signed packet
+int SecurityInterface::checkRelevance
+                        (SecuredMessageParserC* smp) {
+    // Add new smp (if none exists) for this thread
+    int result = -1;
+    if(smp == nullptr){
         return -1;
     }
 
@@ -433,21 +432,7 @@ int SecurityInterface::checkConsistencyandRelevancy
             return -1;
         }
     }
-
-    if(secVerbosity > 7) {
-        fprintf(stdout, "Now checking consistency of signed message\n");
-    }
-    // smp_checkConsistency
-    if(enableConsistency){
-        result = smp_checkConsistency(*smp);
-        if(result != WS_SUCCESS){
-            if(secVerbosity > 4)
-                fprintf(stderr,"Unable to check consistency (%s)\n", ws_errid(result));
-            return -1;
-        }
-    }
-
-    return 1;
+    return WS_SUCCESS;
 }
 
 
@@ -458,7 +443,7 @@ int SecurityInterface::syncVerify(
     bool enableMbdCheck
     )
 {
-    AEROLINK_RESULT result;
+    int result = -1;
 
     // set the generation position based on provided BsmData (if any)
     result = smp_setGenerationLocation(*smp, rvKine.latitude, rvKine.longitude,
@@ -510,27 +495,57 @@ int SecurityInterface::syncVerify(
             bsmMbdCheck(smp, &rvKine);
         }
    }
-    return 1;
+    return result;
+}
+
+asyncCbData_t* AsyncVerifDataPool::getFreeVerifData(){
+    if(verifDataPoolFull){
+        std::cerr << "No more verif data available. Buffer full\n";
+        return nullptr;
+    }
+    // here we technically need to find the next free slot
+    int startIdx = freeVerifDataIndex;
+//  std::cout << " free verif data index before getfreeverif is: " << freeVerifDataIndex << "\n";
+    asyncCbData_t* tmpPtr = &asyncVerifDataPool_[freeVerifDataIndex];
+    //std::cout << "Size of verif data pool : " << asyncVerifDataPoolSize << "\n";
+    asyncVerifDataPool_[freeVerifDataIndex].index = freeVerifDataIndex;
+    while(asyncVerifDataPool_[freeVerifDataIndex].asyncState != FREE &&
+        freeVerifDataIndex < asyncVerifDataPoolSize){
+        freeVerifDataIndex = freeVerifDataIndex + 1;
+        freeVerifDataIndex%=asyncVerifDataPoolSize;
+        tmpPtr = &asyncVerifDataPool_[freeVerifDataIndex];
+        // we have completed a full loop, alert caller that buffer is full
+        if(freeVerifDataIndex == startIdx){
+            verifDataPoolFull = true;
+            return nullptr;
+        }
+    }
+    asyncVerifDataPool_[freeVerifDataIndex].index = freeVerifDataIndex;
+    //std::cout << " free verif data index from getfreeverif is: " << freeVerifDataIndex << "\n";
+    freeVerifDataIndex = (freeVerifDataIndex + 1) % asyncVerifDataPoolSize;
+    tmpPtr->asyncState = VERIFYING;
+    return tmpPtr;
 }
 
 // A function to asynchronously verify a signed packet
-int SecurityInterface::asyncVerify(
-    BsmData rvKine, void *asyncCbData, uint8_t msgPriority,
-    ValidateCallback callBackFunction, SecuredMessageParserC* smp) {
+int SecurityInterface::asyncVerify(asyncCbData_t *asyncCbData,
+                uint8_t priority, SecuredMessageParserC* smp,
+                ValidateCallback callBackFunction) {
 
     if(smp == nullptr){
         return -1;
     }
 
-    AEROLINK_RESULT result;
-    uint8_t verifPriority = (msgPriority <= 4) ? 0 : 1;
+    int result = -1;
+    uint8_t aerolinkPriority = (priority <= 4) ? 0 : 1;
     if (secVerbosity > 6){
-        printf("Aerolink Verification Priority will be %d \n", verifPriority);
+        printf("Aerolink Verification Priority will be %d \n", aerolinkPriority);
     }
 
     // async verification
+    asyncCbData->asyncState = VERIFYING;
     result = smp_verifySignaturesAsyncPriority
-        (*smp, verifPriority, asyncCbData, callBackFunction);
+        (*smp, aerolinkPriority, static_cast<void*>(asyncCbData), callBackFunction);
     if (result != WS_SUCCESS)
     {
         if(secVerbosity > 4){
@@ -539,13 +554,12 @@ int SecurityInterface::asyncVerify(
         }
         return -1;
     }
-
-    return 1;
+    return WS_SUCCESS;
 }
 
 AEROLINK_RESULT SecurityInterface::bsmMbdCheck(SecuredMessageParserC* smp,
     BsmData* rvBsmInfo) {
-    AEROLINK_RESULT result;
+    AEROLINK_RESULT result = WS_ERR_BAD_ARGS;
 
     MisbehaviorDetectedType misbehaviorResult;
     if(smp != nullptr){
@@ -571,7 +585,7 @@ int SecurityInterface::signMsg(SecuredMessageParserC* smg,  const uint8_t *msg, 
                               uint8_t *signedSpdu, uint32_t &signedSpduLen, uint32_t psidValue, bool enableSsp,
                               const uint8_t* sspValue, uint32_t sspLength, bool enableSspMask,
                               const uint8_t* sspMaskValue, uint32_t sspMaskLength, SignerTypeOverride signType) {
-    AEROLINK_RESULT result;
+    int result = -1;
     if(smg == nullptr){
         if(secVerbosity > 7)
             fprintf(stderr,
@@ -635,7 +649,7 @@ int SecurityInterface::signMsg(SecuredMessageParserC* smg,  const uint8_t *msg, 
     if(secVerbosity > 7){
         fprintf(stdout,"Signing successful\n");
     }
-    return 0;
+    return WS_SUCCESS;
 }
 
 } //namespace Core

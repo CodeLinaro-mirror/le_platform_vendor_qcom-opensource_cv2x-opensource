@@ -83,7 +83,7 @@ private:
     int initSecurity(const std::string ctxName, const uint16_t countryCode,
                     const std::string lcmName);
     std::shared_ptr<v2xMsg> fillLocalMsg(int serviceId);
-    void processReceive(void);
+    int processReceive(void);
 
     bool useRxPduFile_ = false;
     bool useTxPduFile_ = false;
@@ -93,7 +93,8 @@ private:
     IDChangeData idChangeData_;
     std::vector<std::thread> rxThreads_;
     std::thread processRxThread_;
-
+    CongCtrlConfig congCtrlConfig_;
+    bool congCtrlInit_ = false;
     std::shared_ptr<SplitsCodec> codec_ = nullptr;
     std::shared_ptr<SplitsServiceDataPublisher> publisher_ = nullptr;
     std::shared_ptr<SplitsDataSubscriber> subscriber_ = nullptr;
@@ -111,7 +112,9 @@ private:
     std::shared_ptr<SplitsRTCM> rtcm_ = nullptr;
     std::shared_ptr<SplitsCoreDataListener> dataListener_ = nullptr;
     SPLITS::Core::Role role_;
-
+    std::shared_ptr<CongestCtrlListener> congestCtrlListener_;
+    std::shared_ptr<ICongestionControlManager> congestCtrlMgr_;
+    std::shared_ptr<CongestionControlUserData> congestCtrlCbData_;
 };
 
 

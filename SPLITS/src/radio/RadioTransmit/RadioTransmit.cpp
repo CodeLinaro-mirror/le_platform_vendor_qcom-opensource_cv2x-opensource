@@ -271,7 +271,7 @@ uint8_t RadioTransmit::transmit(const char* buf, const uint16_t bufLen, Priority
         }
         lastTxMonotonicTime_ = nowMonotonicTime;
     }
-    std::cout << "return of sendmsg is: " << bytes_sent << "\n";
+   // std::cout << "return of sendmsg is: " << bytes_sent << "\n";
 /*  std::cout << "buffer length is: " << bufLen << "\n";
     std::cout << "resp is: " << resp << "\n"; */
     return resp;

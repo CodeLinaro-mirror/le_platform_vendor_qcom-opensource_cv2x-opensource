@@ -114,6 +114,7 @@ int SplitsConfigFile::loadConfigFromFile(std::string filename)
         secCfg.setEnableConsistency(jsonSecCfg.get("EnableConsistency", false).asBool());
         secCfg.setEnableRelevance(jsonSecCfg.get("EnableRelevance", false).asBool());
         secCfg.setSetGenLocation(jsonSecCfg.get("SetGenLocation", false).asBool());
+        secCfg.setPsidValue(jsonSecCfg.get("PsidValue", 0).asUInt());
         secCfg.setEnableSsp(jsonSecCfg.get("EnableSsp", false).asBool());
         auto sspValueStr = jsonSecCfg.get("SspValue", "00").asString();
         std::vector<uint8_t> sspValue;

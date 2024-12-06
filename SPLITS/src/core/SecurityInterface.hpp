@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -36,6 +36,8 @@
 #include "location/KinematicsReceive.hpp"
 #include "SplitsFilter.hpp"
 
+#define PP_BUFFER_MAX_SIZE 6000
+
 using SPLITS::Core::SplitsFilter;
 
 
@@ -46,7 +48,7 @@ const uint8_t NO_KEY_GEN=0;
 const uint8_t ASYMMETRIC_KEY_GEN=1;
 const uint8_t SYMMETRIC_KEY_GEN=2;
 const uint8_t IMPORT_SYMMETRIC_KEY=3;
-
+const uint8_t IEEE_1609_2_HDR_LEN=3;
 struct VerifStats
 {
     double timestamp;
@@ -89,7 +91,50 @@ typedef struct IDChangeData {
     sem_t idChangeSem;
 } IDChangeData_t;
 
-static size_t chunksize = 10000;
+typedef enum {FREE, VERIFYING, VERIF_DONE, PP_DONE} AsyncCbState;
+typedef struct asyncCbData_t {
+    int indexToData;
+    bool verifSuccess;
+    bool mbdDetected;
+    AsyncCbState asyncState=FREE;
+    SecuredMessageParserC smp;
+    BsmData rvBsmData;
+    void* congCtrl;
+    std::shared_ptr<void> rxMsg;
+    int index;
+    // uint32_t psid;
+    // uint8_t msg_index;
+    // uint64_t timestamp;
+    // uint32_t l2SrcAddr;
+    // double distFromRV;
+    // uint32_t RVsInRange;
+    // uint64_t txInterval;
+} asyncCbData_t;
+
+class AsyncVerifDataPool {
+    public:
+        AsyncVerifDataPool(){};
+        ~AsyncVerifDataPool(){};
+        void add(const asyncCbData_t& cbData){
+            asyncVerifDataPool_.push_back(cbData);
+            asyncVerifDataPoolSize++;
+        }
+        int getFreeIndex() {
+            return freeVerifDataIndex;
+        }
+        int getBufferFull(){
+            return verifDataPoolFull;
+        }
+        asyncCbData_t* getFreeVerifData();
+    private:
+        bool verifDataPoolFull = false;
+        int freeVerifDataIndex = 0;
+        int numCurrVerifs = 0;
+        int asyncVerifDataPoolSize = 0;
+        std::mutex asyncVerifDataPoolMtx_;
+        std::vector<asyncCbData_t> asyncVerifDataPool_;
+};
+
 
 class SecurityInterface : public ILocationListener,
                           public std::enable_shared_from_this<SecurityInterface> {
@@ -109,22 +154,24 @@ class SecurityInterface : public ILocationListener,
                     const uint8_t* sspMaskValue, uint32_t sspMaskLength,
                     SignerTypeOverride signType = SignerTypeOverride::STO_AUTO);
         int extractMsg(SecuredMessageParserC* smp, const uint8_t * msg, uint32_t msgLen,
-                    uint8_t const *payload, uint32_t payloadLen, uint32_t &dot2HdrLen);
-        int checkConsistencyandRelevancy(SecuredMessageParserC* smp, BsmData* rvBsmInfo);
+                    uint8_t const *payload, uint32_t &payloadLen, uint32_t &dot2HdrLen);
+        int setGenLocation(SecuredMessageParserC* smp, BsmData* rvBsmInfo);
+        int checkConsistency(SecuredMessageParserC* smp);
+        int checkRelevance(SecuredMessageParserC* smp);
         int syncVerify(SecuredMessageParserC* smp, BsmData hvKine, BsmData rvKine,
                     bool enableMbdCheck);
-        int asyncVerify(BsmData rvKine, void* asyncCbData,
-                    uint8_t priority, ValidateCallback callBackFunction,
-                    SecuredMessageParserC* smp);
+        int asyncVerify(asyncCbData_t *asyncCbData,
+                uint8_t priority, SecuredMessageParserC* smp,
+                ValidateCallback callBackFunction);
         int registerIdChange(const std::string lcmName, IDChangeData* idChangeData);
-        static void initIdChangeCbFn(void *userData, uint8_t numCerts, uint8_t *certIndex);
-        static void completeIdChangeCbFn(AEROLINK_RESULT returnCode, void *userData,  uint8_t const *certId);
 
         bool changeIdNow();
         int idChange();
         AEROLINK_RESULT bsmMbdCheck(SecuredMessageParserC* smp, BsmData* rvBsmInfo);
         int lockIdChange();
         int unlockIdChange();
+        bool initVerifDataPool(int dataPoolSize);
+        asyncCbData_t* getFreeVerifData();
         std::shared_ptr<SecurityInterface> getptr() {
             return shared_from_this();
         }
@@ -146,6 +193,7 @@ class SecurityInterface : public ILocationListener,
         void printErrorMsg (std::string errMsg, AEROLINK_RESULT result);
 
         // private variables
+        std::shared_ptr<AsyncVerifDataPool> asyncVerifDataPool_;
         bool enableMisbehavior;
         bool enableConsistency;
         bool enableRelevance;
@@ -163,6 +211,7 @@ class SecurityInterface : public ILocationListener,
         uint16_t countryCode_;
         SecurityContextC secContext_;
         std::mutex locationMutex_;
+        int secVerbosity = 1;
 };
 } //namespace Core
 } //namespace SPLITS
