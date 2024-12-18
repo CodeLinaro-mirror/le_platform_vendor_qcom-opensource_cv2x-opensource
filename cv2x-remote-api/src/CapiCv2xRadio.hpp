@@ -22,7 +22,7 @@ namespace cv2x{
 class CapiCv2xRadio : public ICv2xRadio {
 public:
     CapiCv2xRadio(){isInitialized_ = false;};
-    ~CapiCv2xRadio(){COMMONAPI_DEBUG("CapiCv2xRadio destructor");};
+    ~CapiCv2xRadio();
 
     void init(InitResponseCb callback = nullptr);
 
@@ -146,11 +146,14 @@ private:
     static Cv2xRadioCapabilities capi2teluxRadioCapbilities(
                             const capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities &capbilities);
 
+    bool exiting_ = false;
     std::vector<std::weak_ptr<ICv2xRadioListener>> listeners_;
     std::vector<std::shared_ptr<Cv2xDataSubscriber>> subs_;
     std::map<uint32_t, std::shared_ptr<Cv2xDataPublisher>> pubs_;
     std::shared_ptr<capicv2x::Cv2xRadioProxy<>> proxy_;
     ServiceStatus serviceStatus = ServiceStatus::SERVICE_UNAVAILABLE;
+    std::condition_variable exitCv_;
+    std::mutex exitMutex_;
     std::mutex mutex_;
     std::mutex listenersMutex_;
     std::atomic<bool> isInitialized_;

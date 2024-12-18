@@ -7,6 +7,24 @@
 #include "CapiCv2xRxSubscription.hpp"
 #include "CapiCv2xTxFlow.hpp"
 
+#define PROXY_TIMEOUT_MS 50000
+
+CapiCv2xRadio::~CapiCv2xRadio()
+{
+    COMMONAPI_DEBUG("CapiRadioManager::Descrustor");
+    {
+        std::lock_guard<std::mutex> lck(exitMutex_);
+        exiting_ = true;
+        exitCv_.notify_all();
+    }
+
+    if (asyncFuture_.valid()) {
+        /*Make sure the async task completed*/
+        asyncFuture_.wait();
+    }
+    proxy_ = nullptr;
+}
+
 Cv2xStatus CapiCv2xRadio::capi2teluxCv2xStatus(const capicv2x::Cv2xRadioTypes::Cv2xStatus &status)
 {
     Cv2xStatus st;
@@ -83,10 +101,10 @@ void CapiCv2xRadio::init(InitResponseCb callback)
     asyncFuture_ = std::async(std::launch::async, [this, callback]() {
             this->initSync(callback);}).share();
 }
-#define PROXY_TIMEOUT_MS    5000
+
 void CapiCv2xRadio::initSync(InitResponseCb callback)
 {
-    int count = 0;
+    unsigned int count = PROXY_TIMEOUT_MS;
     std::shared_ptr<CommonAPI::Runtime> runtime = CommonAPI::Runtime::get();
 
     std::string domain = "local";
@@ -94,24 +112,43 @@ void CapiCv2xRadio::initSync(InitResponseCb callback)
     proxy_ = 
         runtime->buildProxy<capicv2x::Cv2xRadioProxy>(domain, instance, "client-Cv2xRadio");
 
-    while (!proxy_->isAvailable()) {
-        std::this_thread::sleep_for(std::chrono::microseconds(1000));
-        if (count == PROXY_TIMEOUT_MS)
-            break;
-        else
-            count++;
-    }
-    if (count < PROXY_TIMEOUT_MS) {
-        COMMONAPI_INFO("Cv2xRadio Proxy registration succesful");
+    const char *env_value = std::getenv("CV2X_REMOTE_CONNECT_TIMEOUT");
+    if (!env_value) {
+        COMMONAPI_INFO("Not set CV2X_REMOTE_CONNECT_TIMEOUT, use default value");
     } else {
-        COMMONAPI_ERROR("Cv2xRadio Proxy not available");
-        isInitialized_ = false;
+        try {
+            count = std::stoul(env_value);
+        } catch (const std::invalid_argument& e) {
+            COMMONAPI_ERROR("Invalid argument: ", e.what());
+        } catch (const std::out_of_range& e) {
+            COMMONAPI_ERROR("out of range: ", e.what());
+        }
+    }
+    /*
+     * Here we wait for the vsomeip layer client to connect to the service.
+     * Default value is 500ms, which can be set by the environment variable
+     * CV2X_REMOTE_CONNECT_TIMEOUT
+    */
+    for (unsigned int i = 0; i < count; i++) {
+        std::unique_lock<std::mutex> lck(exitMutex_);
+        if (not exitCv_.wait_for(lck, std::chrono::microseconds(10), [this] {
+                return proxy_->isAvailable() || exiting_; })) {
+            // Timeout will continue
+            continue;
+        } else {
+            // Connection or progress exit will break
+            break;
+        }
+    }
+
+    if (!proxy_->isAvailable() || exiting_) {
+        COMMONAPI_ERROR("Exit or connect timeout:proxy not available");
         if (callback) {
-            callback(ServiceStatus::SERVICE_UNAVAILABLE);
+            callback(telux::common::ServiceStatus::SERVICE_FAILED);
         }
         return;
     }
-
+    COMMONAPI_INFO("Cv2xRadio Proxy registration succesful");
     proxy_->getCurrentCv2xStatusEvent().subscribe([&](const capicv2x::Cv2xRadioTypes::Cv2xStatus &status) {
             Cv2xStatus st = capi2teluxCv2xStatus(status);
             std::lock_guard<std::mutex> lock(listenersMutex_);

@@ -24,9 +24,9 @@ namespace cv2x{
 class CapiCv2xRadioManager : public ICv2xRadioManager {
 public:
     CapiCv2xRadioManager() { };
-    ~CapiCv2xRadioManager() {COMMONAPI_DEBUG("CapiRadioManager::Descrustor"); };
+    ~CapiCv2xRadioManager();
 
-    bool isReady() 
+    bool isReady()
     { 
         /*deprecated */
         COMMONAPI_ERROR("deprecated API: isReady()");
@@ -94,6 +94,9 @@ private:
     void initSync(InitResponseCb callback);
     void onGetCv2xRadioResponse(telux::common::ServiceStatus status);
 
+    bool exiting_ = false;
+    std::condition_variable exitCv_;
+    std::mutex exitMutex_;
     std::shared_ptr<capicv2x::Cv2xRadioManagerProxy<>> proxy_;
     std::vector<std::weak_ptr<ICv2xListener>> listeners_;
     std::vector<telux::common::InitResponseCb> cv2xRadioInitCallbacks_;
