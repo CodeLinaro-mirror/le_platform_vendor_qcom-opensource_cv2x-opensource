@@ -1,0 +1,19 @@
+# Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+# SPDX-License-Identifier: BSD-3-Clause-Clear
+
+[Unit]
+Description=CV2X RemoteAPI Service
+
+[Service]
+Type=simple
+Group=its
+User=its
+ExecStart=/bin/sh -c 'export COMMONAPI_CONFIG=/etc/cv2x/commonapi4someip.ini; \
+    export VSOMEIP_CONFIGURATION=/etc/cv2x/vsomeip-service.json; \
+    /usr/bin/Cv2xRemoteAPIService'
+SupplementaryGroups=system diag radio logd
+CapabilityBoundingSet=CAP_SETGID CAP_NET_ADMIN
+AmbientCapabilities=CAP_SETGID CAP_NET_ADMIN
+
+[Install]
+WantedBy=multi-user.target

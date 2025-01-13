@@ -145,7 +145,7 @@ float g_cbp_meas = 99.0;
 // recent Event, from listner: effectively the status (TX/RX suspended/Active/etc)
 v2x_event_t g_status = V2X_INACTIVE;
 // Radio initialization status (Fail/SUCCESS/NOTREADY)
-v2x_status_enum_type g_radio_init_status = v2x_status_enum_type_V2X_STATUS_RADIO_PLACEHOLDER;
+v2x_status_enum_type g_radio_init_status = V2X_STATUS_RADIO_PLACEHOLDER;
 // Time uncertainty
 float g_time_uncertainty = -1.0f;
 static bool g_report_thr_valid = false;
@@ -829,7 +829,7 @@ cv2x_app_state_t state_initialize() {
     }
 
     pthread_mutex_lock(&g_radio_init_mutex);
-    g_radio_init_status = v2x_status_enum_type_V2X_STATUS_RADIO_PLACEHOLDER;
+    g_radio_init_status = V2X_STATUS_RADIO_PLACEHOLDER;
     pthread_mutex_unlock(&g_radio_init_mutex);
 
     radio_calls.v2x_radio_init_complete = init_complete;
@@ -886,7 +886,7 @@ cv2x_app_state_t state_initialize() {
     g_service_status = SERVICE_AVAILABLE;
 
     pthread_mutex_lock(&g_radio_init_mutex);
-    while (v2x_status_enum_type_V2X_STATUS_RADIO_PLACEHOLDER == g_radio_init_status) {
+    while (V2X_STATUS_RADIO_PLACEHOLDER == g_radio_init_status) {
         printf("Waiting on radio init_complete callback\n");
         pthread_cond_wait(&g_radio_init_cv, &g_radio_init_mutex);
     }

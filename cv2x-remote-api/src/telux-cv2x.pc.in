@@ -1,0 +1,9 @@
+Name: libtelux_cv2x
+Version: @SDK_VERSION@
+Description: This library contains implementation of Cv2x Radio APIs
+
+prefix=@CMAKE_INSTALL_PREFIX@
+includedir=@CMAKE_INSTALL_INCLUDEDIR@
+libdir=@CMAKE_INSTALL_LIBDIR@
+Cflags:-I${includedir} -I${includedir}/telux
+Libs: -L${libdir} -ltelux_cv2x
