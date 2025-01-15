@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -225,4 +225,157 @@ void Cv2xRadioManagerStubImpl::onStatusChanged(Cv2xStatus status)
                 status.cbrValueValid)
         );
     }
+}
+
+void Cv2xRadioManagerStubImpl::setPeakTxPower(
+    const std::shared_ptr<CommonAPI::ClientId> _client,
+    int8_t _txPower, setPeakTxPowerReply_t _reply)
+{
+    ErrorCode error = ErrorCode::UNKNOWN;
+    Status status = Status::FAILED;
+
+    if (cv2xRadioManager_ != nullptr) {
+        std::promise<ErrorCode> prom;
+        auto setPeakTxPowerCallback = [&prom, this](ErrorCode code) {
+            prom.set_value(code);
+        };
+        auto status = cv2xRadioManager_->setPeakTxPower(_txPower, setPeakTxPowerCallback);
+
+        if (status == Status::SUCCESS) {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+        status = Status::INVALIDSTATE;
+    }
+
+    _reply(static_cast<capi::common::CommonDefines::ErrorCode::Literal>(error),
+        static_cast<capi::common::CommonDefines::Status::Literal>(status));
+}
+
+void Cv2xRadioManagerStubImpl::setL2Filters(
+    const std::shared_ptr<CommonAPI::ClientId> _client,
+    std::vector< ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::L2FilterInfo > _filterList,
+    setL2FiltersReply_t _reply)
+{
+    ErrorCode error = ErrorCode::UNKNOWN;
+    Status status = Status::FAILED;
+    if (cv2xRadioManager_ != nullptr) {
+        std::promise<ErrorCode> prom;
+        auto setL2FiltersCallback = [&prom, this](ErrorCode code) {
+            prom.set_value(code);
+        };
+        std::vector<telux::cv2x::L2FilterInfo > teluxFilterList;
+        for (auto info : _filterList) {
+            telux::cv2x::L2FilterInfo l2FilterInfo;
+            l2FilterInfo.srcL2Id = info.getSrcL2Id();
+            l2FilterInfo.durationMs = info.getDurationMs();
+            l2FilterInfo.pppp = info.getPppp();
+            teluxFilterList.push_back(l2FilterInfo);
+        }
+
+        auto status = cv2xRadioManager_->setL2Filters(teluxFilterList, setL2FiltersCallback);
+        
+        if (status == Status::SUCCESS) {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+        status = Status::INVALIDSTATE;
+    }
+
+    _reply(static_cast<capi::common::CommonDefines::ErrorCode::Literal>(error),
+        static_cast<capi::common::CommonDefines::Status::Literal>(status));
+}
+
+void Cv2xRadioManagerStubImpl::removeL2Filters(
+    const std::shared_ptr<CommonAPI::ClientId> _client,
+    std::vector< uint32_t > _l2IdList,
+    removeL2FiltersReply_t _reply)
+{
+    ErrorCode error = ErrorCode::UNKNOWN;
+    Status status = Status::FAILED;
+    if (cv2xRadioManager_ != nullptr) {
+        std::promise<ErrorCode> prom;
+        auto removeL2FiltersCallback = [&prom, this](ErrorCode code) {
+            prom.set_value(code);
+        };
+
+        auto status = cv2xRadioManager_->removeL2Filters(_l2IdList, removeL2FiltersCallback);
+
+        if (status == Status::SUCCESS) {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+        status = Status::INVALIDSTATE;
+    }
+
+    _reply(static_cast<capi::common::CommonDefines::ErrorCode::Literal>(error),
+        static_cast<capi::common::CommonDefines::Status::Literal>(status));
+}
+
+void Cv2xRadioManagerStubImpl::getSlssRxInfo(const std::shared_ptr<CommonAPI::ClientId> _client, getSlssRxInfoReply_t _reply)
+{
+    ErrorCode error = ErrorCode::UNKNOWN;
+    Status status = Status::FAILED;
+
+    capicv2x::Cv2xRadioTypes::SlssRxInfo capiSlssRxInfo;
+    if (cv2xRadioManager_ != nullptr) {
+        std::promise<ErrorCode> prom;
+
+        auto getSlssRxInfoCallback = [&capiSlssRxInfo, &prom, this](telux::cv2x::SlssRxInfo info, ErrorCode code) {
+            std::vector<capicv2x::Cv2xRadioTypes::SyncRefUeInfo> capiUeInfo;
+            for (auto ue: info.ueInfo) {
+                capicv2x::Cv2xRadioTypes::SyncRefUeInfo capiSyncRefUeInfo;
+                capiSyncRefUeInfo.setSlssId(ue.slssId);
+                capiSyncRefUeInfo.setInCoverage(ue.inCoverage);
+                capiSyncRefUeInfo.setPattern(static_cast<capicv2x::Cv2xRadioTypes::SlssSyncPattern::Literal>(ue.pattern));
+                capiSyncRefUeInfo.setRsrp(ue.rsrp);
+                capiSyncRefUeInfo.setSelected(ue.selected);
+                capiUeInfo.push_back(capiSyncRefUeInfo);
+            }
+            capiSlssRxInfo.setUeInfo(capiUeInfo);
+            prom.set_value(code);
+        };
+
+        auto status = cv2xRadioManager_->getSlssRxInfo(getSlssRxInfoCallback);
+
+        if (status == Status::SUCCESS) {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+        status = Status::INVALIDSTATE;
+    }
+
+    _reply(static_cast<capi::common::CommonDefines::ErrorCode::Literal>(error),
+        capiSlssRxInfo,
+        static_cast<capi::common::CommonDefines::Status::Literal>(status));
+}
+
+void Cv2xRadioManagerStubImpl::injectCoarseUtcTime(const std::shared_ptr<CommonAPI::ClientId> _client, uint64_t _utc, injectCoarseUtcTimeReply_t _reply)
+{
+    ErrorCode error = ErrorCode::UNKNOWN;
+    Status status = Status::FAILED;
+    capi::common::CommonDefines::ServiceStatus capiServiceStatus =
+        capi::common::CommonDefines::ServiceStatus::SERVICE_UNAVAILABLE;
+    if (cv2xRadioManager_ != nullptr) {
+        std::promise<ErrorCode> prom;
+        auto injectCoarseUtcTimeCallback = [&prom, this](ErrorCode code) {
+            prom.set_value(code);
+        };
+
+        auto teluxServiceStatus = cv2xRadioManager_->injectCoarseUtcTime(_utc, injectCoarseUtcTimeCallback);
+
+        if (status == Status::SUCCESS) {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+        status = Status::INVALIDSTATE;
+    }
+
+    _reply(static_cast<capi::common::CommonDefines::ErrorCode::Literal>(error),
+        static_cast<capi::common::CommonDefines::Status::Literal>(status));
 }

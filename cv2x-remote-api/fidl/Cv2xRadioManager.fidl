@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -43,10 +43,58 @@ interface Cv2xRadioManager extends Cv2xRadioTypes {
         }
         error commonapi.telux.common.CommonDefines.ErrorCode
     }
-    
+
     method requestCv2xStatusEx {
         out {
             commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xStatusEx statusEx
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method setPeakTxPower {
+        in {
+            Int8 txPower
+        }
+        out {
+            commonapi.telux.common.CommonDefines.Status status
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method setL2Filters {
+        in {
+            L2FilterInfo[] filterList
+        }
+        out {
+            commonapi.telux.common.CommonDefines.Status status
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method removeL2Filters {
+        in {
+            UInt32[] l2IdList
+        }
+        out {
+            commonapi.telux.common.CommonDefines.Status status
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method getSlssRxInfo {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.SlssRxInfo slssRxInfo
+            commonapi.telux.common.CommonDefines.Status status
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method injectCoarseUtcTime {
+        in {
+            UInt64 utc
+        }
+        out {
+            commonapi.telux.common.CommonDefines.Status status
         }
         error commonapi.telux.common.CommonDefines.ErrorCode
     }

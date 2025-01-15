@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -113,6 +113,89 @@ interface Cv2xRadio extends Cv2xRadioTypes {
     method requestCapability {
         out {
             commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xRadioCapabilities capabilities
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method requestDataSessionSettings {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.DataSessionSettings settings
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method updateSrcL2Info {
+        out {
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method updateTrustedUEList {
+        in {
+            commonapi.telux.cv2x.Cv2xRadioTypes.TrustedUEInfoList infoList
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method getIfaceNameFromIpType {
+        in {
+            commonapi.telux.cv2x.Cv2xRadioTypes.TrafficIpType ipType
+        }
+        out {
+            String ifaceNameIp
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method createCv2xTcpSocket {
+        in {
+            commonapi.telux.cv2x.Cv2xRadioTypes.EventFlowInfo eventFlowInfo
+            commonapi.telux.cv2x.Cv2xRadioTypes.SocketInfo socketInfo
+        }
+        out {
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method closeCv2xTcpSocket {
+        in {
+            UInt32 sockId
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method setGlobalIPInfo {
+        in {
+            commonapi.telux.cv2x.Cv2xRadioTypes.IPv6AddrType ipv6Addr
+        }
+        out {
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method setGlobalIPUnicastRoutingInfo {
+        in {
+            commonapi.telux.cv2x.Cv2xRadioTypes.GlobalIPUnicastRoutingInfo destL2Addr
+        }
+        out {
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method getCapabilities {
+        in {
+        }
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xRadioCapabilities capabilities
+        }
+        error commonapi.telux.common.CommonDefines.ErrorCode
+    }
+
+    method injectVehicleSpeed {
+        in {
+            UInt32 speed
+        }
+        out {
         }
         error commonapi.telux.common.CommonDefines.ErrorCode
     }

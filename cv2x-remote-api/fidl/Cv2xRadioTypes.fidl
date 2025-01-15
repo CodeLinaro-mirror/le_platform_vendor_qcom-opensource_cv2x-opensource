@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -56,6 +56,87 @@ interface Cv2xRadioTypes extends CommonDefines {
         Float timeUncertainty
     }
 
+    struct IPv6AddrType
+    {
+        UInt8 prefixLen
+        UInt8[] ipv6Addr
+    }
+
+    struct IPv6Address {
+        UInt8[] addr
+    }
+
+    struct DataSessionSettings {
+        Boolean mtuValid
+        UInt32 mtu
+        Boolean ipv6AddrValid
+        IPv6Address ipv6Addr
+    }
+
+    struct SocketInfo {
+        UInt32 serviceId
+        UInt16 localPort
+    }
+
+    struct GlobalIPUnicastRoutingInfo
+    {
+        UInt8[] destMacAddr
+    }
+
+    struct TxStatusReport {
+        RFTxInfo[] rfInfo
+        UInt8 numRb
+        UInt8 startRb
+        UInt8 mcs
+        UInt8 segNum
+        SegmentType segType
+        TxType txType
+        UInt16 otaTiming
+        UInt16 port
+    }
+
+    struct RFTxInfo {
+        RFTxStatus status
+        Int32 power
+    }
+
+    struct L2FilterInfo {
+        UInt32 srcL2Id
+        UInt32 durationMs
+        UInt8 pppp
+    }
+
+    struct SyncRefUeInfo {
+        UInt16 slssId
+        Boolean inCoverage
+        SlssSyncPattern pattern
+        UInt8 rsrp
+        Boolean selected
+    }
+
+    struct SlssRxInfo {
+        SyncRefUeInfo[] ueInfo
+    }
+
+    enumeration TxType {
+        NEW_TX
+        RE_TX
+        SLSS_TX
+    }
+
+    enumeration RFTxStatus {
+        INACTIVE
+        OPERATIONAL
+        FAULT
+    }
+
+    enumeration SegmentType {
+        FIRST
+        LAST
+        MIDDLE
+        ONLY_ONE
+    }
+
     enumeration TrafficIpType {
         TRAFFIC_IP
         TRAFFIC_NON_IP
@@ -91,6 +172,15 @@ interface Cv2xRadioTypes extends CommonDefines {
         PERIODICITY_50MS
         PERIODICITY_100MS
         PERIODICITY_UNKNOWN
+    }
+
+    enumeration SlssSyncPattern {
+        OFFSET_IND_1
+        OFFSET_IND_2
+        OFFSET_IND_3
+        ODD_RESERVED
+        EVEN_RESERVED
+        UNKNOWN
     }
 
     struct TxPoolIdInfo {
