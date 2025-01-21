@@ -418,10 +418,9 @@ void fill_80211_hdr (uint32_t src_l2_addr) {
  * Radio Tap Header must have a channel # in it
  * 802.11 header must have the source address in it and (maybe)
  * priority (traffic class)
- * Return Value: Will be the size of the entire header (including Radiotap +
- * IEEE 802.11 and
+ * Return Value: None
  */
-int create_radiotap_header(unsigned short edpType,
+void create_radiotap_header(unsigned short edpType,
         uint32_t src_l2_addr, uint32_t rcvMsgLen){
     // Setting up the Radio Tap Header
     //  radiotap_msg_hdr.radiotap_hdr.it_version always 0
@@ -1683,7 +1682,7 @@ static void print_usage(const char *prog_name)
 
 }
 
-static int parse_opts(int argc, char *argv[])
+static void parse_opts(int argc, char *argv[])
 {
     int c;
     add_default_flow(flow_cnt);
