@@ -1,0 +1,201 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+module IEEE1609Dot3 {
+module idl{
+
+/* Extracted from 3GPP TS 36.331 i20 */
+typedef char P_Max;
+typedef octet SL_Priority_r13;
+typedef octet SL_TxPoolIdentity_r12;
+typedef long ARFCN_ValueEUTRA_r9; 
+/*ARFCN-ValueEUTRA-r9 ::=				INTEGER (0..262143)*/
+
+/* intergers typedefs */
+typedef octet DataRate80211; //::= INTEGER (0..255)
+
+typedef char TXpower80211; //::= INTEGER (-128..127)
+
+typedef octet ChannelNumber80211; //::= INTEGER (0..255)
+
+typedef octet CompactTimeConfidence; //::= INTEGER (0..255)
+
+typedef octet RepeatRate; //::= INTEGER (0..255)
+
+typedef octet IPv6Address[16]; // ::= OCTET STRING (SIZE (16))
+typedef IPv6Address SecondaryDns;
+
+typedef unsigned short ServicePort; //::= INTEGER (0..65535)
+
+
+typedef octet MACaddress[6];
+typedef MACaddress GatewayMacAddress ;
+typedef MACaddress ProviderMacAddress;
+
+typedef octet RcpiThreshold; // ::= INTEGER (0..255) -- see IEEE Std 802.11
+
+typedef octet WsaCountThreshold; // ::= INTEGER (0..255)
+
+typedef octet WsaCountThresholdInterval; //::= INTEGER (0..255) -- value 0 is not used
+typedef long long Longitude; //::= INTEGER (-1799999999..1800000001)
+
+typedef long Elevation; //::= INTEGER (-4096..61439)
+
+typedef sequence<octet, 4> VarLengthNumber;
+
+typedef octet ChannelAccess80211;
+typedef string AdvertiserIdentifier; // ::= UTF8String (SIZE (1..32))
+
+
+typedef VarLengthNumber ProtocolType;
+
+typedef sequence<octet, 128> ApplicationData;
+
+/*-- ExtensionTypes are specified for WSA and WSM
+
+-- Reference values (for all types of extensions)
+RefExt ::= INTEGER (0..255)
+
+c-Reserved                 RefExt ::= 0
+c-TxPowerUsed80211         RefExt ::= 4 -- WSM
+c-2Dlocation               RefExt ::= 5 -- WSA Header
+c-3Dlocation               RefExt ::= 6 -- WSA Header
+c-advertiserID             RefExt ::= 7 -- WSA Header
+c-ProviderServContext      RefExt ::= 8 -- WSA Service Info
+c-IPv6Address              RefExt ::= 9 -- WSA Service Info
+c-servicePort              RefExt ::= 10 -- WSA Service Info
+c-ProviderMACaddress       RefExt ::= 11 -- WSA Service Info
+c-EDCAparameterSet         RefExt ::= 12 -- WSA Channel Info
+c-SecondaryDNS             RefExt ::= 13 -- WSA Routing Advertisement
+c-GatewayMACaddress        RefExt ::= 14 -- WSA Routing Advertisement
+c-ChannelNumber80211       RefExt ::= 15 -- WSM-N-Header
+c-DataRate80211            RefExt ::= 16 -- WSM-N-Header
+c-RepeatRate               RefExt ::= 17 -- WSA Header
+c-RCPIthreshold            RefExt ::= 19 -- WSA Service Info
+c-WSAcountThreshold        RefExt ::= 20 -- WSA Service Info
+c-ChannelAccess            RefExt ::= 21 -- WSA Channel Info
+c-WSAcountThresInt         RefExt ::= 22 -- WSA Service Info
+c-ChannelLoad              RefExt ::= 23 -- WSMP-N-Header
+c-ProtocolType             RefExt ::= 24 -- WSA Service Info
+c-CompactTimeConfidence    RefExt ::= 25 -- WSM-N-Header
+c-AssertedBySASigner       RefExt ::= 26 -- WSA Service Info
+c-ExtendedChannelInfos     RefExt ::= 84 -- WSA Extended Channel Infos
+c-ApplicationData          RefExt ::= 85 -- WSA Service Info
+*/
+/*enum ExtensionTypes
+{
+    ext_Reserved = 0,
+    ext_TxPowerUsed80211=4,
+    ext_2Dlocation=5,
+    ext_3Dlocation=6,
+    ext_advertiserID=7,
+    ext_ProviderServContext=8,
+    ext_IPv6Address=9,
+    ext_servicePort=10,
+    ext_ProviderMACaddress=11,
+    ext_EDCAparameterSet=12,
+    ext_SecondaryDNS=13,
+    ext_GatewayMACaddress=14,
+    ext_ChannelNumber80211=15,
+    ext_DataRate80211=16,
+    ext_RepeatRate=17,
+    ext_RCPIthreshold=19,
+    ext_WSAcountThreshold=20,
+    ext_ChannelAccess=21,
+    ext_WSAcountThresInt=22,
+    ext_ChannelLoad=23,
+    ext_ProtocolType=24,
+    ext_CompactTimeConfidence=25,
+    ext_AssertedBySASigner=26,
+    ext_ExtendedChannelInfos=84,
+    ext_ApplicationData=85
+};*/
+struct Latitude
+{
+    octet fill;
+    long long lat;
+};
+
+struct TwoDLocation
+{
+    Latitude latitude;
+    Longitude longitude;
+};
+
+struct ThreeDLocation
+{
+    Latitude latitude;
+    Longitude longitude;
+    Elevation elevation;
+};
+
+enum multiplier
+{
+    bytes,
+    kb,
+    mb,
+    gb
+};
+struct MaxDataRateBytesPerSec
+{
+    unsigned short number;
+    multiplier multi;
+};
+
+enum MinimumTrafficPeriodicity
+{
+  sf20, sf50, sf100, sf200, sf300, sf400, sf500,
+  sf600, sf700, sf800, sf900, sf1000
+};
+
+struct LTEv2xChannelInfo
+{
+  @optional ARFCN_ValueEUTRA_r9 txPoolEarfcn;
+  @optional P_Max pMax;
+  @optional SL_Priority_r13 pppp;
+  @optional SL_TxPoolIdentity_r12 txPool;
+  @optional octet minMcs;
+  @optional octet maxMcs;
+  @optional unsigned short minPdb;
+  @optional unsigned short mtu;
+  @optional MaxDataRateBytesPerSec maxDataRate;
+  @optional MinimumTrafficPeriodicity minPeriodicity;
+  @optional octet maxSpeed;
+  @optional unsigned short maxRange;
+  @optional octet maxCbr;
+
+  /*@optional preconfigInfo   SL_V2X_Preconfiguration_r14 OPTIONAL, */
+
+};
+
+//AssertedBySASigner ::= NULL
+struct ProviderServiceContext
+{
+    octet fillbit;
+    octet psc[32];
+};
+
+struct EdcaParameterRecord
+{
+    octet res;
+    octet aci;
+    octet acm;
+    octet aifsn;
+    octet ecwMax;
+    octet ecwMin;
+    unsigned short txopLimi;
+};
+
+struct EdcaParameterSet
+{
+    EdcaParameterRecord acbeRecord;
+    EdcaParameterRecord acbkRecord;
+    EdcaParameterRecord acviRecord;
+    EdcaParameterRecord acvoRecord;
+};
+
+
+};
+};

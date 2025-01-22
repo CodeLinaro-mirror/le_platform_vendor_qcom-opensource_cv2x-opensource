@@ -1,0 +1,73 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in RSM.asn
+ */
+
+#include "DefCommon.idl"
+
+#include "DefPosition.idl"
+#include "DefPositionOffset.idl"
+#include "DefMotion.idl"
+#include "VehClass.idl"
+#include "VehSize.idl"
+
+module Csae {
+module idl {
+
+enum ParticipantType {
+    pt_unknown,
+    pt_motor,
+    pt_non_motor,
+    pt_pedestrian,
+    pt_rsu
+};
+
+enum SourceType {
+    src_unknown,
+    selfinfo,
+    v2x,
+    video,
+    microwaveRadar,
+    loop,
+    lidar,
+    integrated
+};
+
+struct ParticipantData {
+    ParticipantType ptcType;
+    /*
+      -- temporary ID set by RSU
+      -- 0 is RSU itself
+      -- 1..255 represent participants detected by RSU
+      -- ptcId of different participant needs to be unique in RSU
+    */
+    unsigned short ptcId;
+    SourceType source;
+    /* temperary vehicle ID from BSM */
+    @optional octet id[8];
+    J2735::idl::DSecond secMark;
+    PositionOffsetLLV pos;
+    PositionConfidenceSet posConfidence;
+    @optional J2735::idl::TransmissionState transmission;
+    J2735::idl::Speed speed;
+    J2735::idl::Heading heading;
+    @optional J2735::idl::SteeringWheelAngle angle;
+    @optional MotionConfidenceSet motionCfd;
+    @optional J2735::idl::AccelerationSet4Way accelSet;
+    VehicleSize size;
+	@optional VehicleClassification vehicleClass;
+};
+typedef sequence<ParticipantData, 16> ParticipantList;
+
+struct RoadsideSafetyMessage {
+    J2735::idl::MsgCount msgCnt;
+    octet id[8]; // RSU ID
+    Position3D refPos; // Reference position of this RSM message
+    ParticipantList participants; // All or part of the participants detected by RSU
+};
+};
+};

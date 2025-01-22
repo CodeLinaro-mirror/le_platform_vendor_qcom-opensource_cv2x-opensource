@@ -1,0 +1,25 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in SignalPhaseAndTiming.asn
+ */
+
+#include "DefCommon.idl"
+
+#include "SPATIntersectionState.idl"
+
+module Csae {
+module idl {
+
+struct SPAT {
+    J2735::idl::MsgCount msgCnt;
+    @optional J2735::idl::MinuteOfTheYear moy;
+    @optional J2735::idl::DSecond timeStamp;
+    @optional J2735::idl::DescriptiveName name;
+    IntersectionStateList intersections;
+};
+};
+};

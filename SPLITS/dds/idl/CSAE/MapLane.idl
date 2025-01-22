@@ -1,0 +1,33 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in MapLane.asn
+ */
+
+#ifndef MAP_LANE_
+#define MAP_LANE_
+
+#include "DefCommon.idl"
+
+
+module Csae {
+module idl {
+
+struct LaneAttributes {
+    @optional J2735::idl::LaneSharing shareWith;
+    J2735::idl::LaneTypeAttributes laneType;
+};
+
+struct Lane {
+    J2735::idl::LaneID laneID;
+    @optional J2735::idl::LaneWidth laneWidth;
+    @optional LaneAttributes laneAttributes;
+};
+typedef sequence<Lane, 32> LaneList;
+};
+};
+
+#endif

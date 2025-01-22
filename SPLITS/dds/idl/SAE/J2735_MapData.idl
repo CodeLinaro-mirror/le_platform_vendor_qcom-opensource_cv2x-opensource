@@ -1,0 +1,318 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 Mapdata types based on ASN.1 notation
+ * ASN definition file J2735_MapData_2024_rel_v1.1
+ */
+
+#include "J2735_Common.idl"
+#include "J2735_ITIS.idl"
+
+module J2735 {
+module idl {
+
+/* Typedefs of all integer types */
+typedef octet LayerID;
+
+/* bit strings*/
+@bit_bound(16)
+bitmask AllowedManeuvers
+{
+    @position(0)	maneuverStraightAllowed,
+    @position(1)	maneuverLeftAllowed,
+    @position(2)	maneuverRightAllowed,
+    @position(3)	maneuverUTurnAllowed,
+    @position(4)	maneuverLeftTurnOnRedAllowed,
+    @position(5)	maneuverRightTurnOnRedAllowed,
+    @position(6)	maneuverLaneChangeAllowed,
+    @position(7)	maneuverNoStoppingAllowed,
+    @position(8)	yieldAllwaysRequired,
+    @position(9)	goWithHalt,
+    @position(10)	caution,
+    @position(11)	am_reserved1
+};
+
+@bit_bound(2)
+bitmask LaneDirection
+{
+   @position(0) ingressPath,
+   @position(1) egressPath
+};
+
+/* Enums */
+enum RestrictionAppliesTo
+{
+    rst_none,              /*-- applies to nothing */
+    rst_equippedTransit,   /*-- buses etc. */
+    rst_equippedTaxis,
+    rst_equippedOther,     /*-- other vehicle types with*/
+                       /*-- necessary signal phase state */
+                       /*-- reception equipment*/
+    rst_emissionCompliant, /*-- regional variants with more*/
+                       /*-- definitive items also exist*/
+    rst_equippedBicycle,
+    rst_weightCompliant,
+    rst_heightCompliant,
+    /*-- Items dealing with traveler needs serviced by the infrastructure
+    rst_-- These end users (which are not vehicles) are presumed to be suitably equipped */
+    rst_pedestrians,
+    rst_slowMovingPersons,
+    rst_wheelchairUsers,
+    rst_visualDisabilities,
+    rst_audioDisabilities,
+    rst_otherUnknownDisabilities
+};
+enum LayerType
+{
+     lt_none,
+     lt_mixedContent, /*-- two or more of the below types*/
+     lt_generalMapData,
+     lt_intersectionData,
+     lt_curveData,
+     lt_roadwaySectionData,
+     lt_parkingAreaData,
+     lt_sharedLaneData
+};
+
+/* compound data types */
+struct ConnectingLane
+{
+   LaneID lane;               /*-- Index of the connecting lane*/
+   @optional AllowedManeuvers aneuver;  /*AllowedManeuvers OPTIONAL
+                       -- The Maneuver between
+                       -- the enclosing lane and this lane
+                       -- at the stop line to connect them */
+};
+
+
+struct Connection
+{
+   /*-- The subject lane connecting to this lane is: */
+   ConnectingLane connectingLane;
+                      /*-- The index of the connecting lane and also
+                      -- the maneuver from the current lane to it */
+   @optional IntersectionReferenceID remoteIntersection;
+                      /*-- This entry is only used when the
+                      -- indicated connecting lane belongs
+                      -- to another intersection layout. This
+                      -- provides a means to create meshes of lanes*/
+
+   /*-- SPAT mapping details at the stop line are: */
+   @optional SignalGroupID signalGroup;
+                      /*-- The matching signal group send by
+                      -- the SPAT message for this lane/maneuver.
+                      -- Shall be present unless the connectingLane
+                      -- has no signal group (is un-signalized) */
+   @optional RestrictionClassID userClass;
+                      /*-- The Restriction Class of users this applies to
+                      -- The use of some lane/maneuver and SignalGroupID
+                      -- pairings are restricted to selected users.
+                      -- When absent, the SignalGroupID applies to all*/
+
+   /*-- Movement assist details are given by: */
+   @optional LaneConnectionID connectionID;
+                      /*-- An optional connection index used to
+                      -- relate this lane connection to any dynamic
+                      -- clearance data in the SPAT. Note that
+                      -- the index may be shared with other
+                      -- connections if the clearance data is common*/
+};
+
+
+typedef sequence<Connection, 16> ConnectsToList;
+
+struct  DataParameters
+{
+   @optional string processMethod;
+   @optional string processAgency;
+   @optional string lastCheckedDate;
+   @optional string geoidUsed;
+};
+
+struct LaneAttributes
+{
+   LaneDirection directionalUse;
+   LaneSharing sharedWith;
+   LaneTypeAttributes laneType;
+   /*regional        RegionalExtension {{Reg-LaneAttributes}} OPTIONAL*/
+};
+
+typedef sequence<LaneID, 5> OverlayLaneList;
+
+struct GenericLane
+{
+   LaneID laneID;
+                    /*-- The unique ID number assigned
+                    -- to this lane object*/
+   @optional DescriptiveName name;
+                    /*-- often for debug use only
+                    -- but at times used to name ped crossings*/
+   @optional ApproachID ingressApproach;
+   @optional ApproachID egressApproach;
+
+   LaneAttributes laneAttributes;
+                    /*-- All Attribute information about
+                    -- the basic selected lane type
+                    -- Directions of use, Geometric co-sharing
+                    -- and Type Specific Attributes
+                    -- These Attributes are 'lane - global' that is,
+                    -- they are true for the entire length of the lane */
+   @optional AllowedManeuvers maneuvers;
+                    /*-- the permitted maneuvers for this lane */
+   NodeListXY nodeList;
+                    /*-- Lane spatial path information as well as
+                    -- various Attribute information along the node path
+                    -- Attributes found here are more general and may
+                    -- come and go over the length of the lane. */
+   @optional ConnectsToList connectsTo;
+                    /*-- a list of other lanes and their signal group IDs
+                    -- each connecting lane and its signal group ID
+                    -- is given, therefore this element provides the
+                    -- information formerly in "signalGroups" in prior
+                    -- editions.*/
+   @optional OverlayLaneList overlays;
+                    /*-- A list of any lanes which have spatial paths that
+                    -- overlay (run on top of, and not simply cross)
+                    -- the path of this lane when used. An overlay
+                    -- for one lane can be applied to parallel lanes
+                    -- without repeating OverlayLaneList for each GenericLane
+                    -- entry.*/
+   /*regional  SEQUENCE (SIZE(1..4)) OF
+             RegionalExtension {{Reg-GenericLane}} OPTIONAL, */
+};
+
+//reduced from 255 to 16
+typedef sequence<GenericLane, 16> LaneList;
+
+/*PreemptPriorityList ::= SEQUENCE (SIZE(1..32)) OF SignalControlZone
+
+SignalControlZone ::=  SEQUENCE {
+  zone  RegionalExtension {{Reg-SignalControlZone}},
+  ...
+  }
+*/
+struct IntersectionGeometry
+{
+   @optional DescriptiveName name;
+   IntersectionReferenceID id;
+   MsgCount revision;
+
+   Position3D refPoint;     /*-- The reference from which subsequent
+                            -- data points are offset until a new
+                            -- point is used.*/
+   @optional LaneWidth laneWidth;
+                            /*-- Reference width used by all subsequent
+                            -- lanes unless a new width is given*/
+   @optional SpeedLimitList speedLimits;
+                            /*-- Reference regulatory speed limits
+                            -- used by all subsequent
+                            -- lanes unless a new speed is given
+                            -- See Section 11 for converting and
+                            -- translating speed expressed in mph
+                            -- into units of m/s */
+   LaneList laneSet;        /*-- Data about one or more lanes
+                            -- (all lane data is found here) */
+
+   /*-- Data describing how to use and request preemption and
+   -- priority services from this intersection (if supported)
+   -- NOTE Additonal data may be added in the next release of the
+   -- standard at this point to handle this concept */
+   /*@optional PreemptPriorityList preemptPriorityData; */
+                           /*-- data about one or more regional
+                           -- preempt or priority zones */
+
+   /*regional     SEQUENCE (SIZE(1..4)) OF
+                RegionalExtension {{Reg-IntersectionGeometry}} OPTIONAL,*/
+   /* @optional RoadAuthorityID roadAuthorityID; */
+   /*-- Mandatory if roadRegulatorID is set to 0*/
+};
+
+//size is reduced from 32 to 8
+typedef sequence<IntersectionGeometry, 8> IntersectionGeometryList;
+
+
+union RestrictionUserType switch(octet)
+{
+    case 0:
+        RestrictionAppliesTo basicType;
+    case 1:
+        octet dummy; /* use dummy data since we don't support regional extension */
+};
+typedef sequence<RestrictionUserType, 16> RestrictionUserTypeList;
+
+/*RoadLaneSetList reduced from 255 to 16*/
+typedef sequence<GenericLane, 16> RoadLaneSetList;
+
+struct RestrictionClassAssignment
+{
+   RestrictionClassID id;
+            /*-- the unique value (within an intersection or local region)
+            -- that is assigned to this group of users*/
+   RestrictionUserTypeList users;
+            /*-- The list of user types/classes
+            --  to which this restriction ID applies */
+};
+
+//size is reduced from 254 to 16
+typedef sequence<RestrictionClassAssignment, 16> RestrictionClassList;
+
+struct RoadSegment
+{
+   @optional DescriptiveName name;
+   RoadSegmentReferenceID id;
+   MsgCount revision;
+
+   Position3D refPoint;    /*-- the reference from which subsequent
+                           -- data points are offset until a new
+                           -- point is used. */
+   @optional LaneWidth laneWidth;
+                            /*-- Reference width used by all subsequent
+                            -- lanes unless a new width is given*/
+   @optional SpeedLimitList speedLimits;
+                            /*-- Reference regulatory speed limits
+                            -- used by all subsequent
+                            -- lanes unless a new speed is given
+                            -- See Section 11 for converting and
+                            -- translating speed expressed in mph
+                            -- into units of m/s */
+
+   /*-- Data describing disruptions in the RoadSegment
+   -- such as work zones etc will be added here;
+   -- in the US the SAE ITIS codes would be used here
+   -- The details regarding each lane type in the RoadSegment*/
+   RoadLaneSetList roadLaneSet;
+
+   /*regional    SEQUENCE (SIZE(1..4)) OF
+               RegionalExtension {{Reg-RoadSegment}} OPTIONAL, */
+};
+//size is reduced from 32 to 8
+typedef sequence<RoadSegment, 8> RoadSegmentList;
+
+
+struct MapData
+{
+   @optional MinuteOfTheYear timeStamp;
+   MsgCount msgIssueRevision;
+   @optional LayerType layerType;
+   @optional LayerID layerID;
+   @optional IntersectionGeometryList intersections;
+   @optional RoadSegmentList roadSegments;
+
+   @optional DataParameters dataParameters;
+
+   @optional RestrictionClassList restrictionList;
+   /*regional          SEQUENCE (SIZE(1..4)) OF
+                     RegionalExtension {{Reg-MapData}} OPTIONAL,
+
+   -- NOTE:
+   -- Other map data will be added here as it is defined
+   -- Examples of the type of content to be added include
+   -- curve warnings, construction routes, etc.
+   ... */
+};
+
+}; /* namespace idl */
+}; /* namespace J2735 */

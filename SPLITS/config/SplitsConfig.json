@@ -1,0 +1,132 @@
+{
+    "CoreConfig" :
+    {
+        "procPriority" : -20,
+        "WildCardRx" : false,
+        "Role" : "RSU",
+        "EnableLocationFixes" : true,
+        "LocationInterval" : 100,
+        //VehicleDataSource:
+        //0: can, use v2x vehicle library
+        //1: IDL, use vsomeip, vehcle data service runs on EAP
+        "VehicleDataSource" : 0,
+        "EnableVehicleDataCallbacks" : true,
+        "SpsFlows" :
+        [
+            {
+                "MessageType" : "BSM",
+                //Source:
+                //0: Local, message is generated inside SPLITS (BSM is the case)
+                //1: Remote, message is generated on remote side (EAP), sent to SPLITS via DDS
+                "Source" : 0,
+                //Format: specify the format if the source is 1(Remote)
+                //0 : BLOB , message is encoded/signed and has WSMP header.
+                //1 : SIGNED, message is encoded and signed, but no WSMP header.
+                //2 : UNSIGNED, message is encoded, but not signed and no WSMP header.
+                //3 : unencoded, message is in fast dds IDL format, unencoded.
+                "Format" : 3,
+                "Periodicity" : 100,
+                "SourcePort" : 9000,
+                "DestPort" : 2500,
+                "DestAddr" : "ff02:1::8998"
+            },
+            //When role is RSU, and enable WRA is set to true
+            {
+                "MessageType" : "WSA",
+                "Source" : 0,
+                "Format" : 3,
+                "Periodicity" : 1000,
+                "SourcePort" : 9001,
+                "DestPort" : 2501,
+                "DestAddr" : "ff02:1::8998"
+            }
+        ],
+        "EventFlows" :
+        [
+            {
+                "MessageType": "RTCM",
+                "Source" : 1,
+                "Format" : 3,
+                "Periodicity" : 2000,
+                "SourcePort" : 2550,
+                "DestPort" : 9000,
+                "DestAddr" : "ff02::1:9000,ff02::1:9001"
+            },
+            {
+                "MessageType": "SPAT",
+                "Source" : 1,
+                "Format" : 2,
+                "Periodicity" : 2000,
+                "SourcePort" : 2550,
+                "DestPort" : 9000,
+                "DestAddr" : "ff02::1:9000,ff02::1:9001"
+            }
+        ],
+        "ReceiveFlows" :
+        [
+            {
+                "MessageType" : "BSM",
+                "ReceivePort" : 9000
+            },
+            {
+                "MessageType" : "WSA",
+                "ReceivePort" : 9000
+            },
+            {
+                "MessageType" : "RTCM",
+                "ReceivePort" : 9000
+            }
+        ]
+    },
+    "SecurityConfig" :
+    {
+        "Enable" : false,
+        "SecurityContextName" : "smdemo.wsc",
+        //securityCountryCode in Decimal format
+        "SecurityCountryCode" : 840,
+        "LocalCertMgrName" : "bsmLcm",
+        "EnableConsistency" : true,
+        "EnableRelevance" : true,
+        "SetGenLocation" : true,
+        "EnableSsp" : false,
+        "SspValue" : "01:ff:fc",
+        "EnableSspMask" : false,
+        "SspMask" : "ff:ff:ff",
+        "EnableL2FloodDetect" : false,
+        "mvmUtilThresh" : 0.5
+    },
+    "CongCtrlConfig" :
+    {
+        "Enable" : false,
+        "VMinItt" : 0,
+        "VMaxItt" : 0,
+        "VPerInterval" : 0,
+        "VPerSubInterval" : 0,
+        "VDensityWeightFactor" : 0,
+        "VDensityCoefficient" : 0,
+        "VDensityMinPerRange" : 0,
+        "EnableSpsEnhancements" : false,
+        "TxCtrlInterval" : 0
+    },
+    "WraConfig" :
+    {
+        "Enable" : true,
+        "ServiceId" : 4,
+        "Interval" : 1000,
+        "routerLifetime" : 100,
+        "ipPrefix" : "2600:8802:1507:c700",
+        "ipPrefixLength" : 64,
+        "defaultGateway" : "",
+        "primaryDns" : ""
+    },
+    "RtcmConfig" :
+    {
+        "Enable" : true,
+        "NmeaGGAInterval" : 0,
+        //"HostName" : "199.106.116.10",
+        "HostName" : "103.229.18.145",
+        "Port" : 5000,
+        "UserNamePwdInBase64Format" : "XYZ",
+        "MountPoint" : "bdctrimble"
+    }
+}

@@ -1,0 +1,899 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 common data types based on ASN.1 notation
+ * ASN definition file J2735-Common-2024-J3315-v1.1.3.asn
+ */
+#ifndef J2735_COMMON_IDL_
+#define J2735_COMMON_IDL_
+
+#include "DefCommon.idl"
+#include "J2735_ITIS.idl"
+module J2735 {
+module idl {
+/* typedefs for all integer types */
+typedef octet AmbientAirPressure;
+typedef octet AmbientAirTemperature;
+typedef short Angle;
+
+typedef octet ApproachId;
+
+typedef octet BumperHeight;
+typedef octet CoefficientOfFriction;
+typedef octet Count;
+typedef char DeltaAngle;
+typedef short DrivenLineOffsetLg;
+typedef short DrivenLineOffsetSm;
+/***/
+typedef unsigned short Duration;
+typedef unsigned short MeanVariation;
+typedef unsigned short VariationStdDev;
+typedef octet GrossSpeed;
+typedef unsigned short IntersectionID;
+typedef octet Iso3833VehicleType;
+typedef unsigned short TrailerWeight;
+typedef octet LaneConnectionID;
+typedef long MergeDivergeNodeAngle;
+typedef unsigned short ObstacleDistance;
+typedef short Offset_B09;
+typedef short Offset_B10;
+typedef short Offset_B11;
+typedef short Offset_B12;
+typedef short Offset_B13;
+typedef short Offset_B14;
+typedef short Offset_B15;
+typedef short Offset_B16;
+typedef octet RegionId;
+typedef octet RequestID;
+typedef octet RestrictionClassID;
+typedef unsigned short RoadSegmentID;
+typedef char RoadWayCrownAngle;
+typedef short Scale_B12;
+
+typedef octet SignalGroupID;
+typedef octet SSPindex;
+typedef unsigned long StationID;
+typedef octet VehicleMass;
+
+typedef octet WiperRate;
+typedef octet ApproachID;
+typedef char RoadwayCrownAngle;
+typedef sequence<octet, 1023> RTCMmessage;
+typedef octet TemporaryID[4];
+
+/* Enums and bitmasks*/
+enum AuxilaryBrakesStatus
+{
+   ab_unavailable, /*(0), $$ B'00  Vehicle Not Equipped with Aux Brakes 
+                    $$       or Aux Brakes status is unavailable */
+   ab_off,         /*(1), $$ B'01  Vehicle's Aux Brakes are Off */
+   ab_on,          /*(2), $$ B'10  Vehicle's Aux Brakes are On ( Engaged ) */
+   ab_reserved     /*(3)  $$ B'11 */
+};
+
+enum BasicVehicleRole
+{
+    basicVehicle     , /*(0), $$ Light duty passenger vehicle type */
+    publicTransport  , /*(1), $$ Used in EU for Transit us */
+    specialTransport , /*(2), $$ Used in EU , /*(e.g., heavy load) */
+    dangerousGoods   , /*(3), $$ Used in EU for any HAZMAT */
+    roadWork         , /*(4), $$ Used in EU for State and Local DOT uses */
+    roadRescue       , /*(5), $$ Used in EU and in the US to include tow trucks. */
+    emergency        , /*(6), $$ Used in EU for Police, Fire and Ambulance units */
+    safetyCar        , /*(7), $$ Used in EU for Escort vehicles */
+    none_unknown     , /*(8), $$ added to follow current SAE style guidelines */
+    truck            , /*(9), $$ Heavy trucks with additional BSM rights and obligations */
+    motorcycle      , /*(10), $$ */
+    roadSideSource  , /*(11), $$ For infrastructure generated calls such as 
+                          $$ fire house, rail infrastructure, roadwork site, etc. */
+    police          , /*(12), $$ */
+    fire            , /*(13), $$ */
+    bvr_ambulance       , /*(14), $$ (does not include private para_transit etc.) */
+    dot             , /*(15), $$ all roadwork vehicles */
+    transit         , /*(16), $$ all transit vehicles */
+    slowMoving      , /*(17), $$ to also include oversize etc. */
+    stopNgo         , /*(18), $$ to include trash trucks, school buses and others
+                          $$ that routinely disturb the free flow of traffic */
+    cyclist         , /*(19), $$ */
+    pedestrian      , /*(20), $$ also includes those with mobility limitations */
+    nonMotorized    , /*(21), $$ other, horse drawn, etc. */
+    military         /*(22), $$ */
+};
+enum Extent{
+   useInstantlyOnly,
+   useFor3meters,
+   useFor10meters,
+   useFor50meters,
+   useFor100meters,
+   useFor500meters,
+   useFor1000meters,
+   useFor5000meters,
+   useFor10000meters,
+   useFor50000meters,
+   useFor100000meters,
+   useFor500000meters,
+   useFor1000000meters,
+   useFor5000000meters,
+   useFor10000000meters,
+   forever
+};
+enum PortlandCementType
+{
+    pct_newSharp,
+    pct_traveled,
+    pct_trafficPolished
+};
+enum AsphaltOrTarType
+{
+    att_newSharp,
+    att_traveled,
+    att_trafficPolished,
+    att_excessTar
+};
+enum GravelType {
+    gr_packedOiled,
+    gr_loose
+};
+enum GrassType
+{
+    lessthan30mps
+};
+enum CinderType
+{
+   ct_packed
+};
+enum RockType
+{
+    crushed
+};
+enum IceType
+{
+    smooth
+};
+enum SnowType
+{
+    st_packed,
+    st_loose
+};
+enum RoadSurfaceCondition
+{
+    dry,
+    wet
+};
+union DescriptionOfRoadSurface switch(octet)
+{
+    case 0:
+        PortlandCementType portlandCement;
+    case 1:
+        AsphaltOrTarType asphaltOrTar;
+    case 2:
+        GravelType gravel;
+    case 3:
+        GrassType grass;
+    case 4:
+        CinderType cinders;
+    case 5:
+        RockType rock;
+    case 6:
+        IceType ice;
+    case 7:
+        SnowType snow;
+};
+struct RoadRoughness
+{
+    MeanVariation meanVerticalVariation;
+    @optional VariationStdDev verticalVariationStdDev;
+    @optional MeanVariation meanHorizontalVariation;
+    @optional VariationStdDev horizontalVariationStdDev;
+};
+
+struct FrictionInformation
+{
+    DescriptionOfRoadSurface roadSurfaceDescription;
+    @optional RoadSurfaceCondition dryOrWet;
+    @optional RoadRoughness roadRoughness;
+};
+@bit_bound(16)
+bitmask HeadingSlice
+{
+   @position(0) from000_0to022_5degrees,
+   @position(1) from022_5to045_0degrees,
+   @position(2) from045_0to067_5degrees,
+   @position(3) from067_5to090_0degrees,
+
+   @position(4) from090_0to112_5degrees,
+   @position(5) from112_5to135_0degrees,
+   @position(6) from135_0to157_5degrees,
+   @position(7) from157_5to180_0degrees,
+
+   @position(8) from180_0to202_5degrees,
+   @position(9) from202_5to225_0degrees,
+   @position(10) from225_0to247_5degrees,
+   @position(11) from247_5to270_0degrees,
+
+   @position(12) from270_0to292_5degrees,
+   @position(13) from292_5to315_0degrees,
+   @position(14) from315_0to337_5degrees,
+   @position(15) from337_5to360_0degrees
+};
+
+enum LocationQuality
+{
+     loc_qual_bt1m,       /*(0), -- quality better than 1 meter*/
+     loc_qual_bt5m,       /*(1), -- quality better than 5 meters*/
+     loc_qual_bt12m,      /*(2), -- quality better than 12.5 meters*/
+     loc_qual_bt50m,      /*(3), -- quality better than 50 meters*/
+     loc_qual_bt125m,     /*(4), -- quality better than 125 meters*/
+     loc_qual_bt500m,     /*(5), -- quality better than 500 meters*/
+     loc_qual_bt1250m,    /*(6), -- quality better than 1250 meters*/
+     loc_qual_unknown    /*(7)  -- quality value unknown*/
+};
+enum LocationTech
+{
+     loc_tech_unknown,    /*(0), -- technology type unknown*/
+     loc_tech_GNSS,       /*(1), -- GNSS technology only*/
+     loc_tech_DGPS,       /*(2), -- differential GNSS (DGPS) technology*/
+     loc_tech_RTK,        /*(3), -- differential GNSS (RTK) technology*/
+     loc_tech_PPP,        /*(4), -- precise point positioning (PPP) technology*/
+     loc_tech_drGPS,      /*(5), -- dead reckoning system w/GPS*/
+     loc_tech_drDGPS,     /*(6), -- dead reckoning system w/DGPS*/
+     loc_tech_dr,         /*(7), -- dead reckoning only*/
+     loc_tech_nav,        /*(8), -- autonomous navigation system on-board*/
+     loc_tech_fault      /*(9), -- feature is not working*/
+};
+
+enum MultiVehicleResponse
+{
+     multi_unavailable,   /*(0), $$ Not Equipped or unavailable */
+     multi_singleVehicle, /*(1)*/
+     multi_multiVehicle,  /*(2) */
+     multi_reserved       /*(3)  $$ for future use */
+};
+enum NodeAttributeXY
+{
+   node_attr_reserved,
+   stopLine,
+
+   /*-- Path finish details */
+   roundedCapStyleA,
+   roundedCapStyleB,
+   /*-- Topography Points (items with no concept of a distance along the path)*/
+   mergePoint,
+   divergePoint,
+   downstreamStopLine,
+   downstreamStartNode,
+   /*-- Pedestrian Support Attributes*/
+   closedToTraffic,
+   node_attr_safeIsland,
+   curbPresentAtStepOff,
+   /*-- Lane geometry details  (see standard for defined shapes)*/
+   hydrantPresent
+};
+enum PrioritizationResponseStatus
+{
+   prs_unknown,           /*(0),
+                      -- Unknown state*/
+   requested,         /*(1),
+                      -- This prioritization request was detected
+                      -- by the traffic controller*/
+   processing,        /*(2),
+                      -- Checking request
+                      -- (request is in queue, other requests are prior)*/
+   watchOtherTraffic, /*(3),
+                      -- Cannot give full permission,
+                      -- therefore watch for other traffic
+                      -- Note that other requests may be present*/
+   granted,           /*(4),
+                      -- Intervention was successful
+                      -- and now prioritization is active*/
+   rejected,          /*(5),
+                      -- The prioritization or preemption request was
+                      -- rejected by the traffic controller*/
+   maxPresence,       /*(6),
+                      -- The Request has exceeded maxPresence time
+                      -- Used when the controller has determined that
+                      -- the requester should then back off and
+                      -- request an alternative.*/
+   reserviceLocked   /*(7),
+                      -- Prior conditions have resulted in a reservice
+                      -- locked event: the controller requires the
+                      -- passage of time before another similar request
+                      -- will be accepted*/
+
+};
+@bit_bound(16)
+bitmask PrivilegedEventFlags
+{
+   @position(0) peUnavailable, /*                (0), $$ Not Equipped or unavailable */
+   @position(1) peEmergencyResponse,          /*(1),
+      $$ The vehicle is a properly authorized public safety vehicle,
+      $$ is engaged in a service call, and is currently moving
+      $$ or is within the roadway.  Note that lights and sirens
+      $$ may not be evident during any given response call */
+
+   /*$$ Emergency and Non Emergency Lights related */
+   @position(2) peEmergencyLightsActive,
+   @position(3) peEmergencySoundActive,
+   @position(4) peNonEmergencyLightsActive,
+   @position(5) peNonEmergencySoundActive
+
+};
+enum RequestImportanceLevel
+{
+    requestImportanceLevelUnKnown,
+    requestImportanceLevel1,        /*(1), -- The least important request*/
+    requestImportanceLevel2,
+    requestImportanceLevel3,
+    requestImportanceLevel4,
+    requestImportanceLevel5,
+    requestImportanceLevel6,
+    requestImportanceLevel7,
+    requestImportanceLevel8,
+    requestImportanceLevel9,
+    requestImportanceLevel10,
+    requestImportanceLevel11,
+    requestImportanceLevel12,
+    requestImportanceLevel13,
+    requestImportanceLevel14,
+    requestImportanceReserved
+};
+enum RequestSubRole
+{
+    requestSubRoleUnKnown,
+    requestSubRole1,
+    requestSubRole2,
+    requestSubRole3,
+    requestSubRole4,
+    requestSubRole5,
+    requestSubRole6,
+    requestSubRole7,
+    requestSubRole8,
+    requestSubRole9,
+    requestSubRole10,
+    requestSubRole11,
+    requestSubRole12,
+    requestSubRole13,
+    requestSubRole14,
+    requestSubRoleReserved
+};
+enum SegmentAttributeXY
+{
+
+   seg_attr_reserved                  ,
+   doNotBlock                ,  /* segment where a vehicle*/
+                                /* may not come to a stop*/
+   whiteLine                 ,  /* segment where lane crossing is not allowed*/
+                                /* such as the final few meters of a lane*/
+   /* Porous Lane states, merging, turn outs, parking etc.*/
+   mergingLaneLeft           ,  /* indicates porous lanes*/
+   mergingLaneRight          ,
+   curbOnLeft                ,  /* indicates presence of curbs*/
+   curbOnRight               ,
+   loadingzoneOnLeft         ,  /* loading or drop off zones*/
+   loadingzoneOnRight        ,
+   turnOutPointOnLeft        ,  /* opening to adjacent street/alley/road*/
+   turnOutPointOnRight       ,
+   adjacentParkingOnLeft     , /* side of road parking*/
+   adjacentParkingOnRight    ,
+   /* Bike Lane Needs*/
+   adjacentBikeLaneOnLeft    , /* presence of marked bike lanes*/
+   adjacentBikeLaneOnRight   ,
+   sharedBikeLane            , /* right of way is shared with bikes*/
+                               /* who may occupy entire lane width*/
+   bikeBoxInFront            ,
+   /* Transit Needs*/
+   transitStopOnLeft         , /* any form of bus/transit loading*/
+                               /* with pull in-out access to lane on left*/
+   transitStopOnRight        , /* any form of bus/transit loading*/
+                               /* with pull in-out access to lane on right*/
+   transitStopInLane         , /* any form of bus/transit loading*/
+                               /* in mid path of the lane*/
+   sharedWithTrackedVehicle  , /* lane is shared with train or trolley */
+                               /* not used for crossing tracks*/
+   /* Pedestrian Support Attributes*/
+   safeIsland                , /* begin/end a safety island in path*/
+   lowCurbsPresent           , /* for ADA support*/
+   rumbleStripPresent        , /* for ADA support*/
+   audibleSignalingPresent   , /* for ADA support*/
+   adaptiveTimingPresent     , /* for ADA support*/
+   rfSignalRequestPresent    , /* Supports RF push to walk technologies*/
+   partialCurbIntrusion      , /* path is blocked by a median or curb */
+                               /* but at least 1 meter remains open for use*/
+                               /* and at-grade passage*/
+   /* Lane geometry details  (see standard for defined shapes)*/
+   taperToLeft               , /* Used to control final path shape*/
+   taperToRight              , /* Used to control final path shape*/
+   taperToCenterLine         , /* Used to control final path shape*/
+   /* Parking Lane and Curb Attributes*/
+   parallelParking           , /* */
+   headInParking             , /* Parking at an angle with the street*/
+   freeParking               , /* no restriction on use of parking*/
+   timeRestrictionsOnParking , /* Parking is not permitted at all times*/
+                               /* typically used when the 'parking' lane */
+                               /* becomes a driving lane at times*/
+   costToPark                , /* Used where parking has a cost*/
+   midBlockCurbPresent       , /* a protruding curb near lane edge*/
+   unEvenPavementPresent      /* a disjoint height at lane edge*/
+};
+
+enum ThrottleConfidence
+{
+   thc_unavailable,     /*(0), $$ B'00  Not Equipped or unavailable */
+   prec10percent,   /*(1), $$ B'01  10  percent Confidence level */
+   prec1percent,    /*(2), $$ B'10  1   percent Confidence level */
+   prec0_5percent  /*(3)  $$ B'11  0.5 percent Confidence level */
+};
+@bit_bound(6)
+bitmask TransitStatus
+{
+   @position(0) none, /* nothing is active */
+   @position(1) anADAuse,
+   @position(2) aBikeLoad,
+   @position(3) doorOpen,
+   @position(4) occM,
+   @position(5) occL
+
+};
+
+@bit_bound(14)
+bitmask VehicleEventFlags
+{
+    @position(0) eventHazardLights,
+    @position(1) eventStopLineViolation,
+    @position(2) eventABSactivated,
+    @position(3) eventTractionControlLoss,
+    @position(4) eventStabilityControlactivated,
+    @position(5) eventHazardousMaterials,
+    @position(6) eventReserved1,
+    @position(7) eventHardBraking,
+    @position(8) eventLightsChanged,
+    @position(9) eventWipersChanged,
+    @position(10) eventFlatTire,
+    @position(11) eventDisabledVehicle,
+    @position(12) eventAirBagDeployment,
+    @position(13) eventJackKnife
+};
+enum VehicleType
+{
+   vt_none                 , /*(0),  $$ Not Equipped, Not known or unavailable */
+   vt_unknown              , /*(1),  $$ Does not fit any other category     */
+   special              , /*(2),  $$ Special use     */
+   moto                 , /*(3),  $$ Motorcycle    */
+   car                  , /*(4),  $$ Passenger car   */ 
+   carOther             , /*(5),  $$ Four tire single units */
+   bus                  , /*(6),  $$ Buses     */
+   axleCnt2             , /*(7),  $$ Two axle, six tire single units     */
+   axleCnt3             , /*(8),  $$ Three axle, single units    */
+   axleCnt4             , /*(9),  $$ Four or more axle, single unit */
+   axleCnt4Trailer      , /*(10), $$ Four or less axle, single trailer */
+   axleCnt5Trailer      , /*(11), $$ Five or less axle, single trailer  */
+   axleCnt6Trailer      , /*(12), $$ Six or more axle, single trailer   */
+   axleCnt5MultiTrailer , /*(13), $$ Five or less axle, multi_trailer   */
+   axleCnt6MultiTrailer , /*(14), $$ Six axle, multi_trailer    */
+   axleCnt7MultiTrailer  /*(15),  $$ Seven or more axle, multi_trailer */
+};
+@bit_bound(5)
+bitmask VerticalAccelerationThreshold
+{
+   @position(0) notEquipped, /* (0), -- Not equipped or off */
+   @position(1) leftFront,   /* (1), -- Left Front Event */
+   @position(2) leftRear,    /* (2), -- Left Rear Event*/
+   @position(3) rightFront,  /* (3), -- Right Front Event */
+   @position(4) rightRear   /* (4)  -- Right Rear Event */
+};
+enum WiperStatus
+{
+     ws_unavailable,
+     ws_off         ,
+     ws_intermittent,
+     ws_low         ,
+     ws_high        ,
+     ws_washerInUse ,
+     ws_automaticPresent
+};
+enum AVDClass
+{
+    AVDClass_ultralightAVD,
+    AVDClass_lightAVD
+};
+/*
+ *compound data types
+ */
+struct AntennaOffsetSet
+{
+    Offset_B12 antOffsetX;
+    Offset_B09 antOffsetY;
+    Offset_B10 antOffsetZ;
+};
+
+struct BrakeSystemStatus
+{
+    BrakeAppliedStatus wheelBrakes;
+    TractionControlStatus traction;
+    AntiLockBrakeStatus abs;
+    StabilityControlStatus scs;
+    BrakeBoostApplied brakeBoost;
+    AuxilaryBrakesStatus auxBrakes;
+};
+
+struct VehicleSize
+{
+   VehicleWidth width;
+   VehicleLength length;
+};
+struct BSMCoreData
+{
+    MsgCount msgCnt;
+    octet id[4];
+    DSecond secMark;
+    Latitude lat;
+    Longitude longitude;
+    Elevation elev;
+    PositionalAccuracy accuracy;
+    TransmissionState transmission;
+    Speed speed;
+    Heading heading;
+    SteeringWheelAngle angle;
+    AccelerationSet4Way accelSet;
+    BrakeSystemStatus brakes;
+    VehicleSize size;
+};
+struct BumperHeights
+{
+    BumperHeight front;
+    BumperHeight rear;
+};
+
+union OffsetAxis switch(octet)
+{
+    case 0:
+        DrivenLineOffsetSm small;
+    case 1:
+        DrivenLineOffsetLg large;
+};
+
+struct ComputedLane
+{
+    LaneID referenceLaneId;
+    OffsetAxis offsetXaxis;
+    OffsetAxis offsetYaxis;
+    @optional Angle rotateXY;
+    @optional Scale_B12 scaleXaxis;
+    @optional Scale_B12 scaleYaxis;
+    /* Not supporting regional extension */
+};
+struct DDate
+{
+    DYear year;
+    DMonth month;
+    DDay day;
+};
+
+struct DFullTime
+{
+    DYear year;
+    DMonth month;
+    DDay day;
+    DHour hour;
+    DMinute minute;
+};
+struct DMonthDay
+{
+    DMonth month;
+    DDay day;
+};
+struct DTime
+{
+    DHour hour;
+    DMinute minute;
+    DSecond second;
+    @optional DOffset offset;
+};
+struct DYearMonth
+{
+    DYear year;
+    DMonth month;
+};
+struct PrivilegedEvents
+{
+    //SSPindex doNotUse;
+    PrivilegedEventFlags event;
+};
+struct EmergencyDetails
+{
+    //SSPindex doNotUse;
+    SirenInUse sirenUse;
+    LightbarInUse lightsUse;
+    MultiVehicleResponse multi;
+    @optional PrivilegedEvents events;
+    @optional ResponseType responseType;
+};
+
+struct PositionConfidenceSet
+{
+    PositionConfidence pos;
+    ElevationConfidence elevation;
+};
+struct SpeedandHeadingandThrottleConfidence
+{
+    HeadingConfidence heading;
+    SpeedConfidence speed;
+    ThrottleConfidence throttle;
+};
+
+struct TransmissionAndSpeed
+{
+   TransmissionState transmission;
+   Velocity speed;
+};
+
+struct FullPositionVector
+{
+    @optional DDateTime utcTime;
+    Longitude longitude;
+    Latitude lat;
+    @optional Elevation elevation;
+    @optional Heading heading;
+    @optional TransmissionAndSpeed speed;
+    @optional PositionalAccuracy posAccuracy;
+    @optional TimeConfidence timeConfidence;
+    @optional PositionConfidenceSet posConfidence;
+    @optional SpeedandHeadingandThrottleConfidence speedConfidence;
+};
+struct Header
+{
+    @optional DYear year;
+    @optional MinuteOfTheYear timeStamp;
+    @optional DSecond secMark;
+    @optional MsgCount msgIssueRevision;
+};
+union IntersectionAccessPoint switch(octet)
+{
+    case 0:
+        LaneID lane;
+    case 1:
+        ApproachID approach;
+    case 2:
+        LaneConnectionID connection;
+};
+struct IntersectionReferenceID
+{
+    @optional RoadRegulatorID region;
+    IntersectionID id;
+};
+
+union LaneDataAttribute switch(octet)
+{
+    case 0:
+        DeltaAngle pathEndPointAngle;
+    case 1:
+        RoadwayCrownAngle laneCrownPointCenter;
+    case 2:
+        RoadwayCrownAngle laneCrownPointLeft;
+    case 3:
+        RoadwayCrownAngle laneCrownPointRight;
+    case 4:
+        MergeDivergeNodeAngle laneAngle;
+    case 5:
+        SpeedLimitList speedLimits;
+    /* NOt supporting regional extension */
+};
+typedef sequence<LaneDataAttribute, 8> LaneDataAttributeList;
+
+struct Node_LlmD_64b
+{
+    Longitude lon;
+    Latitude lat;
+};
+struct Node_XY_20b
+{
+    Offset_B10 x;
+    Offset_B10 y;
+};
+struct Node_XY_22b
+{
+    Offset_B11 x;
+    Offset_B11 y;
+};
+struct Node_XY_24b
+{
+    Offset_B12 x;
+    Offset_B12 y;
+};
+struct Node_XY_26b
+{
+    Offset_B13 x;
+    Offset_B13 y;
+};
+struct Node_XY_28b
+{
+    Offset_B14 x;
+    Offset_B14 y;
+};
+struct Node_XY_32b
+{
+    Offset_B16 x;
+    Offset_B16 y;
+};
+typedef sequence<NodeAttributeXY, 8> NodeAttributeXYList;
+typedef sequence<SegmentAttributeXY,8> SegmentAttributeXYList;
+struct NodeAttributeSetXY
+{
+    @optional NodeAttributeXYList localNode;
+    @optional SegmentAttributeXYList disabled;
+    @optional SegmentAttributeXYList enabled;
+    @optional LaneDataAttributeList data;
+    @optional Offset_B10 dWidth;
+    @optional Offset_B10 dElevation;
+    /* Not supporting regional extension */
+};
+union NodeOffsetPointXY  switch(octet)
+{
+    case 0:
+        Node_XY_20b node_XY1;
+    case 1:
+        Node_XY_22b node_XY2;
+    case 2:
+        Node_XY_24b node_XY3;
+    case 3:
+        Node_XY_26b node_XY4;
+    case 4:
+        Node_XY_28b node_XY5;
+    case 5:
+        Node_XY_32b node_XY6;
+    case 6:
+        Node_LlmD_64b node_LatLon;
+    /* not supporting regional extension */
+};
+struct NodeXY
+{
+    NodeOffsetPointXY delta;
+    @optional NodeAttributeSetXY attributes;
+};
+typedef sequence<NodeXY,63> NodeSetXY;
+
+union NodeListXY switch(octet)
+{
+    case 0:
+        NodeSetXY node;
+    case 1:
+        ComputedLane computed;
+};
+struct PathHistoryPoint
+{
+    OffsetLL_B18 latOffset;
+    OffsetLL_B18 lonOffset;
+    VertOffset_B12 elevationOffset;
+    TimeOffset timeOffset;
+    @optional Speed speed;
+    @optional PositionalAccuracy posAccuracy;
+    @optional CoarseHeading heading;
+};
+struct PathHistory
+{
+    @optional FullPositionVector initialPosition;
+    @optional GNSSstatus currGNSSstatus;
+    sequence<PathHistoryPoint,23> crumbData;
+};
+
+struct Position3D
+{
+   Latitude lat;
+   Longitude long_;
+   @optional Elevation elevation;
+   /*regional   SEQUENCE (SIZE(1..4)) OF
+              RegionalExtension {{Reg-Position3D}} OPTIONAL, */
+};
+
+struct RequestorType
+{
+    BasicVehicleRole role;
+    @optional RequestSubRole subrole;
+    @optional RequestImportanceLevel request;
+    @optional Iso3833VehicleType iso3883;
+    @optional VehicleType hpmsType;
+};
+
+struct RoadSegmentReferenceID
+{
+    @optional RoadRegulatorID region;
+    RoadSegmentID id;
+};
+
+struct RTCMheader
+{
+    GNSSstatus status;
+    AntennaOffsetSet offsetSet;
+};
+typedef sequence<RTCMmessage, 5> RTCMmessageList;
+
+struct SchoolBusJ2945Slash1C
+{
+    boolean flashingAmberLights;
+    boolean flashingRedLights;
+	/*-- School bus safety indicators,*/
+    boolean studentsCrossingFront;
+    boolean studentsCrossingBehind;
+	boolean studentsLoading;
+	boolean studentsUnloading;
+	boolean wheelchairLiftInUse;
+	/*-- Emergency indicators*/
+    boolean emergencyExitOpen;
+    boolean emergencyRequestMedical;
+    boolean emergencyRequestFire;
+    boolean emergencyRequestPolice;
+};
+
+struct Axles
+{
+    octet totalAxles;
+    @optional octet frontAxles;
+    @optional octet rearAxles;
+};
+
+typedef boolean PivotingAllowed;
+struct PivotPointDescription
+{
+   Offset_B11 pivotOffset;
+   Angle pivotAngle;
+   PivotingAllowed pivots;
+};
+struct TrailerUnitDescJ2945Slash1B
+{
+    VehicleWidth width;
+    VehicleLength length;
+    @optional VehicleHeight height;
+    @optional TrailerWeight weight;
+
+    PivotPointDescription frontPivot;
+    @optional PivotPointDescription rearPivot;
+    @optional BumperHeights bumpers;
+    @optional Axles axles_;
+};
+typedef sequence<TrailerUnitDescJ2945Slash1B, 8> TrailersJ2945Slash1B;
+
+
+struct VehicleClassification
+{
+   @optional BasicVehicleClass keyType;
+
+   @optional BasicVehicleRole role;
+   @optional Iso3833VehicleType iso3883;
+   @optional VehicleType hpmsType;
+
+   @optional VehicleGroupAffected vehicleType;
+   @optional IncidentResponseEquipment responseEquip;
+   @optional ResponderGroupAffected responderType;
+
+   @optional FuelType fuelType;
+
+   /*regional        SEQUENCE (SIZE(1..4)) OF
+                   RegionalExtension {{Reg_VehicleClassification}} OPTIONAL, */
+};
+union VehicleID switch(octet)
+{
+    case 0:
+        octet entityID[4];
+    case 1:
+        StationID stationID;
+};
+struct VehicleSafetyExtensions
+{
+    @optional VehicleEventFlags events;
+    @optional PathHistory pathHist;
+    @optional PathPrediction pathPredict;
+    @optional ExteriorLights lights;
+    @optional AVDClass avdClass;
+};
+/* VerticalOffset */
+/* WiperSet */
+
+typedef octet Priority;
+
+};
+};
+
+#endif

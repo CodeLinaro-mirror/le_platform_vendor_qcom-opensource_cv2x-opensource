@@ -1,0 +1,57 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in VehSafetyExt.asn
+ */
+#ifndef VEH_SAFETY_EXT_
+#define VEH_SAFETY_EXT_
+
+#include "DefCommon.idl"
+
+#include "VehStatus.idl"
+#include "DefPositionOffset.idl"
+#include "DefMotion.idl"
+#include "DefPosition.idl"
+
+module Csae {
+module idl {
+
+struct FullPositionVector {
+    @optional J2735::idl::DDateTime utcTime;
+    Position3D pos;
+    @optional J2735::idl::Heading heading;
+    @optional J2735::idl::TransmissionState transmission;
+    @optional J2735::idl::Speed speed;
+    @optional PositionConfidenceSet posAccuracy;
+    @optional J2735::idl::TimeConfidence timeConfidence;
+    @optional MotionConfidenceSet motionCfd;
+};
+
+struct PathHistoryPoint {
+    PositionOffsetLLV llvOffset;
+    J2735::idl::TimeOffset timeOffset;
+    @optional J2735::idl::Speed speed;
+    @optional PositionConfidenceSet posAccuracy;
+    @optional J2735::idl::CoarseHeading heading;
+};
+
+typedef sequence<PathHistoryPoint, 23> PathHistoryPointList;
+
+struct PathHistory {
+    @optional FullPositionVector initialPosition;
+    @optional J2735::idl::GNSSstatus currGNSSstatus;
+    PathHistoryPointList crumbData;
+};
+
+struct VehicleSafetyExtensions {
+    @optional VehicleEventFlags events;
+    @optional PathHistory pathHistory;
+    @optional J2735::idl::PathPrediction pathPrediction;
+    @optional J2735::idl::ExteriorLights lights;
+};
+};
+};
+#endif

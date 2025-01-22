@@ -1,0 +1,95 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in DefPositionOffset.asn
+ */
+
+#ifndef DEF_POSITION_OFFSET_
+#define DEF_POSITION_OFFSET_
+
+#include "DefCommon.idl"
+
+#include "DefPosition.idl"
+
+module Csae {
+module idl {
+
+struct Position_LL_24B {
+    J2735::idl::OffsetLL_B12 lon;
+    J2735::idl::OffsetLL_B12 lat;
+};
+
+struct Position_LL_28B {
+    J2735::idl::OffsetLL_B14 lon;
+    J2735::idl::OffsetLL_B14 lat;
+};
+
+struct Position_LL_32B {
+    J2735::idl::OffsetLL_B16 lon;
+    J2735::idl::OffsetLL_B16 lat;
+};
+
+struct Position_LL_36B {
+    J2735::idl::OffsetLL_B18 lon;
+    J2735::idl::OffsetLL_B18 lat;
+};
+
+struct Position_LL_44B {
+    J2735::idl::OffsetLL_B22 lon;
+    J2735::idl::OffsetLL_B22 lat;
+};
+
+struct Position_LL_48B {
+    J2735::idl::OffsetLL_B24 lon;
+    J2735::idl::OffsetLL_B24 lat;
+};
+
+struct Position_LLmD_64b {
+    J2735::idl::Longitude lon;
+    J2735::idl::Latitude lat;
+};
+
+union PositionOffsetLL switch(octet) {
+    case 0:
+        Position_LL_24B position_LL1;
+    case 1:
+        Position_LL_28B position_LL2;
+    case 2:
+        Position_LL_32B position_LL3;
+    case 3:
+        Position_LL_36B position_LL4;
+    case 4:
+        Position_LL_44B position_LL5;
+    case 5:
+        Position_LL_48B position_LL6;
+    case 6:
+        Position_LLmD_64b position_LatLon;
+};
+
+union VerticalOffset switch(octet) {
+    case 0:
+        J2735::idl::VertOffset_B07 offset1;
+    case 1:
+        J2735::idl::VertOffset_B08 offset2;
+    case 2:
+        J2735::idl::VertOffset_B09 offset3;
+    case 3:
+        J2735::idl::VertOffset_B10 offset4;
+    case 4:
+        J2735::idl::VertOffset_B11 offset5;
+    case 5:
+        J2735::idl::VertOffset_B12 offset6;
+    case 6:
+        J2735::idl::Elevation elevation;
+};
+
+struct PositionOffsetLLV {
+    PositionOffsetLL offsetLL;
+    @optional VerticalOffset offsetV;
+};
+};
+};
+#endif

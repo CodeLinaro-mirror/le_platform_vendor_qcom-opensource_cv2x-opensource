@@ -1,0 +1,25 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in MapNode.asn
+ */
+
+#ifndef MAP_NODE_
+#define MAP_NODE_
+
+#include "DefCommon.idl"
+
+module Csae {
+module idl {
+
+typedef unsigned short NodeID;
+struct NodeReferenceID {
+    @optional J2735::idl::RoadRegulatorID region;
+    NodeID id;
+};
+};
+};
+#endif

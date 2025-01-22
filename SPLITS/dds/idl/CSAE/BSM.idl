@@ -1,0 +1,45 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in BSM.asn
+ */
+
+#include "DefCommon.idl"
+
+#include "VehBrake.idl"
+#include "VehSize.idl"
+#include "DefPosition.idl"
+#include "VehStatus.idl"
+#include "DefMotion.idl"
+#include "VehClass.idl"
+#include "VehSafetyExt.idl"
+#include "VehEmgExt.idl"
+
+module Csae {
+module idl {
+
+struct BasicSafetyMessage {
+     J2735::idl::MsgCount msgCnt;
+     octet id[8];
+     J2735::idl::DSecond secMark;
+     @optional J2735::idl::TimeConfidence timeConfidence;
+     Position3D pos;
+     @optional J2735::idl::PositionalAccuracy posAccuracy;
+     @optional PositionConfidenceSet posConfidence;
+     J2735::idl::TransmissionState transmission;
+     J2735::idl::Speed speed;
+     J2735::idl::Heading heading;
+     @optional J2735::idl::SteeringWheelAngle angle;
+     @optional MotionConfidenceSet motionCfd;
+     J2735::idl::AccelerationSet4Way accelSet;
+     BrakeSystemStatus brakes;
+     VehicleSize size;
+     VehicleClassification vehicleClass;
+     @optional VehicleSafetyExtensions safetyExt;
+     @optional VehicleEmergencyExtensions emergencyExt;
+};
+};
+};

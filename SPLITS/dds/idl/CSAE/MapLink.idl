@@ -1,0 +1,61 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in MapLink.asn
+ */
+
+#ifndef MAP_LINK_
+#define MAP_LINK_
+
+#include "DefCommon.idl"
+
+#include "DefPositionOffset.idl"
+#include "MapLane.idl"
+#include "MapPoint.idl"
+#include "SPATIntersectionState.idl"
+#include "MapNode.idl"
+
+module Csae {
+module idl {
+
+struct Movement {
+    /*
+      -- This entry indicates the downstream intersection of the link this lane connects to. 
+      -- This provides a means to create meshes of lanes
+    */
+    NodeReferenceID remoteIntersection;
+    /*
+      -- The matching signal group send by
+      -- the SPAT message for this lane/maneuver.
+      -- Shall be present unless the connectingLane
+      -- has no signal group (is un-signalized)
+    */
+    @optional PhaseID phaseId;
+};
+typedef sequence<Movement, 32> MovementList;
+
+struct Link {
+    @optional J2735::idl::DescriptiveName name; // Link name
+    NodeReferenceID upstreamNodeId; // this link is from upstreamNode to the Node it belongs to
+    @optional J2735::idl::SpeedLimitList speedLimits; // List all the speed limits
+    J2735::idl::LaneWidth linkWidth; // Width of this link
+    @optional PointList points; // Define road points along the center of this link
+    @optional MovementList movements; // Define movements at intersection
+    LaneList lanes;    
+};
+typedef sequence<Link, 32> LinkList;
+
+/* definitions from MapNode.asn to avoid nested include */
+struct Node {
+	@optional J2735::idl::DescriptiveName name;
+	NodeReferenceID id;
+    Position3D refPos;
+    @optional LinkList inLinks;
+};
+typedef sequence<Node, 32> NodeList;
+};
+};
+#endif

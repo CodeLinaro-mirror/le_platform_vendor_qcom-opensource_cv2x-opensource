@@ -1,0 +1,31 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in DefPosition.asn
+ */
+
+#ifndef DEF_POSITION_
+#define DEF_POSITION_
+
+#include "DefCommon.idl"
+
+module Csae {
+module idl {
+
+struct Position3D {
+    J2735::idl::Latitude lat;
+    J2735::idl::Longitude long_;
+    @optional J2735::idl::Elevation elevation;
+};
+
+struct PositionConfidenceSet {
+    J2735::idl::PositionConfidence pos;
+    @optional J2735::idl::ElevationConfidence elevation;
+};
+
+};
+};
+#endif

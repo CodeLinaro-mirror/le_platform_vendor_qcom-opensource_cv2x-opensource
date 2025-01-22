@@ -1,0 +1,41 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines SAE J2735 Probe Vehicle Data message types based on ASN.1 notation
+ * ASN definition file J2735_ProbeVehicleData_2024_rel_v1.1
+ * 
+ * NOTE: Only partial types are defined!!!!!!!
+ */
+#include "J2735_Common.idl"
+module J2735 {
+module idl {
+
+enum AccelerationConfidence
+{
+   ac_unavailable, //-- Not Equipped or data is unavailable
+   ac_accl_100_00, //-- 100  meters / second squared
+   ac_accl_010_00, //-- 10   meters / second squared
+   ac_accl_005_00, //-- 5    meters / second squared
+   ac_accl_001_00, //-- 1    meters / second squared
+   ac_accl_000_10, //-- 0.1  meters / second squared
+   ac_accl_000_05, //-- 0.05 meters / second squared
+   ac_accl_000_01  //-- 0.01 meters / second squared
+};
+enum YawRateConfidence
+{
+   yrc_unavailable, //-- B'000  Not Equipped with yaw rate status
+                    //   -- or yaw rate status is unavailable
+   yrc_degSec_100_00, //-- B'001  100  deg/sec
+   yrc_degSec_010_00, //-- B'010  10   deg/sec
+   yrc_degSec_005_00, //-- B'011  5    deg/sec
+   yrc_degSec_001_00, //-- B'100  1    deg/sec
+   yrc_degSec_000_10, //-- B'101  0.1  deg/sec
+   yrc_degSec_000_05, //-- B'110  0.05 deg/sec
+   yrc_degSec_000_01  //-- B'111  0.01 deg/sec
+};
+};
+};
+

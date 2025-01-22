@@ -1,0 +1,152 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in RSI.asn
+ */
+
+#include "DefCommon.idl"
+
+#include "DefPositionOffset.idl"
+#include "MapNode.idl"
+
+module Csae {
+module idl {
+
+/*
+	-- The lower five bits are reserved and shall be set to zero
+	-- Value from B00000000 to B11100000 represents the lowest to the highest level
+*/
+typedef octet RSIPriority;
+
+/* Traffic event type according to China GB/T 29100-2012 */
+typedef unsigned short EventType;
+
+/*
+	-- Traffic sign type according to China GB 5768.2
+	-- Text message warning = 0
+	-- Danger = 37
+	-- Rockfall = 15
+	-- SharpTurn = 2
+	-- UnderConstruction = 38
+	-- Slippy = 17
+	-- Tunnel = 21
+*/
+typedef unsigned short SignType;
+
+/* 	-- Set bit to 1 if the related lane is effective */
+@bit_bound(16)
+bitmask ReferenceLanes {
+    @position(0)	lane_reserved,
+    @position(1)	lane1,
+    @position(2)	lane2,
+    @position(3)	lane3,
+    @position(4)	lane4,
+    @position(5)	lane5,
+    @position(6)	lane6,
+    @position(7)	lane7,
+    @position(8)	lane8,
+    @position(9)	lane9,
+    @position(10)   lane10,
+    @position(11)   lane11,
+    @position(12)   lane12,
+    @position(13)   lane13,
+    @position(14)   lane14,
+    @position(15)   lane15
+};
+
+/* 	-- Path point list for RTS message */
+typedef sequence<PositionOffsetLLV, 32> PathPointList;
+
+union Description switch(octet) {
+    case 0:
+        string textString; // ASCII text
+    case 1:
+        sequence<octet, 512> textGB2312; // text using Chinese-character encoding GB2312-80
+};
+
+struct RSITimeDetails {
+    @optional J2735::idl::MinuteOfTheYear startTime;
+    @optional J2735::idl::MinuteOfTheYear endTime;
+    @optional J2735::idl::TimeConfidence endTimeConfidence;
+};
+
+enum EventSource {
+    es_unknown,
+    police, // traffic police
+    government,
+    meteorological, // meteorological department
+    internet, // internet services
+    detection // local detection
+};
+
+struct ReferencePath {
+    /*
+		-- RSI is active for vehicles within this path
+		-- Points are listed from upstream to downstream
+		-- along the vehicle drive direction.
+		-- One path includes at least 1 points.
+		-- A path with only 1 point means a round alert area
+
+    */
+    PathPointList activePath;
+
+    /*
+		-- The biggest distance away from the alert path
+		-- within which the warning is active.
+    */
+    J2735::idl::Radius pathRadius;
+};
+typedef sequence<ReferencePath, 8> ReferencePathList;
+
+struct ReferenceLink {
+    NodeReferenceID upstreamNodeId;
+    NodeReferenceID downstreamNodeId;
+    /*
+		-- Provide reference lanes if is necessary
+		-- Refer to all lanes if this data is not given
+    */
+    @optional ReferenceLanes referenceLanes;
+};
+typedef sequence<ReferenceLink, 16> ReferenceLinkList;
+
+struct RTEData {
+    octet rteId; // local ID of this rte information set by RSU
+    EventType eventType; // Type of event, according to China GB/T 29100-2012
+    EventSource eventSource;
+    @optional PositionOffsetLLV eventPos;
+    @optional J2735::idl::Radius eventRadius;
+    @optional Description description;
+    @optional RSITimeDetails timeDetails;
+    @optional RSIPriority priority;
+    @optional ReferencePathList referencePaths;
+    @optional ReferenceLinkList referenceLinks;
+    @optional J2735::idl::Confidence eventConfidence;
+};
+/* Road Traffic Event List */
+typedef sequence<RTEData, 8> RTEList;
+
+struct RTSData {
+    octet rtsId; // local ID of this rts information set by RSU
+    SignType signType; // Type of sign, according to China GB 5768.2
+    @optional PositionOffsetLLV signPos; // Position of the traffic sign, if exists
+    @optional Description description; // Additional description to the sign
+    @optional RSITimeDetails timeDetails; // start time or end time when this sign is active, if existed
+    @optional RSIPriority priority; // the urgency of this RSI dat
+    @optional ReferencePathList referencePaths; // Related paths of this traffic sign
+    @optional ReferenceLinkList referenceLinks; // Related links of this traffic sign
+};	
+typedef sequence<RTSData, 16> RTSList;
+
+struct RoadSideInformation {
+    J2735::idl::MsgCount msgCnt;
+    @optional J2735::idl::MinuteOfTheYear moy;
+    octet id[8]; // RSU ID
+    Position3D refPos; // Reference position of this RSI message
+    @optional RTEList rtes;
+    @optional RTSList rtss;
+};
+};
+};

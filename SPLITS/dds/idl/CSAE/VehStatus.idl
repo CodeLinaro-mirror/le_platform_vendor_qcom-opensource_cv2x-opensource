@@ -1,0 +1,34 @@
+/*
+ *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
+/* 
+ * This idl defines CSAE data types included in VehStatus.asn
+ */
+#ifndef VEH_STATUS_
+#define VEH_STATUS_
+
+module Csae {
+module idl {
+
+@bit_bound(13)
+bitmask VehicleEventFlags {
+    @position(0) eventHazardLights,
+    @position(1) eventStopLineViolation,
+    @position(2) eventABSactivated,
+    @position(3) eventTractionControlLoss,
+    @position(4) eventStabilityControlactivated,
+    @position(5) eventHazardousMaterials,
+    @position(6) eventReserved1,
+    @position(7) eventHardBraking,
+    @position(8) eventLightsChanged,
+    @position(9) eventWipersChanged,
+    @position(10) eventFlatTire,
+    @position(11) eventDisabledVehicle,
+    @position(12) eventAirBagDeployment
+
+};
+};
+};
+#endif
