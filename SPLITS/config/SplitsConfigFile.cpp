@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "json/json.h"
@@ -9,13 +9,13 @@
 #include <sstream>
 #include <string>
 #include "SplitsConfigFile.hpp"
+#include "Logger.hpp"
 
 namespace SPLITS {
 
 namespace Config {
 
-int SplitsConfigFile::loadConfigFromFile(std::string filename)
-{
+int SplitsConfigFile::loadConfigFromFile(std::string filename) {
     unsigned int i;
     Json::Value root;
     std::ifstream ifs;
@@ -26,10 +26,10 @@ int SplitsConfigFile::loadConfigFromFile(std::string filename)
     builder["collectComments"] = true;
 
     if (!parseFromStream(builder, ifs, &root, &errs)) {
-        std::cout << errs << std::endl;
+        LOGD(__FUNCTION__, errs);
         return -1;
     }
-    std::cout << root << std::endl;
+
     Json::Value jsonCoreCfg = root["CoreConfig"];
     SplitsConfig::CoreConfig coreCfg;
 
@@ -51,7 +51,7 @@ int SplitsConfigFile::loadConfigFromFile(std::string filename)
         SplitsConfig::TxFlow spsFlow;
         auto msgType = jsonTxFlows[i].get("MessageType", "unknown").asString();
         if (msgName2PsidMap_.find(msgType) == msgName2PsidMap_.end()) {
-            std::cerr << "skipping msgType: " << msgType << std::endl;
+            LOGE(__FUNCTION__, " skipping msgType: ", msgType);
             continue;
         }
         spsFlow.setSource(jsonTxFlows[i].get("Source", 0).asUInt());
@@ -72,7 +72,7 @@ int SplitsConfigFile::loadConfigFromFile(std::string filename)
         SplitsConfig::TxFlow eventFlow;
         auto msgType = jsonTxFlows[i].get("MessageType", "unknown").asString();
         if (msgName2PsidMap_.find(msgType) == msgName2PsidMap_.end()) {
-            std::cerr << "skipping msgType: " << msgType << std::endl;
+            LOGE(__FUNCTION__, " skipping msgType: ", msgType);
             continue;
         }
         eventFlow.setSource(jsonTxFlows[i].get("Source", 0).asUInt());
@@ -93,7 +93,7 @@ int SplitsConfigFile::loadConfigFromFile(std::string filename)
         SplitsConfig::RxFlow rxFlow;
         auto msgType = jsonRxFlows[i].get("MessageType", "unknown").asString();
         if (msgName2PsidMap_.find(msgType) == msgName2PsidMap_.end()) {
-            std::cerr << "skipping msgType:" << msgType << std::endl;
+            LOGE(__FUNCTION__, " skipping msgType: ", msgType);
             return -1;
         }
         rxFlow.setServiceId(msgName2PsidMap_[msgType]);
@@ -164,7 +164,7 @@ int SplitsConfigFile::loadConfigFromFile(std::string filename)
         wraCfg.setRouterLifetime(jsonWraCfg.get("routerLifetime", 30).asUInt());
         auto ipPrefixStr = jsonWraCfg.get("ipPrefix", "").asString();
         if (ipPrefixStr.empty() and coreCfg.getRole() == 1) {
-            std::cout << "config error: WRA Role is RSU, but ipPrefix is not set" << std::endl;
+            LOGD(__FUNCTION__, " config error: WRA Role is RSU, but ipPrefix is not set");
             return -1;
         }
         std::vector<uint8_t> ipPrefixValue;
@@ -201,15 +201,18 @@ int SplitsConfigFile::loadConfigFromFile(std::string filename)
         auto loginStr = jsonRtcmCfg.get("UserNamePwdInBase64Format", "").asString();
         auto mountPtStr = jsonRtcmCfg.get("MountPoint","").asString();
         if (hostNameStr.empty() == true ) {
-            std::cout << "config error: RTCM role is RSU, but no Ntrip hostname specified" << std::endl;
+            LOGD(__FUNCTION__,
+                 " config error: RTCM role is RSU, but no Ntrip hostname specified");
             return -1;
         }
         if (loginStr.empty() == true) {
-            std::cout << "config error: RTCM role is RSU, but no login info for ntrip server specified" << std::endl;
+            LOGD(__FUNCTION__,
+                 " config error: RTCM role is RSU, but no login info for ntrip server specified");
             return -1;
         }
         if (mountPtStr.empty() == true) {
-            std::cout << "config error: RTCM role is RSU, but no mount point specified for ntrip" << std::endl;
+            LOGD(__FUNCTION__,
+                 " config error: RTCM role is RSU, but no mount point specified for ntrip");
             return -1;
         }
         rtcmCfg.setHostName(hostNameStr);
@@ -236,7 +239,7 @@ int SplitsConfigFile::HexStringValue(std::string & hexStr, std::vector<uint8_t> 
             }
             std::string subStr = hexStr.substr(prev, pos - prev);
             if (subStr.size() > 2) {
-                std::cerr << subStr << " is longer than one byte" << std::endl;
+                LOGE(__FUNCTION__, subStr, " is longer than one byte");
                 return -1;
             }
             uint8_t v = std::stoi(subStr, 0, 16);
@@ -269,7 +272,7 @@ int SplitsConfigFile::IPv6AddrStringValue(std::string &ipv6Str, std::vector<uint
             }
             std::string subStr = ipv6Str.substr(prev, pos - prev);
             if (subStr.size() > 4) {
-                std::cerr << subStr << " is longer than two bytes" << std::endl;
+                LOGE(__FUNCTION__, subStr, " is longer than two bytes");
                 return -1;
             }
             uint16_t v = std::stoi(subStr, 0, 16);

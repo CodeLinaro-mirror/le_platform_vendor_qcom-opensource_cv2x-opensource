@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <sys/socket.h>
@@ -18,6 +18,7 @@
 
 #include "SplitsNtrip.hpp"
 #include "utils.h"
+#include "Logger.hpp"
 
 #define RESP_BUFFER_SIZE    1032
 #define SOCKET_READ_TO    5
@@ -38,17 +39,17 @@ SplitsNtrip::SplitsNtrip(std::shared_ptr<SplitsConfig::RTCMConfig> config) {
 int SplitsNtrip::init(void)
 {
     std::string::size_type pos;
-    std::cout << "HostName" << config_->getHostName() << std::endl;
+    LOGD(__FUNCTION__, " HostName", config_->getHostName());
     pos= config_->getHostName().find("file:");
     if (pos != std::string::npos) {
         //using a file as RTCM source, for testing only.
         auto fileName = config_->getHostName().substr(pos + 5);
         sourceFp_ = std::fopen(fileName.c_str(), "r");
         if (!sourceFp_) {
-            std::cout << "failed to open file " << fileName << std::endl;
+            LOGD(__FUNCTION__, " failed to open file ", fileName);
             return -1;
         }
-        std::cout << "succesfully opened file: " << fileName << std::endl;
+        LOGD(__FUNCTION__, " succesfully opened file: ", fileName);
         ntripThread_ = std::thread([this]() {
             while(!stop_) {
                 if (processRtcmFromFile() < 0) {
@@ -97,7 +98,7 @@ Status SplitsNtrip::fillRTCM(std::shared_ptr<v2xMsgSae> msg)
             auto msg = rtcmMsgQueue_.front();
             rtcmMsgQueue_.pop();
             idlMsgList.push_back(*msg);
-            std::cout << "msg size:" << msg->size() << std::endl;
+            LOGD(__FUNCTION__, " msg size:", msg->size());
             rtcmMsgPool_.push(msg);
         }
         sp->msgs(std::move(idlMsgList));
@@ -116,7 +117,7 @@ int SplitsNtrip::connectNtrip(void)
     while(stop_ == false) {
         ntcSocketFd_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (ntcSocketFd_ < 0) {
-            std::cout << "SplitsNtrip::connectNtrip: Socket create failed" << std::endl;
+            LOGD(__FUNCTION__, " SplitsNtrip::connectNtrip: Socket create failed");
             return -1;
         }
         std::memset(&server_addr, 0, sizeof(server_addr));
@@ -124,17 +125,17 @@ int SplitsNtrip::connectNtrip(void)
         server_addr.sin_addr.s_addr = inet_addr(config_->getHostName().c_str());
         server_addr.sin_port = htons(config_->getPort());
 
-        std::cout << "Connecting to server: " << config_->getHostName() << ":" <<
-              config_->getPort() << std::endl;
+        LOGD(__FUNCTION__, " Connecting to server: ",
+             config_->getHostName(), ":", config_->getPort());
         ret = connect(ntcSocketFd_, (struct sockaddr *)&server_addr, sizeof(server_addr));
-        std::cout << "returned" << std::endl;
+        LOGD(__FUNCTION__, " returned");
         if (ret < 0) {
-            std::cout << "connection failed, retry after " << RETRY_COUNT << "sec" << std::endl;
+            LOGD(__FUNCTION__, " connection failed, retry after ", RETRY_COUNT, "sec");
             usleep(RETRY_COUNT * 1000000);
             close(ntcSocketFd_);
             continue;
         } else {
-            std::cout << "connection success" << std::endl;
+            LOGD(__FUNCTION__, " connection success");
         }
 
         std::memset(&response, 0 , sizeof(response));
@@ -144,10 +145,10 @@ int SplitsNtrip::connectNtrip(void)
               config_->getUserNamePwdInBase64Format() +
               "\r\nConnection: close\r\n";
         ret = send(ntcSocketFd_, con_request.c_str(), con_request.size(), 0);
-        //std::cout << "Sending request: " << con_request << std::endl;
+
         if (ret < 0) {
             close(ntcSocketFd_);
-            std::cout << "SplitsNtrip::connectNtrip: send failed: " << ret << std::endl;
+            LOGD(__FUNCTION__, " SplitsNtrip::connectNtrip: send failed: ", ret);
             return -1;
         }
         if (config_->getNmeaGGAInterval()) {
@@ -158,7 +159,7 @@ int SplitsNtrip::connectNtrip(void)
         // set for nonblocking socket
         flags = fcntl(ntcSocketFd_,F_GETFL,0);
         if (flags < 0) {
-            std::cerr << "SplitsNtrip::connectNtrip: fcntl returned error" << std::endl;
+            LOGE(__FUNCTION__, " SplitsNtrip::connectNtrip: fcntl returned error");
             return -1;
         }
         fcntl(ntcSocketFd_, F_SETFL, flags | O_NONBLOCK);
@@ -173,7 +174,7 @@ int SplitsNtrip::connectNtrip(void)
 
         ret = recv(ntcSocketFd_, response, sizeof(response), 0);
         if(ret < 0 ) {
-            std::cerr << "recv failed" << std::endl;
+            LOGE(__FUNCTION__, " recv failed");
             close(ntcSocketFd_);
             return -1;
         } else if (ret > 0 && !strncmp(ACK_STRING, (char*)response, 12)) {
@@ -187,7 +188,7 @@ int SplitsNtrip::connectNtrip(void)
                 continue;
             }
         } else {
-            std::cerr << "Initial response invalid: " << response << std::endl;
+            LOGE(__FUNCTION__, " Initial response invalid: ", response);
             close(ntcSocketFd_);
             return -1;
         }
@@ -208,10 +209,10 @@ int SplitsNtrip::waitForSock(int fd) {
         ret = select(fd + 1, &rfds, NULL, NULL, &tv);
         if (ret < 0 ) {
             if (errno == -EINTR) {
-                std::cout << "select interrupted, continue..." << std::endl;
+                LOGD(__FUNCTION__, " select interrupted, continue...");
                 continue;
             } else {
-                std::cout << "select returned error, existing.." << std::endl;
+                LOGD(__FUNCTION__, " select returned error, existing..");
                 stop_ = true;
                 break;
             }
@@ -256,14 +257,14 @@ int SplitsNtrip::processRtcmFromServer(void) {
 
     ret = recv(ntcSocketFd_, buffer, sizeof(buffer), 0);
     if (ret < 0) {
-       std::cerr << "ReadRtcmPacket: recv failed " << ret << std::endl;
-       return ret;
+        LOGE(__FUNCTION__, " ReadRtcmPacket: recv failed ", ret);
+        return ret;
     }
 
     if (append) {
          int totalSize = appendOffset + ret;
          std::memcpy(truncBuffer + appendOffset, buffer, ret);
-         //std::cout << "RTCM msg_type=" << msg_type << " length=" << totalSize << std::endl;
+
          append = false;
          appendOffset = 0;
          onMsgAvailable(truncBuffer, totalSize);
@@ -298,7 +299,6 @@ int SplitsNtrip::processRtcmFromServer(void) {
                     appendOffset = ret - i;
                     i += appendOffset;
                 } else {
-                    //std::cout << "RTCM msg_type=" << msg_type << " length=" << length+6 << std::endl;
                     onMsgAvailable(buffer + i, length + 6);
 #if 0
                     {
@@ -346,11 +346,11 @@ int SplitsNtrip::processRtcmFromFile(void)
 
     if (ret < 2) {
         if (std::feof(sourceFp_)) {
-            std::cout << "End of file reached, rewinding" << std::endl;
+            LOGD(__FUNCTION__, " End of file reached, rewinding");
             std::rewind(sourceFp_);
             return 0;
         } else if (std::ferror(sourceFp_)) {
-            std::cout << "file read error" << std::endl;
+            LOGD(__FUNCTION__, " file read error");
             return -1;
         }
     }
@@ -365,7 +365,7 @@ int SplitsNtrip::processRtcmFromFile(void)
         auto msg = rtcmMsgPool_.front();
         rtcmMsgPool_.pop();
         msg->clear();
-        std::cout << "copy data to queue: " << size << std::endl;
+        LOGD(__FUNCTION__, " copy data to queue: ", size);
         msg->assign(buffer, buffer + size);
         rtcmMsgQueue_.push(msg);
     }

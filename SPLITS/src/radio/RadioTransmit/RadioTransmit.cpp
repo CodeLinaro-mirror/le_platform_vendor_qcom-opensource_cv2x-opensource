@@ -27,9 +27,9 @@
  *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- *  Changes from Qualcomm Innovation Center are provided under the following license:
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  *
- *  Copyright (c) 2021,2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021,2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -71,14 +71,15 @@
   */
 
 #include "RadioTransmit.h"
-//#include "utils.h"
+#include "Logger.hpp"
 #include <cerrno>
 
 RadioTransmit::RadioTransmit(const SpsFlowInfo spsInfo, const TrafficCategory category,
-                const TrafficIpType trafficType, const uint16_t port, const uint32_t serviceId) {
+                             const TrafficIpType trafficType,
+                             const uint16_t port, const uint32_t serviceId) {
 
     if (!ready(category, RadioType::TX)) {
-        cout << "Radio Checks on Sps Transmit Event Fail\n";
+        LOGD(__FUNCTION__, " Radio Checks on Sps Transmit Event Fail");
         //return static_cast<uint8_t>(Status::FAILED);
     }
     this->category = category;
@@ -100,7 +101,7 @@ RadioTransmit::RadioTransmit(const SpsFlowInfo spsInfo, const TrafficCategory ca
     if(Status::SUCCESS == cv2xRadio->createTxSpsFlow(trafficType, serviceId, spsInfo,
                 port, false, 0, respCallback)){
         if(ErrorCode::SUCCESS == cb->getResponse()){
-            cout<<"Sps flow created succesfully sid=" << serviceId << endl;
+            LOGD(__FUNCTION__, " Sps flow created succesfully sid = ", serviceId);
 
             spsFlowInfo = std::make_shared<SpsFlowInfo>();
             if (spsFlowInfo) {
@@ -110,12 +111,12 @@ RadioTransmit::RadioTransmit(const SpsFlowInfo spsInfo, const TrafficCategory ca
             }
         }
         else{
-            cout<<"Sps Flow creation fails, future.get\n";
+            LOGE(__FUNCTION__, " Sps Flow creation fails, future.get");
             //return static_cast<uint8_t>(Status::FAILED);
         }
     }
     else {
-        cout << "Sps Flow creation fails\n";
+        LOGD(__FUNCTION__, " Sps Flow creation fails");
         //return static_cast<uint8_t>(Status::FAILED);
     }
 }
@@ -125,7 +126,7 @@ RadioTransmit::RadioTransmit(const EventFlowInfo eventInfo,
                             const TrafficIpType trafficType, const uint16_t port,
                             const uint32_t serviceId){
     if (!this->ready(category, RadioType::TX)) {
-        cout << "Radio Checks on Transmit Event fail\n";
+        LOGD(__FUNCTION__, " Radio Checks on Transmit Event fail");
         //return static_cast<uint8_t>(Status::FAILED);;
     }
     this->category = category;
@@ -147,17 +148,17 @@ RadioTransmit::RadioTransmit(const EventFlowInfo eventInfo,
     if(Status::SUCCESS == cv2xRadio->createTxEventFlow(trafficType, serviceId, testEventInfo,
                 port, respCallback)){
         if(ErrorCode::SUCCESS == cb->getResponse()) {
-            cout<<"Event Flow created succesfully\n";
+            LOGD(__FUNCTION__, " Event Flow created succesfully");
         } else {
-            cout<<"Event Flow creation fails, future.get\n";
+            LOGE(__FUNCTION__, " Event Flow creation fails, future.get");
         }
     } else {
-        cout<<"Event Flow creation fails\n";
+        LOGE(__FUNCTION__, " Event Flow creation fails");
     }
 }
 
 RadioTransmit::RadioTransmit(const RadioOpt radioOpt, const string ipv4_dst, const uint16_t port) {
-    cout << "Now simulating transmission of messages..."<< endl;
+    LOGD(__FUNCTION__, " Now simulating transmission of messages...");
     isSim = true;
     this->flowType = "simFlow";
 
@@ -168,20 +169,20 @@ RadioTransmit::RadioTransmit(const RadioOpt radioOpt, const string ipv4_dst, con
     // udp
     this->simSock = socket(AF_INET, SOCK_DGRAM, 0);
     if (simSock < 0) {
-        cout << "Error Creating Socket";
+        LOGD(__FUNCTION__, " Error Creating Socket");
         return;
     }
 
     this->destAddress.sin_family = AF_INET;
     this->destAddress.sin_port = htons(port);
     if (inet_pton(AF_INET, ipv4_dst.data(), &(this->destAddress.sin_addr)) <= 0) {
-        cout << "Invalid ip address: " << ipv4_dst << endl;
+        LOGD(__FUNCTION__, " Invalid ip address: ", ipv4_dst);
     }
 
     this->clientAddress.sin_family = AF_INET;
     this->clientAddress.sin_port = htons(port);
     if(inet_pton(AF_INET, this->ipv4_src.data(), &(this->clientAddress.sin_addr)) <= 0) {
-        cout << "Invalid ip address for client: " << ipv4_src.data() << endl;
+        LOGD(__FUNCTION__, " Invalid ip address for client: ", ipv4_src.data());
     }
 }
 
@@ -206,12 +207,10 @@ uint8_t RadioTransmit::transmit(const char* buf, const uint16_t bufLen, Priority
     }
     // Radio-based Communication
     auto resp = 0;
-    //cout << "Sending data in Flow: len=" << bufLen << endl;
     auto sock = this->flow->getSock();
-    //cout << "Sending data on flow socket("<< sock << ")\n";
 
     if (sock == -1) {
-        cout << "Error on transmit, with socket value -1\n";
+        LOGD(__FUNCTION__, " Error on transmit, with socket value -1");
         resp = static_cast<uint8_t>(Status::FAILED);
     }
 
@@ -227,13 +226,9 @@ uint8_t RadioTransmit::transmit(const char* buf, const uint16_t bufLen, Priority
     message.msg_iov = iov;
     message.msg_iovlen = 1;
 
-    //cout << "Provided priority is: " << static_cast<uint32_t>(priority) << "\n";
-    //cout << "Provided buflen is: " << bufLen << "\n";
-
     if (Priority::PRIORITY_UNKNOWN > priority) {
         // map pppp to traffic class if the priority is valid
         // note that pppp is only used for one-shot transmission
-        //cout << "Updating traffic class \n";
         message.msg_control = control;
         message.msg_controllen = sizeof(control);
         cmsghp = CMSG_FIRSTHDR(&message);
@@ -251,10 +246,9 @@ uint8_t RadioTransmit::transmit(const char* buf, const uint16_t bufLen, Priority
         //resp = bytes_sent;
         resp = 0;
     }else{
-        cerr << "Error Sending Data.\n";
-        cerr << "Error is: " << strerror(errno) << "\n";
-        cout << "Data that should have been sent is: \n";
-        cout << "\n";
+        LOGE(__FUNCTION__, " Error Sending Data.");
+        LOGE(__FUNCTION__, " Error is: ", strerror(errno));
+
         resp = 1;
     }
     if (!resp && enableCsvLog_) {
@@ -271,9 +265,7 @@ uint8_t RadioTransmit::transmit(const char* buf, const uint16_t bufLen, Priority
         }
         lastTxMonotonicTime_ = nowMonotonicTime;
     }
-   // std::cout << "return of sendmsg is: " << bytes_sent << "\n";
-/*  std::cout << "buffer length is: " << bufLen << "\n";
-    std::cout << "resp is: " << resp << "\n"; */
+
     return resp;
 }
 
@@ -313,11 +305,11 @@ uint8_t RadioTransmit::closeFlow() {
         const auto ans = close(simSock);
         if (ans < 0)
         {
-            cout << "Simulation socket failed to close.\n";
+            LOGD(__FUNCTION__, " Simulation socket failed to close.");
             return ans;
         }
         else {
-            cout << "Simulation socket closed succesfully.\n";
+            LOGD(__FUNCTION__, " Simulation socket closed succesfully.");
             return ans;
         }
     }
@@ -348,11 +340,11 @@ uint8_t RadioTransmit::closeFlow() {
             }
         }
         this->flow = nullptr;
-        cout << "Closing flow of type: " << flowType << "\n";
+        LOGD(__FUNCTION__, " Closing flow of type: ", flowType);
         if(resp != static_cast<uint8_t>(Status::FAILED)){
-            cout << "Tx flow closed.\n";
+            LOGD(__FUNCTION__, " Tx flow closed.");
         }else{
-            cout << "Tx flow not closed correctly.\n";
+            LOGD(__FUNCTION__, " Tx flow not closed correctly.");
         }
         return resp;
     }
@@ -380,4 +372,12 @@ uint32_t RadioTransmit::getSpsResSize(){
 
 uint64_t RadioTransmit::latestTxRxTimeMonotonic() {
     return lastTxMonotonicTime_;
+}
+
+uint16_t RadioTransmit::getPort() const {
+    if (flow) {
+        return flow->getPortNum();
+    } else {
+        return -1;
+    }
 }

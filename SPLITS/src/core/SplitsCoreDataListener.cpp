@@ -1,16 +1,16 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "v2xMsgTypes.hpp"
 #include "SplitsCoreImpl.hpp"
 #include "SplitsCoreDataListener.hpp"
+#include "Logger.hpp"
 
 using SPLITS::MsgFormat;
 using SPLITS::v2xMsgType;
 
-void SplitsCoreDataListener::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu)
-{
+void SplitsCoreDataListener::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu) {
     uint8_t signedPdu[512];
     uint32_t signedPduLen = 512;
     MsgFormat format = MsgFormat::MSG_FORMAT_UNKNOWN;
@@ -22,25 +22,26 @@ void SplitsCoreDataListener::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu
     //find corresponding event flow for this type of message
     auto coreCfg = splitsCore_->configData_->getCoreConfig();
     for (auto const & txEventFlow : coreCfg.getEventFlows()) {
-        std::cout << "flow sid: " << txEventFlow.getServiceId() << "pdu sid: " << pdu->serviceId() << std::endl;
+        LOGD(__FUNCTION__, " flow sid: ", txEventFlow.getServiceId(),
+             "pdu sid: ", pdu->serviceId());
         if (txEventFlow.getServiceId() == pdu->serviceId()) {
             format = static_cast<MsgFormat>(txEventFlow.getFormat());
         }
     }
     if (format == MsgFormat::MSG_FORMAT_UNKNOWN) {
-        std::cerr << "Unknown msg format" << std::endl;
+        LOGE(__FUNCTION__, " Unknown msg format");
         return;
     }
-    std::cout << "format=" << static_cast<int>(format) << std::endl;
+    LOGD(__FUNCTION__, " format = ", static_cast<int>(format));
     auto msg = std::dynamic_pointer_cast<v2xMsgSae>(splitsCore_->txEventMsgs_[pdu->serviceId()]);
     if (msg == nullptr) {
-        std::cerr << "no msg for service id: "<< pdu->serviceId() << std::endl;
+        LOGE(__FUNCTION__, " no msg for service id: ", pdu->serviceId());
         return;
     }
     msg->msgType_ = psid2msgTypeMap_[pdu->serviceId()];
 
     if (format == MsgFormat::MSG_FORMAT_UNSIGNED) {
-            std::cout << "unsigned format" << std::endl;
+            LOGD(__FUNCTION__, " unsigned format");
         //sign and add WSMP header
         if (coreCfg.getEnableSecurity() && splitsCore_->secInterface_ != nullptr) {
             //copy data to msg buffer.
@@ -50,18 +51,19 @@ void SplitsCoreDataListener::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu
             if(!splitsCore_->secInterface_->signMsg(
                         &splitsCore_->smg_, (uint8_t*)msg->buf, msg->bufLen,
                         signedPdu, signedPduLen, secConfig.getPsidValue(),
-                        secConfig.getEnableSsp(), secConfig.getSspValue().data(),secConfig.getSspLength(),
+                        secConfig.getEnableSsp(),
+                        secConfig.getSspValue().data(),secConfig.getSspLength(),
                         secConfig.getEnableSspMask(), secConfig.getSspMask().data(),
                         secConfig.getSspMaskLength(), SignerTypeOverride::STO_AUTO))
             {
                 //optimize this
-                std::cout << "New signed payload length is: " << signedPduLen << std::endl;
+                LOGD(__FUNCTION__, " New signed payload length is: ", signedPduLen);
                 msg->bufLen = signedPduLen;
                 //copy the signed pdu to msg buffer, but reserve headroom for WSMP header.
                 std::memcpy(msg->buf + RESERVE_HEADER_LEN, signedPdu, signedPduLen);
                 //encode Wsmp header and prepend to begining of buffer
                 if (splitsCore_->codec_->encodeWsmp(msg, true)) {
-                    std::cerr << "Failed to encode WSMP header" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to encode WSMP header");
                     goto out;
                 }
                 //set msgFormat to blob, so core function won't do anything about it anymore
@@ -75,23 +77,23 @@ void SplitsCoreDataListener::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu
             msg->buf += RESERVE_HEADER_LEN;
             msg->bufLen = pdu->length();
             //encode Wsmp header and prepend to begining of buffer
-            std::cout << "calling encodeWSMP with secured false" << std::endl;
+            LOGD(__FUNCTION__, " calling encodeWSMP with secured false");
             if (splitsCore_->codec_->encodeWsmp(msg, false)) {
-                std::cerr << "Failed to encode WSMP header" << std::endl;
+                LOGE(__FUNCTION__, " Failed to encode WSMP header");
                 goto out;
             }
             //set msgFormat to blob, so core function won't do anything about it anymore
             msg->format_ = MsgFormat::MSG_FORMAT_BLOB;
         }
     } else if (format == MsgFormat::MSG_FORMAT_SIGNED) {
-            std::cout << "signed format" << std::endl;
+        LOGD(__FUNCTION__, " signed format");
         //signed , only add WSMP header
         //copy data to msg buffer, reserved headroom for WSMP
         std::copy(pdu->msg().begin(), pdu->msg().end(), msg->buf + RESERVE_HEADER_LEN);
         msg->bufLen = pdu->length();
         //encode Wsmp header and prepend to begining of buffer
         if (splitsCore_->codec_->encodeWsmp(msg, true)) {
-            std::cerr << "Failed to encode WSMP header" << std::endl;
+            LOGE(__FUNCTION__, " Failed to encode WSMP header");
             goto out;
         }
         //set msgFormat to blob, so core function won't do anything about it anymore
@@ -111,57 +113,57 @@ void SplitsCoreDataListener::onMapReady(std::shared_ptr<J2735::idl::MapData> map
 {
     auto msg = std::dynamic_pointer_cast<v2xMsgSae>(splitsCore_->txEventMsgs_[SAE_PSID_MAP]);
     if (msg == nullptr) {
-        std::cerr << "no msg for MAP msg " << std::endl;
+        LOGE(__FUNCTION__, " no msg for MAP msg ");
         return;
     }
     msg->msgType_ = v2xMsgType::V2X_SAE_MSG_MAP;
     msg->Map(map);
     msg->format_ = MsgFormat::MSG_FORMAT_UNENCODED;
     if (splitsCore_->send(SAE_PSID_MAP, msg) < 0) {
-        std::cerr << "tx failure" << std::endl;
+        LOGE(__FUNCTION__, " tx failure");
     }
 }
 void SplitsCoreDataListener::onSpatReady(std::shared_ptr<J2735::idl::SPAT> spat)
 {
     auto msg = std::dynamic_pointer_cast<v2xMsgSae>(splitsCore_->txEventMsgs_[SAE_PSID_SPAT]);
     if (msg == nullptr) {
-        std::cerr << "no msg for SPAT msg " << std::endl;
+        LOGE(__FUNCTION__, " no msg for SPAT msg ");
         return;
     }
     msg->msgType_ = v2xMsgType::V2X_SAE_MSG_SPAT;
     msg->SPAT(spat);
     msg->format_ = MsgFormat::MSG_FORMAT_UNENCODED;
     if (splitsCore_->send(SAE_PSID_SPAT, msg) < 0) {
-        std::cerr << "tx failure" << std::endl;
+        LOGE(__FUNCTION__, " tx failure");
     }
 
 }
 void SplitsCoreDataListener::onRtcmReady(std::shared_ptr<J2735::idl::RTCMcorrection> rtcm)
 {
-    std::cout << "got RTCM " << std::endl;
+    LOGD(__FUNCTION__, " got RTCM ");
     auto msg = std::dynamic_pointer_cast<v2xMsgSae>(splitsCore_->txEventMsgs_[SAE_PSID_RTCM]);
     if (msg == nullptr) {
-        std::cerr << "no msg for RTCM msg "<< std::endl;
+        LOGE(__FUNCTION__, " no msg for RTCM msg ");
         return;
     }
     msg->msgType_ = v2xMsgType::V2X_SAE_MSG_RTCM;
     msg->RTCMcorrection(rtcm);
     msg->format_ = MsgFormat::MSG_FORMAT_UNENCODED;
     if (splitsCore_->send(SAE_PSID_RTCM, msg) < 0) {
-        std::cerr << "tx failure" << std::endl;
+        LOGE(__FUNCTION__, " tx failure");
     }
 }
 void SplitsCoreDataListener::onWsaReady(std::shared_ptr<IEEE1609Dot3::idl::SrvAdvMsg> wsa)
 {
     auto msg = std::dynamic_pointer_cast<v2xMsgSae>(splitsCore_->txEventMsgs_[SAE_PSID_WSA]);
     if (msg == nullptr) {
-        std::cerr << "no msg for WSA msg "<< std::endl;
+        LOGE(__FUNCTION__, " no msg for WSA msg ");
         return;
     }
     msg->msgType_ = v2xMsgType::V2X_SAE_MSG_WSA;
     msg->SrvAdvMsg(wsa);
     msg->format_ = MsgFormat::MSG_FORMAT_UNENCODED;
     if (splitsCore_->send(SAE_PSID_WSA, msg) < 0) {
-        std::cerr << "tx failure" << std::endl;
+        LOGE(__FUNCTION__, " tx failure");
     }
 }

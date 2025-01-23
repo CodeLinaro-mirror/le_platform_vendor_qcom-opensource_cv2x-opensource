@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "SplitsCore.hpp"
 #include "v2xMsgSae.hpp"
 #include "SplitsServiceDataPublisher.hpp"
+#include "Logger.hpp"
 
 namespace SPLITS {
 namespace Interface {
 
 using namespace eprosima::fastdds::dds;
 
-void SplitsServiceDataPublisher::publish(std::shared_ptr<v2xMsg> msg)
-{
+void SplitsServiceDataPublisher::publish(std::shared_ptr<v2xMsg> msg) {
     std::shared_ptr<SPLITS::v2xMsgSae> saeMsg = nullptr;
 
     for (const auto listener : pubListeners_) {
@@ -22,7 +22,6 @@ void SplitsServiceDataPublisher::publish(std::shared_ptr<v2xMsg> msg)
                     saeMsg = std::dynamic_pointer_cast<SPLITS::v2xMsgSae>(msg);
                     switch(msg->msgType_) {
                         case SPLITS::v2xMsgType::V2X_SAE_MSG_BSM:
-                            std::cout << "writting BSM" << std::endl;
                             listener->writer_->write(saeMsg->BSM().get());
                             break;
                         case SPLITS::v2xMsgType::V2X_SAE_MSG_SPAT:
@@ -54,7 +53,7 @@ void SplitsServiceDataPublisher::publish(std::shared_ptr<v2xMsg> msg)
                             listener->writer_->write(saeMsg->MsgData().get());
                             break;
                         default:
-                            std::cerr << "unknown msg type" << std::endl;
+                            LOGE(__FUNCTION__, " unknown msg type");
                             break;
                     }
                 } else {
@@ -76,9 +75,9 @@ void SplitsServiceDataPublisher::publish(std::shared_ptr<v2xMsg> msg)
         }
     }
 }
-void SplitsServiceDataPublisher::publish(void)
-{
-    while(!stop_) {
+
+void SplitsServiceDataPublisher::publish(void) {
+    while (!stop_) {
         //dequeue msg from rx queue, and see if there are any DDS subscriber.
         auto msg = splitsCore_->dequeueMsg();
 

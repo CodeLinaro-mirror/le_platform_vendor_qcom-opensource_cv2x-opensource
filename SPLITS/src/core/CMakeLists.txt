@@ -25,6 +25,7 @@ set(SPLITS_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/CongestCtrl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/TxScheduler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/qUtils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/CsvIO.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SecurityInterface.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SplitsFilter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SplitsWra.cpp

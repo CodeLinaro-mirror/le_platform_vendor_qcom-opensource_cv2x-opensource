@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -24,10 +24,8 @@ public:
     }
     void getStaticVehicleParameters(const std::shared_ptr<CommonAPI::ClientId> _client,
             getStaticVehicleParametersReply_t _reply) {
-        //(void)_client;
-        COMMONAPI_INFO("got RPC call request");
+        (void)_client;
         _reply(v1::commonapi::telux::common::CommonDefines::ErrorCode::SUCCESS, vehicleParams_);
-        COMMONAPI_INFO("reply send");
     }
 private:
     VehicleData::staticVehicleParameters vehicleParams_;

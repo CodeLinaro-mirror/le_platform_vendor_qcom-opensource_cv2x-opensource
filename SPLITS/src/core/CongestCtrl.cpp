@@ -5,18 +5,19 @@
 #include <sstream>
 #include "CongestCtrl.hpp"
 
+#include "Logger.hpp"
+
 namespace SPLITS {
 namespace Core {
 
 void CongestCtrlListener::updateSpsTransmitFlow(
-        std::shared_ptr<CongestionControlUserData> congestionControlUserData)
-{
-    // once the user data is updated, the thread in qits
-    // can now schedule a transmission
+    std::shared_ptr<CongestionControlUserData> congestionControlUserData) {
+    LOGD(__FUNCTION__);
+    // once the user data is updated, now schedule a transmission
     // cast void pointer
     // if sps enhancements enabled, we should make sure that the sps flow reservation is redone
-    if(spsTransmit_ != nullptr && congestionControlUserData->spsEnhancementsEnabled
-        && congestionControlUserData->congestionControlCalculations->maxITT != lastPeriodicity_){
+    if (spsTransmit_ != nullptr && congestionControlUserData->spsEnhancementsEnabled &&
+        congestionControlUserData->congestionControlCalculations->maxITT != lastPeriodicity_) {
         // create a new sps flow with the rounded max ITT that congestionControl calculates
         SpsFlowInfo spsInfo;
         // congestionControl rounds it already to valid values for sps periodicity
@@ -30,36 +31,37 @@ void CongestCtrlListener::updateSpsTransmitFlow(
         spsInfo.nbytesReserved = spsTransmit_->getSpsResSize();
 
         // catch future error here
-        try{
+        try {
             uint8_t ret = spsTransmit_->updateSpsFlow(spsInfo);
-            if(ret == static_cast<uint8_t>(Status::FAILED)){
-                std::cerr << "sps transmit flow update failed\n";
-                std::cerr << "Max itt was: " <<
-                    congestionControlUserData->congestionControlCalculations->maxITT <<"\n";
+            if (ret == static_cast<uint8_t>(Status::FAILED)) {
+                LOGE(__FUNCTION__, " sps transmit flow update failed");
+                LOGE(__FUNCTION__, " Max itt was: ",
+                     congestionControlUserData->congestionControlCalculations->maxITT);
             }
-        }catch(const std::future_error& e){
-            std::cout << "Caught future error when updating sps flow\n";
-            std::cout << "Error log is: " << e.what() << "\n";
+        } catch (const std::future_error& e) {
+            LOGE(__FUNCTION__, " Caught future error when updating sps flow");
+            LOGE(__FUNCTION__, " Error log is: ", e.what());
         }
         lastPeriodicity_ = congestionControlUserData->congestionControlCalculations->maxITT;
     }
 }
-void CongestCtrlListener::onCongestionControlDataReady (
-    std::shared_ptr<CongestionControlUserData> congestionControlUserData, bool critEvent) {
 
-    if(congestionControlUserData){
+void CongestCtrlListener::onCongestionControlDataReady(
+    std::shared_ptr<CongestionControlUserData> congestionControlUserData, bool critEvent) {
+    LOGD(__FUNCTION__);
+
+    if (congestionControlUserData) {
         std::lock_guard<std::mutex> lk(cbMutex_);
         updateSpsTransmitFlow(congestionControlUserData);
         congCtrlCbData = *(congestionControlUserData->congestionControlCalculations.get());
-        if(!critEvent){
+        if (!critEvent) {
             sem_post(congestionControlUserData->congestionControlSem);
         }
     }
 }
 
 
-void CongestCtrl::onDetailedLocationUpdate(const shared_ptr<ILocationInfoEx> &locationInfo)
-{
+void CongestCtrl::onDetailedLocationUpdate(const shared_ptr<ILocationInfoEx> &locationInfo) {
     Position pos = {0};
     double speed = 0.0;
 
@@ -73,112 +75,112 @@ void CongestCtrl::onDetailedLocationUpdate(const shared_ptr<ILocationInfoEx> &lo
         CCErrorCode res = congestCtrlMgr_->updateHostVehicleData(pos, speed);
     }
 }
-Status CongestCtrl::waitForTransmit(void)
-{
+
+Status CongestCtrl::waitForTransmit(void) {
     if (!sem_wait(congestCtrlMgr_->getCongestionControlUserData()->congestionControlSem)) {
         return Status::SUCCESS;
     }
     return Status::FAILED;
 }
-void CongestCtrl::loadConfig(std::map<std::string, std::string> configs)
-{
-    std::cout << "Proceeding to load congestion ctrl config parameters\n";
 
-    if(configs.find("congCtrlType") != configs.end()){
+void CongestCtrl::loadConfig(std::map<std::string, std::string> configs) {
+    LOGD(__FUNCTION__, " Proceeding to load congestion ctrl config parameters");
+
+    if (configs.find("congCtrlType") != configs.end()) {
         config_.congCtrlType = stoi(configs["congCtrlType"]);
     }
-    if(configs.find("enableCongCtrlLogging") != configs.end()){
+    if (configs.find("enableCongCtrlLogging") != configs.end()) {
         //config_.enableCongCtrlLogging = stoi(configs["enableCongCtrlLogging"]);
-        config_.enableCongCtrlLogging = 10;
+		config_.enableCongCtrlLogging = 10;
     }
-    if(configs.find("cbpMeasInterval") != configs.end()){
+    if (configs.find("cbpMeasInterval") != configs.end()) {
         config_.cbpMeasInterval = stoi(configs["cbpMeasInterval"]);
     }
-    if(configs.find("cbpWeightFactor") != configs.end()){
+    if (configs.find("cbpWeightFactor") != configs.end()) {
         config_.cbpWeightFactor = stod(configs["cbpWeightFactor"]);
     }
-    if(configs.find("perInterval") != configs.end()){
+    if (configs.find("perInterval") != configs.end()) {
         config_.perInterval = stoi(configs["perInterval"]);
     }
-    if(configs.find("perSubInterval") != configs.end()){
+    if (configs.find("perSubInterval") != configs.end()) {
         config_.perSubInterval = stoi(configs["perSubInterval"]);
     }
-    if(configs.find("perMax") != configs.end()){
+    if (configs.find("perMax") != configs.end()) {
         config_.perMax = stod(configs["perMax"]);
     }
-    if(configs.find("minChanQualInd") != configs.end()){
+    if (configs.find("minChanQualInd") != configs.end()) {
         config_.minChanQualInd = stod(configs["minChanQualInd"]);
     }
-    if(configs.find("maxChanQualInd") != configs.end()){
+    if (configs.find("maxChanQualInd") != configs.end()) {
         config_.maxChanQualInd = stod(configs["maxChanQualInd"]);
     }
-    if(configs.find("vDensityWeightFactor") != configs.end()){
+    if (configs.find("vDensityWeightFactor") != configs.end()) {
         config_.vDensityWeightFactor = stod(configs["vDensityWeightFactor"]);
     }
-    if(configs.find("vDensityCoefficient") != configs.end()){
+    if (configs.find("vDensityCoefficient") != configs.end()) {
         config_.vDensityCoefficient = stod(configs["vDensityCoefficient"]);
     }
-    if(configs.find("vDensityMinPerRange") != configs.end()){
+    if (configs.find("vDensityMinPerRange") != configs.end()) {
         config_.vDensityMinPerRange = stoi(configs["vDensityMinPerRange"]);
     }
-    if(configs.find("UseStaticVDensity") != configs.end()){
+    if (configs.find("UseStaticVDensity") != configs.end()) {
         config_.UseStaticVDensity = stoi(configs["UseStaticVDensity"]);
     }
-    if(configs.find("vDensity") != configs.end()){
+    if (configs.find("vDensity") != configs.end()) {
         config_.vDensity = stoi(configs["vDensity"]);
     }
-    if(configs.find("txCtrlInterval") != configs.end()){
+    if (configs.find("txCtrlInterval") != configs.end()) {
         config_.txCtrlInterval = stoi(configs["txCtrlInterval"]);
     }
-    if(configs.find("hvTEMinTimeDiff") != configs.end()){
+    if (configs.find("hvTEMinTimeDiff") != configs.end()) {
         config_.hvTEMinTimeDiff = stoi(configs["hvTEMinTimeDiff"]);
     }
-    if(configs.find("hvTEMaxTimeDiff") != configs.end()){
+    if (configs.find("hvTEMaxTimeDiff") != configs.end()) {
         config_.hvTEMaxTimeDiff = stoi(configs["hvTEMaxTimeDiff"]);
     }
-    if(configs.find("rvTEMinTimeDiff") != configs.end()){
+    if (configs.find("rvTEMinTimeDiff") != configs.end()) {
         config_.rvTEMinTimeDiff = stoi(configs["rvTEMinTimeDiff"]);
     }
-    if(configs.find("rvTEMaxTimeDiff") != configs.end()){
+    if (configs.find("rvTEMaxTimeDiff") != configs.end()) {
         config_.rvTEMaxTimeDiff = stoi(configs["rvTEMaxTimeDiff"]);
     }
-    if(configs.find("teErrSensitivity") != configs.end()){
+    if (configs.find("teErrSensitivity") != configs.end()) {
         config_.teErrSensitivity = stoi(configs["teErrSensitivity"]);
     }
-    if(configs.find("teMinThresh") != configs.end()){
+    if (configs.find("teMinThresh") != configs.end()) {
         config_.teMinThresh = stod(configs["teMinThresh"]);
     }
-    if(configs.find("teMaxThresh") != configs.end()){
+    if (configs.find("teMaxThresh") != configs.end()) {
         config_.teMaxThresh = stod(configs["teMaxThresh"]);
     }
-    if(configs.find("minItt") != configs.end()){
+    if (configs.find("minItt") != configs.end()) {
         config_.minItt = stoi(configs["minItt"]);
     }
-    if(configs.find("txRand") != configs.end()){
+    if (configs.find("txRand") != configs.end()) {
         config_.txRand = stoi(configs["txRand"]);
     }
-    if(configs.find("timeAccuracy") != configs.end()){
+    if (configs.find("timeAccuracy") != configs.end()) {
         config_.timeAccuracy = stoi(configs["timeAccuracy"]);
     }
-    if(configs.find("vMax_ITT") != configs.end()){
+    if (configs.find("vMax_ITT") != configs.end()) {
         config_.maxItt = stoi(configs["vMax_ITT"]);
     }
-    if(configs.find("vRescheduleTh") != configs.end()){
+    if (configs.find("vRescheduleTh") != configs.end()) {
         config_.reschedThresh = stoi(configs["vRescheduleTh"]);
     }
-    if(configs.find("supraGain") != configs.end()){
+    if (configs.find("supraGain") != configs.end()) {
         config_.supraGain = stod(configs["supraGain"]);
     }
-    if(configs.find("minChanUtil") != configs.end()){
+    if (configs.find("minChanUtil") != configs.end()) {
         config_.minChanUtil = stoi(configs["minChanUtil"]);
     }
-    if(configs.find("maxChanUtil") != configs.end()){
+    if (configs.find("maxChanUtil") != configs.end()) {
         config_.maxChanUtil = stoi(configs["maxChanUtil"]);
     }
-    if(configs.find("minRadiPwr") != configs.end()){
+    if (configs.find("minRadiPwr") != configs.end()) {
         config_.minRadiPwr = stoi(configs["minRadiPwr"]);
     }
-    if(configs.find("maxRadiPwr") != configs.end()){
+    if (configs.find("maxRadiPwr") != configs.end()) {
         config_.maxRadiPwr = stoi(configs["maxRadiPwr"]);
     }
 
@@ -186,9 +188,9 @@ void CongestCtrl::loadConfig(std::map<std::string, std::string> configs)
         std::istringstream is(configs["enableSpsEnhancements"]);
         is >> std::boolalpha >> config_.enableSpsEnhancements;
         if (config_.enableSpsEnhancements) {
-            std::cout << "SPS Enhancements Enabled\n";
+            LOGD(__FUNCTION__, " SPS Enhancements Enabled");
         }
-        if(configs.find("cv2xMaxITTRounding") != configs.end()){
+        if (configs.find("cv2xMaxITTRounding") != configs.end()){
             config_.cv2xMaxITTRounding = stoi(configs["cv2xMaxITTRounding"]);
         }
 
@@ -205,17 +207,12 @@ void CongestCtrl::loadConfig(std::map<std::string, std::string> configs)
     }
 }
 
-Status CongestCtrl::init(const CongCtrlConfig &config, std::shared_ptr<RadioTransmit> spsTransmit)
-{
-    std::cout << " in cong ctrl init \n";
+Status CongestCtrl::init(const CongCtrlConfig &config, std::shared_ptr<RadioTransmit> spsTransmit) {
+    LOGD(__FUNCTION__);
     congestCtrlMgr_ = V2xPropFactory::getInstance().getCongestionControlManager();
-    std::cout << " got instance\n";
-    std::cout << " got manager\n";
     congestCtrlListener_ = std::make_shared<CongestCtrlListener>(spsTransmit);
-    std::cout << " made cong ctrl listener \n";
     congestCtrlMgr_->registerListener(congestCtrlListener_);
-    std::cout << " registered listener\n";
-    std::cout << " got past manager creation and listener registering \n";
+    LOGD(__FUNCTION__, " manager created and listener registered");
 
    // CongestionControlUtility::setLoggingLevel(10);
 /*     congestCtrlMgr_->updateCongestionControlType
@@ -239,42 +236,39 @@ Status CongestCtrl::init(const CongCtrlConfig &config, std::shared_ptr<RadioTran
         congestCtrlMgr_->updateSpsEnhanceConfig(config.spsEnhIntervalRound, config.spsEnhDelayPerc,
                    config.spsEnhHysterPerc);
     } */
-    std::cout << "starting cong ctrl\n";
-    if(CCErrorCode::SUCCESS != congestCtrlMgr_->startCongestionControl()){
-        std::cerr << "Congestion control manager failed start up\n";
+	LOGD(__FUNCTION__, " starting cong ctrl");
+    if (CCErrorCode::SUCCESS != congestCtrlMgr_->startCongestionControl()) {
+        LOGE(__FUNCTION__, " Congestion control manager failed start up");
         return Status::FAILED;
     }
-    std::cout << " started \n";
+	LOGD(__FUNCTION__, " started");
     config_ = config;
     congestCtrlCbData_ = std::make_shared<CongestionControlUserData>();
     sem_wait(congestCtrlMgr_->getCongestionControlUserData()->congestionControlSem);
-   // std::cout << "sem wait on cong ctr user data sem \n";
+
     return Status::SUCCESS;
 }
 
 bool CongestCtrl::addCongestionControlData(uint64_t id,
     double latitude, double longitude, double heading, double speed,
-    uint64_t timestamp, uint64_t msgCount){
-    CCErrorCode ccErr = congestCtrlMgr_->addCongestionControlData(
-                                id,
-                                latitude,
-                                longitude,
-                                heading,
-                                speed,
-                                timestamp,
-                                msgCount);
-    if(ccErr == CCErrorCode::SUCCESS){
+    uint64_t timestamp, uint64_t msgCount) {
+    CCErrorCode ccErr =
+        congestCtrlMgr_->addCongestionControlData(id, latitude,
+                                                  longitude, heading, speed,
+                                                  timestamp, msgCount);
+    if (ccErr == CCErrorCode::SUCCESS) {
         return true;
     }
     return false;
 }
 
-void CongestCtrl::writeLog(char* tmpLogStr, uint32_t maxBufSize, FILE *myfp, bool validPkt,
-            uint16_t eventsData )
-{
+void CongestCtrl::writeLog(char* tmpLogStr, uint32_t maxBufSize,
+                           FILE *myfp, bool validPkt,
+                           uint16_t eventsData) {
+    //    LOGD(__FUNCTION__);
     CongestionControlCalculations ccCalculations;
-    if(tmpLogStr == nullptr){
-        std::cerr << "Invalid input buffer\n";
+    if (tmpLogStr == nullptr) {
+        LOGE(__FUNCTION__, " Invalid input buffer");
         return;
     }
     if (congestCtrlListener_ != nullptr) {

@@ -1,9 +1,10 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "VehicleInterfaceLocal.hpp"
 #include "J2735_Common.h"
+#include "Logger.hpp"
 #include <functional>
 
 using J2735::idl::VehicleEventFlagsBits;
@@ -11,8 +12,7 @@ using J2735::idl::VehicleEventFlagsBits;
 namespace SPLITS {
 namespace Vehicle {
 
-Status VehicleInterfaceLocal::enableVehicleDynamicData(void)
-{
+Status VehicleInterfaceLocal::enableVehicleDynamicData(void) {
     vehicleDynamicHandle_ = v2x_vehicle_register_listener(
             VehicleInterfaceLocal::onVehicleDynamicDataChanged, this);
     if (vehicleDynamicHandle_ == V2X_DATA_HANDLE_BAD) {
@@ -20,8 +20,7 @@ Status VehicleInterfaceLocal::enableVehicleDynamicData(void)
     }
     return Status::SUCCESS;
 }
-Status VehicleInterfaceLocal::disableVehicleDynamicData(void)
-{
+Status VehicleInterfaceLocal::disableVehicleDynamicData(void) {
     if (vehicleDynamicHandle_ == V2X_VDATA_HANDLE_BAD) {
         return Status::INVALIDPARAM;
     }
@@ -30,8 +29,7 @@ Status VehicleInterfaceLocal::disableVehicleDynamicData(void)
     }
     return Status::SUCCESS;
 }
-Status VehicleInterfaceLocal::enableHighResMotionData(void)
-{
+Status VehicleInterfaceLocal::enableHighResMotionData(void) {
     motionDataHandle_ = v2x_high_res_motion_register_listener(
             VehicleInterfaceLocal::onHighResMotionDataChanged);
     if (motionDataHandle_ == V2X_DATA_HANDLE_BAD) {
@@ -40,8 +38,7 @@ Status VehicleInterfaceLocal::enableHighResMotionData(void)
     return Status::SUCCESS;
 }
 
-Status VehicleInterfaceLocal::disableHighResMotionData(void)
-{
+Status VehicleInterfaceLocal::disableHighResMotionData(void) {
     if (motionDataHandle_ == V2X_VDATA_HANDLE_BAD) {
         return Status::FAILED;
     }
@@ -50,33 +47,39 @@ Status VehicleInterfaceLocal::disableHighResMotionData(void)
     }
     return Status::SUCCESS;
 }
-void VehicleInterfaceLocal::onVehicleDynamicDataChanged(current_dynamic_vehicle_state_t *vehicleData,
-                                          void *context)
-{
+void VehicleInterfaceLocal::onVehicleDynamicDataChanged(
+    current_dynamic_vehicle_state_t *vehicleData,
+    void *context) {
     if (context == nullptr) {
-        std::cout << "onVehicleEventChanged: null ctx" << std::endl;
+        LOGD(__FUNCTION__, " onVehicleEventChanged: null ctx");
     }
     if (vehicleData == nullptr) {
-        std::cout << "onVehicleEventChanged: vehicleData nullptr" << std::endl;
+        LOGD(__FUNCTION__, " onVehicleEventChanged: vehicleData nullptr");
     }
     VehicleInterfaceLocal * veh = static_cast<VehicleInterfaceLocal*>(context);
 
     auto critical = veh->eventFlags_;
 
-    vehicleData->events.bits.eventAirBagDeployment ? veh->eventFlags_ |= VehicleEventFlagsBits::eventAirBagDeployment :
+    vehicleData->events.bits.eventAirBagDeployment ?
+        veh->eventFlags_ |= VehicleEventFlagsBits::eventAirBagDeployment :
         veh->eventFlags_ &= (~VehicleEventFlagsBits::eventAirBagDeployment);
-    vehicleData->events.bits.eventDisabledVehicle ? veh->eventFlags_ |=  VehicleEventFlagsBits::eventDisabledVehicle :
+    vehicleData->events.bits.eventDisabledVehicle ?
+        veh->eventFlags_ |=  VehicleEventFlagsBits::eventDisabledVehicle :
         veh->eventFlags_ &= (~VehicleEventFlagsBits::eventDisabledVehicle);
-    vehicleData->events.bits.eventFlatTire ? veh->eventFlags_ |= VehicleEventFlagsBits::eventFlatTire :
+    vehicleData->events.bits.eventFlatTire ?
+        veh->eventFlags_ |= VehicleEventFlagsBits::eventFlatTire :
         veh->eventFlags_ &= (~VehicleEventFlagsBits::eventFlatTire);
-    vehicleData->events.bits.eventHardBraking ? veh->eventFlags_ |= VehicleEventFlagsBits::eventHardBraking :
+    vehicleData->events.bits.eventHardBraking ?
+        veh->eventFlags_ |= VehicleEventFlagsBits::eventHardBraking :
         veh->eventFlags_ &= (~VehicleEventFlagsBits::eventHardBraking);
     vehicleData->events.bits.eventStabilityControlactivated ?
         veh->eventFlags_ |= VehicleEventFlagsBits::eventStabilityControlactivated :
         veh->eventFlags_ &= (~VehicleEventFlagsBits::eventStabilityControlactivated);
-    vehicleData->events.bits.eventTractionControlLoss ? veh->eventFlags_ |= VehicleEventFlagsBits::eventTractionControlLoss :
+    vehicleData->events.bits.eventTractionControlLoss ?
+        veh->eventFlags_ |= VehicleEventFlagsBits::eventTractionControlLoss :
         veh->eventFlags_ &=(~VehicleEventFlagsBits::eventTractionControlLoss);
-    vehicleData->events.bits.eventABSactivated ? veh->eventFlags_ |= VehicleEventFlagsBits::eventABSactivated :
+    vehicleData->events.bits.eventABSactivated ?
+        veh->eventFlags_ |= VehicleEventFlagsBits::eventABSactivated :
         veh->eventFlags_ &= (~VehicleEventFlagsBits::eventABSactivated);
 
     std::lock_guard<std::mutex> lock(veh->listenerMutex_);
@@ -95,8 +98,7 @@ void VehicleInterfaceLocal::onVehicleDynamicDataChanged(current_dynamic_vehicle_
         }
     }
 }
-void VehicleInterfaceLocal::onHighResMotionDataChanged(high_resolution_motion_t *motionData)
-{
+void VehicleInterfaceLocal::onHighResMotionDataChanged(high_resolution_motion_t *motionData) {
 #if 0
     VehicleInterfaceLocal * veh = static_cast<VehicleInterfaceLocal*>(context);
 
@@ -108,8 +110,7 @@ void VehicleInterfaceLocal::onHighResMotionDataChanged(high_resolution_motion_t 
     }
 #endif
 }
-Status VehicleInterfaceLocal::getStaticVehicleParameters(static_vehicle_parameters_t &params)
-{
+Status VehicleInterfaceLocal::getStaticVehicleParameters(static_vehicle_parameters_t &params) {
     static_vehicle_parameters_t sparams;
 #if 0
     if (v2x_vehicle_get_static_params(&sparams) != V2X_STATUS_SUCCESS) {

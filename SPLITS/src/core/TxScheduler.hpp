@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __TX_SCHEDULER_HPP__
@@ -20,7 +20,7 @@ class SplitsCore;
 class TxScheduler {
 public:
     TxScheduler(std::shared_ptr<SplitsCore> core,
-            std::shared_ptr<SPLITS::Core::CongestCtrl> congestCtrl = nullptr) {
+                std::shared_ptr<SPLITS::Core::CongestCtrl> congestCtrl = nullptr) {
         splitsCore_ = core;
         congestCtrl_ = congestCtrl;
     }

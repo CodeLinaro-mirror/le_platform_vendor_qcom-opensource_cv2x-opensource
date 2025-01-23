@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -67,6 +67,7 @@ public:
     v2xMsgType msgType_;   /**< Type of the message */
     MsgSource source_;     /**< message is from Local or Remote */
     MsgFormat format_;     /**< format of the message, signed/unsigned, encoded/unencoded*/
+    uint16_t port_;        /**< from which port the message is transceived*/
 
     /**
      * get const reference to the decoded IEEE1609.2 header

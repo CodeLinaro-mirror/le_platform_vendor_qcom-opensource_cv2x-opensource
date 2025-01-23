@@ -28,9 +28,9 @@
  */
 
 /*
- *Changes from Qualcomm Innovation Center are provided under the following license:
+ *Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  *
- *Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  *Redistribution and use in source and binary forms, with or without
  *modification, are permitted (subject to the limitations in the
@@ -103,11 +103,9 @@ private:
     string ipv4_src;
     uint64_t lastRxMonotonicTime_ = 0;
     std::string logTag;
-
-protected:
+    shared_ptr<ICv2xRxSubscription> gRxSub = nullptr;
 
 public:
-    shared_ptr<ICv2xRxSubscription> gRxSub = nullptr;
 
     /**
     * Stores the value L2 source address for a received message
@@ -167,5 +165,7 @@ public:
     uint8_t closeFlow();
 
     uint64_t latestTxRxTimeMonotonic() override;
+
+    uint16_t getPort() const;
 };
 

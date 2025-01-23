@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -9,6 +9,7 @@
 #include "vehicle/VehicleInterfaceLocal.hpp"
 #include "vehicle/VehicleInterfaceIdl.hpp"
 #include "utils.h"
+#include "Logger.hpp"
 
 using J2735::idl::BasicSafetyMessage;
 using SPLITS::Vehicle::VehicleInterfaceLocal;
@@ -17,15 +18,14 @@ namespace SPLITS {
 
 namespace Core {
 
-Status BsmMsgGenerator::init(bool useCan)
-{
+Status BsmMsgGenerator::init(bool useCan) {
     if (useCan) {
         vehicle_ = std::make_shared<VehicleInterfaceLocal>();
     } else {
         vehicle_ = std::make_shared<VehicleInterfaceIdl>();
     }
     if (vehicle_->init() != Status::SUCCESS) {
-        std::cout << "failed to init vehicle data interface" << std::endl;
+        LOGE(__FUNCTION__, " Failed to init vehicle data interface");
         return Status::FAILED;
     }
     if (vehicle_->getStaticVehicleParameters(vehicleParams_) != Status::SUCCESS) {
@@ -52,8 +52,7 @@ Status BsmMsgGenerator::init(bool useCan)
 }
 
 Status BsmMsgGenerator::fillBsm(std::shared_ptr<v2xMsgSae> msg, bool idChanged,
-    unsigned char* newTempId)
-{
+    unsigned char* newTempId) {
     std::shared_ptr<BasicSafetyMessage> sp = nullptr;
     if (msg == nullptr) {
         return Status::INVALIDPARAM;
@@ -76,9 +75,9 @@ Status BsmMsgGenerator::fillBsm(std::shared_ptr<v2xMsgSae> msg, bool idChanged,
         }
         msgCount_ = randNumMsgCnt_ % 128;
         msgId_ = {(uint32_t)newTempId[0] << 24 |
-            (uint32_t)newTempId[1] << 16 |
-            (uint32_t)newTempId[2] << 8  |
-    (uint32_t)newTempId[3]};
+                  (uint32_t)newTempId[1] << 16 |
+                  (uint32_t)newTempId[2] << 8  |
+                  (uint32_t)newTempId[3]};
         //TODO: get new 4 bytes ID from security object. and assign it to msgId_
     } else {
         msgCount_ = (msgCount_ + 1) % 128;
@@ -165,8 +164,7 @@ Status BsmMsgGenerator::fillBsm(std::shared_ptr<v2xMsgSae> msg, bool idChanged,
     return Status::SUCCESS;
 }
 
-void BsmMsgGenerator::fillVehicleSafetyExt(std::shared_ptr<BasicSafetyMessage> bsm)
-{
+void BsmMsgGenerator::fillVehicleSafetyExt(std::shared_ptr<BasicSafetyMessage> bsm) {
     J2735::idl::VehicleSafetyExtensions safetyExt;
     safetyExt.events(eventFlags_);
     //no pathHistory
@@ -179,16 +177,13 @@ void BsmMsgGenerator::fillVehicleSafetyExt(std::shared_ptr<BasicSafetyMessage> b
     idlPartIIlist.push_back(idlPartII);
     bsm->PartIIlist(std::move(idlPartIIlist));
 }
-void BsmMsgGenerator::onHighResMotionDataChanged(const high_resolution_motion_t &highResMotion)
-{
+void BsmMsgGenerator::onHighResMotionDataChanged(const high_resolution_motion_t &highResMotion) {
     highResMotion_ = highResMotion;
 }
-void BsmMsgGenerator::onVehicleDataChanged(const current_dynamic_vehicle_state_t &vehicleState)
-{
+void BsmMsgGenerator::onVehicleDataChanged(const current_dynamic_vehicle_state_t &vehicleState) {
     vehicleState_ = vehicleState;
 }
-void BsmMsgGenerator::onVehicleEventChanged(const uint16_t &eventFlags)
-{
+void BsmMsgGenerator::onVehicleEventChanged(const uint16_t &eventFlags) {
     std::lock_guard<std::mutex> lk(eventMutex_);
     if (eventFlags) {
         //critical event occured
@@ -199,8 +194,7 @@ void BsmMsgGenerator::onVehicleEventChanged(const uint16_t &eventFlags)
         eventFlags_ = 0;
     }
 }
-void  BsmMsgGenerator::onDetailedLocationUpdate(const shared_ptr<ILocationInfoEx> &locationInfo)
-{
+void  BsmMsgGenerator::onDetailedLocationUpdate(const shared_ptr<ILocationInfoEx> &locationInfo) {
     std::lock_guard<std::mutex> lk(locationMutex_);
     bsmLocation_.lat = static_cast<int32_t>(locationInfo->getLatitude() * 10000000);
     bsmLocation_.lon = static_cast<int32_t>(locationInfo->getLongitude() * 10000000);

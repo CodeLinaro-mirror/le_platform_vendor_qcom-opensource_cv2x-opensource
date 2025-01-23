@@ -33,6 +33,7 @@ if (${BUILD_TARGET} STREQUAL "client")
         ${SPLITS_ROOT_PATH}/
         ${SPLITS_ROOT_PATH}/include
         ${SPLITS_ROOT_PATH}/src/core
+        ${CMAKE_INSTALL_PREFIX}/include/
         ${CMAKE_INSTALL_PREFIX}/include/splits-commonapi-gen/commonapi/core
         ${CMAKE_INSTALL_PREFIX}/include/splits-commonapi-gen/commonapi/someip
         ${CMAKE_INSTALL_PREFIX}/include/splits-dds-gen/
@@ -44,6 +45,7 @@ else()
         SplitsDataSubscriber.cpp
         SplitsDataPublisher.cpp
         SplitsServiceDataPublisher.cpp
+        SplitsStatisticsStubImpl.cpp
         vehicle/VehicleInterfaceLocal.cpp
         vehicle/VehicleInterfaceIdl.cpp
         location/KinematicsReceive.cpp
@@ -52,8 +54,11 @@ else()
     target_include_directories(${TARGET} PRIVATE
         ${SPLITS_ROOT_PATH}/
         ${SPLITS_ROOT_PATH}/include
+        ${SPLITS_ROOT_PATH}/config
         ${SPLITS_ROOT_PATH}/src/core
         ${SPLITS_ROOT_PATH}/src/interface
+        ${SPLITS_ROOT_PATH}/src/Utils
+        ${SPLITS_ROOT_PATH}/commonapi/core
         ${SPLITS_ROOT_PATH}/src/radio/RadioInterface
         ${SPLITS_ROOT_PATH}/src/radio/RadioTransmit
         ${SPLITS_ROOT_PATH}/src/radio/RadioReceive
@@ -63,7 +68,7 @@ else()
         ${COMMONAPI_INCLUDE_DIRS}
     )
 endif()
-target_link_libraries(${TARGET} fastcdr fastrtps )
+target_link_libraries(${TARGET} fastcdr fastrtps)
 
 install(TARGETS ${TARGET}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

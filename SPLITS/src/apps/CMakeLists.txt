@@ -4,5 +4,5 @@ if (${BUILD_TARGET} STREQUAL "client")
 else()
     add_subdirectory(service)
 endif()
-
+add_subdirectory(tool)
 

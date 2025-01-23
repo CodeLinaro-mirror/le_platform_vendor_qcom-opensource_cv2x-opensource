@@ -1,13 +1,12 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include "SplitsCoreImpl.hpp"
 #include "SplitsConfigStubImpl.hpp"
 
-SplitsConfigStubImpl::SplitsConfigStubImpl(std::shared_ptr<SPLITS::Core::SplitsCoreImpl> core)
-{
+SplitsConfigStubImpl::SplitsConfigStubImpl(std::shared_ptr<SPLITS::Core::SplitsCoreImpl> core) {
     splitsCore_ = core;
 }
 void SplitsConfigStubImpl::readCoreConfig(const std::shared_ptr<CommonAPI::ClientId> _client,
@@ -18,9 +17,9 @@ void SplitsConfigStubImpl::readCoreConfig(const std::shared_ptr<CommonAPI::Clien
     }
 }
 
-void SplitsConfigStubImpl::writeCoreConfig(const std::shared_ptr<CommonAPI::ClientId> _client,
-            SplitsConfig::CoreConfig _coreConfig, writeCoreConfigReply_t _reply) {
-
+void SplitsConfigStubImpl::writeCoreConfig(
+    const std::shared_ptr<CommonAPI::ClientId> _client,
+    SplitsConfig::CoreConfig _coreConfig, writeCoreConfigReply_t _reply) {
     if (splitsCore_ != nullptr) {
         splitsCore_->setConfig(_coreConfig);
         _reply();

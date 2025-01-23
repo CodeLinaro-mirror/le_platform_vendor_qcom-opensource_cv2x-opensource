@@ -28,9 +28,9 @@
  */
 
 /*
- *  Changes from Qualcomm Innovation Center are provided under the following license:
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  *
- *  Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -75,6 +75,7 @@
 #include <vector>
 #include <iterator>
 #include "RadioInterface.h"
+#include "Logger.hpp"
 
 #define INVALID_CBR_VALUE (255)
 
@@ -175,8 +176,9 @@ public:
         if (status.rxStatus != preStatus.rxStatus or
             status.txStatus != preStatus.txStatus) {
             if (radioVerbosity) {
-                cout << "Cv2x status updated, rxStatus:" << static_cast<int>(status.rxStatus);
-                cout << ", txStatus:" << static_cast<int>(status.txStatus) << endl;
+                LOGD(__FUNCTION__, " Cv2x status updated, rxStatus:",
+                     static_cast<int>(status.rxStatus));
+                LOGD(__FUNCTION__, " , txStatus:", static_cast<int>(status.txStatus));
             }
             cv_.notify_all();
         }
@@ -217,8 +219,7 @@ ErrorCode CommonCallback::getResponse() {
 }
 
 void RadioInterface::set_radio_verbosity(int value) {
-    if(value)
-        printf("Radio flow verbosity will be set to: %d\n", value);
+    LOGD(__FUNCTION__, "Radio flow verbosity will be set to: ", value);
     rVerbosity = value;
 }
 
@@ -259,30 +260,30 @@ Cv2xStatusType RadioInterface::statusCheck(RadioType type) {
     if (!cv2xRadioMgr or
         Status::SUCCESS != cv2xRadioMgr->requestCv2xStatus(respCb)
         or ErrorCode::SUCCESS != cb->getResponse()) {
-        cerr << "Error : request for C-V2X status failed." << endl;
+        LOGE(__FUNCTION__, " Error : request for C-V2X status failed.");
         gCv2xStatus.status.rxStatus = Cv2xStatusType::UNKNOWN;
         gCv2xStatus.status.txStatus = Cv2xStatusType::UNKNOWN;
     }
 
     if (RadioType::RX == type) {
         if (rVerbosity) {
-            cout << "C-V2X RX is ";
+            LOGD(__FUNCTION__, " C-V2X RX is ");
         }
         status = gCv2xStatus.status.rxStatus;
     }
     else {
         if (rVerbosity) {
-            cout << "C-V2X TX is ";
+            LOGD(__FUNCTION__, " C-V2X TX is ");
         }
         status = gCv2xStatus.status.txStatus;
     }
 
     if (rVerbosity) {
-        cout << gCv2xStatusToString[status] << endl;
+        LOGE(__FUNCTION__, " ", gCv2xStatusToString[status]);
     }
 
     if (Cv2xStatusType::ACTIVE != status) {
-        cerr << "C-V2X RX or TX status " << gCv2xStatusToString[status] << endl;
+        LOGE(__FUNCTION__, " C-V2X RX or TX status " ,gCv2xStatusToString[status]);
     }
 
     return status;
@@ -321,7 +322,7 @@ bool RadioInterface::ready(TrafficCategory category, RadioType type) {
         auto &cv2xFactory = Cv2xFactory::getInstance();
         auto cv2xRadioMgr = cv2xFactory.getCv2xRadioManager(statusCb);
         if (!cv2xRadioMgr) {
-            std::cout << "Fail to get cv2xRadioMgr" << std::endl;
+            LOGD(__FUNCTION__, " Fail to get cv2xRadioMgr");
             return false;
         }
 
@@ -331,7 +332,7 @@ bool RadioInterface::ready(TrafficCategory category, RadioType type) {
             /* Check that V2X radio is initialized */
             if (telux::common::ServiceStatus::SERVICE_AVAILABLE !=
                 cv2xRadioManagerStatus) {
-                std::cout << "V2X cv2xRadioMgr initialization failed" << std::endl;
+                LOGD(__FUNCTION__, " V2X cv2xRadioMgr initialization failed");
                 return false;
             }
         }
@@ -347,7 +348,7 @@ bool RadioInterface::ready(TrafficCategory category, RadioType type) {
     // register listener for cv2x status change
     cv2xStatusListener_ = std::make_shared<Cv2xStatusListener>(gCv2xStatus.status,rVerbosity);
     if (Status::SUCCESS != cv2xRadioManager_->registerListener(cv2xStatusListener_)) {
-        cerr << "Error : register Cv2x status listener failed!" << endl;
+        LOGE(__FUNCTION__, " Error : register Cv2x status listener failed!");
         return false;
     }
 
@@ -366,7 +367,7 @@ bool RadioInterface::ready(TrafficCategory category, RadioType type) {
     // Wait for radio to complete initialization
     auto cv2xRadio = cv2xRadioManager_->getCv2xRadio(category, cb);
     if (not cv2xRadio) {
-        cerr << "C-V2X Radio creation failed." << endl;
+        LOGE(__FUNCTION__, " C-V2X Radio creation failed.");
         return false;
     }
 
@@ -375,7 +376,7 @@ bool RadioInterface::ready(TrafficCategory category, RadioType type) {
         cv.wait(lc, [&cv2x_radio_status_updated]() { return cv2x_radio_status_updated; });
 
         if (cv2xRadioStatus != telux::common::ServiceStatus::SERVICE_AVAILABLE) {
-            cerr << "C-V2X Radio initialization failed." << endl;
+            LOGE(__FUNCTION__, " C-V2X Radio initialization failed.");
             return false;
         }
     }
@@ -383,7 +384,7 @@ bool RadioInterface::ready(TrafficCategory category, RadioType type) {
     // register listener for src L2 addr updates
     radioListener_ = std::make_shared<Cv2xRadioListener>();
     if (Status::SUCCESS != cv2xRadio->registerListener(radioListener_)) {
-        cerr << "Error : register Cv2x radio listener failed!" << endl;
+        LOGE(__FUNCTION__, " Error : register Cv2x radio listener failed!");
         return false;
     }
 
@@ -394,7 +395,7 @@ bool RadioInterface::ready(TrafficCategory category, RadioType type) {
 
 int RadioInterface::registerL2AddrCallback(v2x_src_l2_addr_update cb) {
     if (!radioListener_) {
-        cerr << "Radio listener not ready!" << endl;
+        LOGE(__FUNCTION__, " Radio listener not ready!");
         return -1;
     }
 
@@ -409,7 +410,7 @@ int RadioInterface::registerL2AddrCallback(v2x_src_l2_addr_update cb) {
 
 int RadioInterface::deregisterL2AddrCallback(v2x_src_l2_addr_update cb) {
     if (!radioListener_) {
-        cerr << "Radio listener not ready!" << endl;
+        LOGE(__FUNCTION__, " Radio listener not ready!");
         return -1;
     }
 
@@ -431,7 +432,7 @@ int RadioInterface::getV2xIfaceName(TrafficIpType type, string& ifName) {
     ifName = cv2xRadio->getIfaceNameFromIpType(type);
 
     if (rVerbosity > 3) {
-        cout << "Get V2X-Iface Name:" << ifName << endl;
+        LOGD(__FUNCTION__, " Get V2X-Iface Name:" , ifName);
     }
     return 0;
 }
@@ -470,16 +471,16 @@ int RadioInterface::setGlobalIPInfo(const telux::cv2x::IPv6AddrType &ipv6Addr,
     if (Status::SUCCESS == cv2xRadio->setGlobalIPInfo(ipv6Addr, respCb)) {
         ErrorCode error = cb->getResponse();
         if (ErrorCode::SUCCESS == error) {
-            cout<<"setGlobalIPInfo succeeds." << endl;;
+            LOGE(__FUNCTION__, " setGlobalIPInfo succeeds.");
             ret = 0;
         } else {
-            if(rVerbosity)
-                cerr<<"setGlobalIPInfo fails:" << static_cast<int>(error) << endl;;
+            if (rVerbosity)
+                LOGE(__FUNCTION__, " setGlobalIPInfo fails:", static_cast<int>(error));
             ret = -1;
         }
     } else {
         if (rVerbosity)
-            cerr<<"setGlobalIPInfo sync fails." << endl;
+            LOGE(__FUNCTION__, " setGlobalIPInfo sync fails.");
         ret = -1;
     }
 
@@ -499,22 +500,21 @@ int RadioInterface::setGlobalIPInfo(const telux::cv2x::IPv6AddrType &ipv6Addr,
         auto error = commCb->getResponse();
         if (ErrorCode::SUCCESS == error) {
             if(rVerbosity)
-                cout<<"createCv2xTcpSocket succeeds." << endl;;
+                LOGE(__FUNCTION__, " createCv2xTcpSocket succeeds.");
             ret = 0;
         } else {
             if (rVerbosity)
-                cerr<<"createCv2xTcpSocket fails: ." <<
-                    static_cast<int>(error) << endl;;
+                LOGE(__FUNCTION__, " createCv2xTcpSocket fails: ", static_cast<int>(error));
             ret = -1;
         }
     } else {
         if (rVerbosity)
-            cerr << "createCv2xTcpSocket sync fails" << endl;
+            LOGE(__FUNCTION__, " createCv2xTcpSocket sync fails");
         ret = -1;
     }
 
     if (rVerbosity)
-        cout << "Global IP Info Set" << endl;
+        LOGD(__FUNCTION__, " Global IP Info Set");
 
     return ret;
 }
@@ -539,7 +539,7 @@ int RadioInterface::clearGlobalIPInfo(void) {
         cv2xRadio->closeCv2xTcpSocket(tcpSockInfo, closeSockCb) ||
         ErrorCode::SUCCESS != cb->getResponse()) {
         if(rVerbosity)
-            cerr << "close tcp socket err or already closed" << endl;
+            LOGE(__FUNCTION__, " close tcp socket err or already closed");
         ret = -1;
     } else {
         this->tcpSockInfo = nullptr;
@@ -557,21 +557,21 @@ int RadioInterface::clearGlobalIPInfo(void) {
     if (Status::SUCCESS == cv2xRadio->setGlobalIPInfo(ipv6Prefix, respCb)) {
         if (ErrorCode::SUCCESS == commCb->getResponse()) {
             if(rVerbosity)
-                cout<<"setGlobalIPInfo succeeds." << endl;;
+                LOGE(__FUNCTION__, " setGlobalIPInfo succeeds.");
             ret = 0;
         } else {
             if(rVerbosity)
-                cerr<<"setGlobalIPInfo fails." << endl;;
+                LOGE(__FUNCTION__, " setGlobalIPInfo fails.");
             ret = -1;
         }
     } else {
         if (rVerbosity)
-            cout<<"setGlobalIPInfo sync fails." << endl;
+            LOGE(__FUNCTION__, " setGlobalIPInfo sync fails.");
         ret = -1;
     }
 
     if(rVerbosity)
-        cout << "Global IP session stopped" << endl;
+        LOGD(__FUNCTION__, " Global IP session stopped");
 
     return ret;
 }
@@ -588,19 +588,18 @@ int RadioInterface::setRoutingInfo(const telux::cv2x::GlobalIPUnicastRoutingInfo
             };
 
     if (Status::SUCCESS == cv2xRadio->setGlobalIPUnicastRoutingInfo(destL2Addr, respCb)) {
-        if (ErrorCode::SUCCESS == cb->getResponse())
-        {
+        if (ErrorCode::SUCCESS == cb->getResponse()) {
             ret = 0;
-            if(rVerbosity)
-                cout<<"setGlobalIPUnicastRoutingInfo succeeds." << endl;;
+            if (rVerbosity)
+                LOGE(__FUNCTION__, " setGlobalIPUnicastRoutingInfo succeeds.");
         } else {
-            if(rVerbosity)
-                cerr<<"setGlobalIPUnicastRoutingInfo fails." << endl;;
+            if (rVerbosity)
+                LOGE(__FUNCTION__, " setGlobalIPUnicastRoutingInfo fails.");;
             ret = -1;
         }
     } else {
-        if(rVerbosity)
-            cerr<< "setGlobalIPUnicastRoutingInfo sync fails." << endl;
+        if (rVerbosity)
+            LOGE(__FUNCTION__, " setGlobalIPUnicastRoutingInfo sync fails.");
         ret = -1;
     }
 
@@ -613,7 +612,7 @@ int RadioInterface::onWraTimedout(void) {
 
 shared_ptr<ICv2xRadioManager> RadioInterface::getCv2xRadioManager() {
     if (nullptr == cv2xRadioManager_ or not cv2xRadioManager_->isReady()) {
-        cout << "cv2x radio manager is not ready." << endl;
+        LOGD(__FUNCTION__, " cv2x radio manager is not ready.");
         return nullptr;
     }
     return cv2xRadioManager_;
@@ -621,7 +620,7 @@ shared_ptr<ICv2xRadioManager> RadioInterface::getCv2xRadioManager() {
 
 shared_ptr<ICv2xRadio> RadioInterface::getCv2xRadio() {
     if (nullptr == cv2xRadio_ or not cv2xRadio_->isReady()) {
-        cout << "cv2x radio is not ready." << endl;
+        LOGD(__FUNCTION__, " cv2x radio is not ready.");
         return nullptr;
     }
     return cv2xRadio_;

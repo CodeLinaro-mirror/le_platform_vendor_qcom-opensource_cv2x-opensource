@@ -106,8 +106,8 @@ public:
     virtual ~CongestCtrlListener() {
     }
     void onCongestionControlDataReady(
-            std::shared_ptr<CongestionControlUserData> congestionControlUserData,
-            bool critEvent) override;
+        std::shared_ptr<CongestionControlUserData> congestionControlUserData,
+        bool critEvent) override;
 
     const CongestionControlCalculations getCbData(void) {
         std::lock_guard<std::mutex> lk(cbMutex_);
@@ -119,8 +119,7 @@ private:
     CongestionControlCalculations congCtrlCbData;
     std::mutex cbMutex_;
     std::shared_ptr<RadioTransmit> spsTransmit_;
-    void updateSpsTransmitFlow(
-            std::shared_ptr<CongestionControlUserData> congestionControlUserData);
+    void updateSpsTransmitFlow(std::shared_ptr<CongestionControlUserData> congestionControlUserData);
 };
 
 class CongestCtrl : public ILocationListener,
@@ -143,6 +142,14 @@ public:
     bool addCongestionControlData(uint64_t id,
     double latitude, double longitude, double heading, double speed,
     uint64_t timestamp, uint64_t msgCount);
+
+    const CongestionControlCalculations getCongCtrlCalculationData() const {
+        CongestionControlCalculations congCtrlCbData;
+        if (congestCtrlListener_) {
+            congCtrlCbData = congestCtrlListener_->getCbData();
+        }
+        return congCtrlCbData;
+    }
 
 private:
     void onDetailedLocationUpdate(const shared_ptr<ILocationInfoEx> &locationInfo) override;

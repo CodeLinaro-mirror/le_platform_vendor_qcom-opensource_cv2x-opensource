@@ -27,9 +27,9 @@
  *  IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- *  Changes from Qualcomm Innovation Center are provided under the following license:
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
  *
- *  Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -99,7 +99,7 @@ using std::string;
 
 
 
-class RadioTransmit: public RadioInterface{
+class RadioTransmit: public RadioInterface {
 
 private:
     // TrafficCategory category;
@@ -118,9 +118,11 @@ private:
     uint64_t actualSPSTxIntervalMs_ = 0;
     string flowType;
     TrafficIpType trafficType_ = TrafficIpType::TRAFFIC_NON_IP;
+    shared_ptr<ICv2xTxFlow> flow = nullptr;
 
 public:
-    shared_ptr<ICv2xTxFlow> flow = nullptr;
+    uint16_t getPort() const;
+
     /**
     * Constructor for an Event Flow.
     * @param ipv4 an string representation of an IP version 4 address.

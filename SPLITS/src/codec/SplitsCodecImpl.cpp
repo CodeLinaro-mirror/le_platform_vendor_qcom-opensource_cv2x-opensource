@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <array>
@@ -10,6 +10,7 @@
 #include "v2xMsgSae.hpp"
 #include "SplitsCodecImpl.hpp"
 #include "utils.h"
+#include "Logger.hpp"
 
 using SPLITS::v2xMsgSae;
 
@@ -38,7 +39,7 @@ int SplitsCodecImpl::init(int logLevel, bool syslog) {
 int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
 {
     if (msg == nullptr || msg->buf == 0 || msg->bufLen == 0) {
-        std::cout << "no data to decode" << std::endl;
+        LOGE(__FUNCTION__, " no data to decode");
         return -1;
     }
 
@@ -53,7 +54,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
         //decode wsmp header
         WsmpHeader header;
         if (saeCodec_->decode(buf, header)) {
-            std::cout << "wsmp decode failed" << std::endl;
+            LOGE(__FUNCTION__, " wsmp decode failed");
             return -1;
         }
 
@@ -74,7 +75,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
                     saeMsg->SrvAdvMsg(std::make_shared<IEEE1609Dot3::idl::SrvAdvMsg>());
                 }
                 if (saeCodec_->decode(header.payload, *(saeMsg->SrvAdvMsg()))) {
-                    std::cout << "Failed to decode WSA message" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode WSA message");
                     return -1;
                 }
                 break;
@@ -84,7 +85,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
                     saeMsg->BSM(std::make_shared<J2735::idl::BasicSafetyMessage>());
                 }
                 if (saeCodec_->decode(header.payload, *(saeMsg->BSM()))) {
-                    std::cout << "Failed to decode BSM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode BSM");
                     return -1;
                 }
                 break;
@@ -94,7 +95,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
                     saeMsg->Map(std::make_shared<J2735::idl::MapData>());
                 }
                 if (saeCodec_->decode(header.payload, *(saeMsg->Map()))) {
-                    std::cout << "Failed to decode MAP" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode MAP");
                     return -1;
                 }
                 break;
@@ -104,7 +105,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
                     saeMsg->SPAT(std::make_shared<J2735::idl::SPAT>());
                 }
                 if (saeCodec_->decode(header.payload, *(saeMsg->SPAT()))) {
-                    std::cout << "Failed to decode SPAT" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode SPAT");
                     return -1;
                 }
                 break;
@@ -114,7 +115,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
                     saeMsg->RTCMcorrection(std::make_shared<J2735::idl::RTCMcorrection>());
                 }
                 if (saeCodec_->decode(header.payload, *(saeMsg->RTCMcorrection()))) {
-                    std::cout << "Failed to decode RTCM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode RTCM");
                     return -1;
                 }
                 break;
@@ -124,7 +125,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
                     saeMsg->SRM(std::make_shared<J2735::idl::SignalRequestMessage>());
                 }
                 if (saeCodec_->decode(header.payload, *(saeMsg->SRM()))) {
-                    std::cout << "Failed to decode SRM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode SRM");
                     return -1;
                 }
                 break;
@@ -136,7 +137,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
                     saeMsg->SSM(std::make_shared<J2735::idl::SignalStatusMessage>());
                 }
                 if (saeCodec_->decode(header.payload, *(saeMsg->SSM()))) {
-                    std::cout << "Failed to decode SSM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode SSM");
                     return -1;
                 }
 #endif
@@ -149,7 +150,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
                     saeMsg->RSM(std::make_shared<J2735::idl::RoadSafetyMessage>());
                 }
                 if (saeCodec_->decode(header.payload, *(saeMsg->RSM()))) {
-                    std::cout << "Failed to decode RSM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode RSM");
                     return -1;
                 }
                 break;
@@ -159,12 +160,12 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
                     saeMsg->SDSM(std::make_shared<J2735::idl::SensorDataSharingMessage>());
                 }
                 if (saeCodec_->decode(header.payload, *(saeMsg->SDSM()))) {
-                    std::cout << "Failed to decode SDSM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode SDSM");
                     return -1;
                 }
                 break;
              default:
-                std::cout << "Unsupported SAE mesage " << std::endl;
+                 LOGE(__FUNCTION__, " Unsupported SAE mesage");
                 return -1;
         }
     }
@@ -182,11 +183,12 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg)
 } */
 
 
-int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint32_t type, uint8_t* inPayload, uint32_t inLen)
-{
-    if(!secured){
+int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg,
+                                 bool secured, uint32_t type,
+                                 uint8_t* inPayload, uint32_t inLen) {
+    if (!secured) {
         if (msg == nullptr || msg->buf == 0 || msg->bufLen == 0) {
-            std::cout << "no data to decode" << std::endl;
+            LOGE(__FUNCTION__, " no data to decode");
             return -1;
         }
     }
@@ -205,23 +207,25 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
         //decode wsmp header if unsecured
         WsmpHeader header;
         //uint8_t* payload;
-        if(!secured){
+        if (!secured) {
             if (saeCodec_->decode(buf, header)) {
-                std::cout << "wsmp decode failed" << std::endl;
+                LOGE(__FUNCTION__, " wsmp decode failed");
                 return -1;
             }
 
 #ifndef NO_DOT2_HEADER
             Ieee1609Dot2Data dot2Data;
-            if (decodeIeee1609Dot2Unsecured(dot2Data, header.payload.value, &header.payload.length) < 0) {
-                std::cout << "Failed to decode Ieee1609dot2 header" << std::endl;
+            if (decodeIeee1609Dot2Unsecured(dot2Data,
+                                            header.payload.value,
+                                            &header.payload.length) < 0) {
+                LOGE(__FUNCTION__, " Failed to decode Ieee1609dot2 header");
                 return -1;
             }
             msg->Ieee1609Dot2(dot2Data);
 #endif
             msgType = header.type;
             payload = &header.payload;
-        }else{
+        } else {
             msgType = (SaeMsgType)type;
             payloadBuf.length = inLen;
             payloadBuf.value = inPayload;
@@ -229,13 +233,12 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
         }
 #if 0
         struct DataBuf {
-    uint32_t length;      /**< Length of value in bytes. */
-    unsigned char* value; /**< Pointer to the data. */
-    };
+            uint32_t length;      /**< Length of value in bytes. */
+            unsigned char* value; /**< Pointer to the data. */
+        };
 #endif
 
         // decode payload according to the msg type decoded from WSMP header
-
         switch (msgType) {
             case SaeMsgType::V2X_SAE_MSG_WSA:
                 saeMsg->msgType_ = v2xMsgType::V2X_SAE_MSG_WSA;
@@ -243,7 +246,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
                     saeMsg->SrvAdvMsg(std::make_shared<IEEE1609Dot3::idl::SrvAdvMsg>());
                 }
                 if (saeCodec_->decode(*payload, *(saeMsg->SrvAdvMsg()))) {
-                    std::cout << "Failed to decode WSA message" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode WSA message");
                     return -1;
                 }
                 break;
@@ -253,7 +256,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
                     saeMsg->BSM(std::make_shared<J2735::idl::BasicSafetyMessage>());
                 }
                 if (saeCodec_->decode(*payload, *(saeMsg->BSM()))) {
-                    std::cout << "Failed to decode BSM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode BSM");
                     return -1;
                 }
                 break;
@@ -263,7 +266,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
                     saeMsg->Map(std::make_shared<J2735::idl::MapData>());
                 }
                 if (saeCodec_->decode(*payload, *(saeMsg->Map()))) {
-                    std::cout << "Failed to decode MAP" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode MAP");
                     return -1;
                 }
                 break;
@@ -273,7 +276,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
                     saeMsg->SPAT(std::make_shared<J2735::idl::SPAT>());
                 }
                 if (saeCodec_->decode(*payload, *(saeMsg->SPAT()))) {
-                    std::cout << "Failed to decode SPAT" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode SPAT");
                     return -1;
                 }
                 break;
@@ -283,7 +286,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
                     saeMsg->RTCMcorrection(std::make_shared<J2735::idl::RTCMcorrection>());
                 }
                 if (saeCodec_->decode(*payload, *(saeMsg->RTCMcorrection()))) {
-                    std::cout << "Failed to decode RTCM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode RTCM");
                     return -1;
                 }
                 break;
@@ -293,7 +296,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
                     saeMsg->SRM(std::make_shared<J2735::idl::SignalRequestMessage>());
                 }
                 if (saeCodec_->decode(*payload, *(saeMsg->SRM()))) {
-                    std::cout << "Failed to decode SRM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode SRM");
                     return -1;
                 }
                 break;
@@ -305,11 +308,11 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
                     saeMsg->SSM(std::make_shared<J2735::idl::SignalStatusMessage>());
                 }
                 if (saeCodec_->decode(*payload, *(saeMsg->SSM()))) {
-                    std::cout << "Failed to decode SSM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode SSM");
                     return -1;
                 }
 #endif
-                std::cout << "not support SSM for now" << std::endl;
+                LOGE(__FUNCTION__, " not support SSM for now");
                 return -1;
                 break;
             case SaeMsgType::V2X_SAE_MSG_RSM:
@@ -318,7 +321,7 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
                     saeMsg->RSM(std::make_shared<J2735::idl::RoadSafetyMessage>());
                 }
                 if (saeCodec_->decode(*payload, *(saeMsg->RSM()))) {
-                    std::cout << "Failed to decode RSM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode RSM");
                     return -1;
                 }
                 break;
@@ -328,12 +331,12 @@ int SplitsCodecImpl::decodeFrame(std::shared_ptr<v2xMsg> msg, bool secured, uint
                     saeMsg->SDSM(std::make_shared<J2735::idl::SensorDataSharingMessage>());
                 }
                 if (saeCodec_->decode(*payload, *(saeMsg->SDSM()))) {
-                    std::cout << "Failed to decode SDSM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to decode SDSM");
                     return -1;
                 }
                 break;
              default:
-                std::cout << "Unsupported SAE mesage " << std::endl;
+                LOGE(__FUNCTION__, " Unsupported SAE mesage ");
                 return -1;
         }
     }
@@ -344,7 +347,7 @@ int SplitsCodecImpl::encodeFrame(std::shared_ptr<v2xMsg> msg)
 {
     //sanity check
     if (msg->buf == 0 || msg->bufLen == 0) {
-        std::cout << "no data buffer" << std::endl;
+        LOGE(__FUNCTION__, " no data buffer");
         return -1;
     }
 
@@ -356,26 +359,25 @@ int SplitsCodecImpl::encodeFrame(std::shared_ptr<v2xMsg> msg)
         payload.length = saeMsg->bufLen - RESERVE_HEADER_LEN;
         payload.value = reinterpret_cast<unsigned char *>(saeMsg->buf + RESERVE_HEADER_LEN);
 
-        //std::cout << "checking type" << std::endl;
         switch(msg->msgType_) {
             case v2xMsgType::V2X_SAE_MSG_WSA:
                 {
                     IEEE1609Dot3::idl::SrvAdvMsg &idlMsg = *(saeMsg->SrvAdvMsg());
                     if (saeCodec_->encode(idlMsg, payload)) {
-                        std::cout << "Failed to encode WSA" << std::endl;
+                        LOGE(__FUNCTION__, " Failed to encode WSA");
                         return -1;
                     }
                 }
                 break;
             case v2xMsgType::V2X_SAE_MSG_BSM:
                 if (saeCodec_->encode(*(saeMsg->BSM()), payload)) {
-                    std::cout << "Failed to encode BSM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to encode BSM");
                     return -1;
                 }
                 break;
             case v2xMsgType::V2X_SAE_MSG_RTCM:
                 if (saeCodec_->encode(*(saeMsg->RTCMcorrection()), payload)) {
-                    std::cout << "Failed to encode RTCM" << std::endl;
+                    LOGE(__FUNCTION__, " Failed to encode RTCM");
                     return -1;
                 }
                 break;
@@ -436,7 +438,7 @@ void SplitsCodecImpl::convertMsgType(v2xMsgType src, SaeMsgType &dest) {
             break;
         default:
             dest = SaeMsgType::V2X_SAE_MSG_UNKNOWN;
-            std::cerr << "Not support msgType: " << static_cast<int>(src) << std::endl;
+            LOGE(__FUNCTION__, " Not support msgType: ", static_cast<int>(src));
             break;
     }
 }
@@ -454,7 +456,7 @@ int SplitsCodecImpl::encodeWsmp(std::shared_ptr<v2xMsg> msg, bool secured)
             Ieee1609Dot2Data dot2Data;
             payload.length = saeMsg->bufLen;
             payload.value = reinterpret_cast<unsigned char *>(saeMsg->buf);
-            printf("before dot2 buf=%p, len=%d\n", payload.value, payload.length);
+            //printf("before dot2 buf=%p, len=%d\n", payload.value, payload.length);
             dot2Data.protocolVersion = 3;
             dot2Data.tagclass = Ieee1609Dot2TagClass::CONTEXT_SPECIFIC;
             dot2Data.content = Ieee1609Dot2Content::unsecuredData;
@@ -465,7 +467,7 @@ int SplitsCodecImpl::encodeWsmp(std::shared_ptr<v2xMsg> msg, bool secured)
             }
             saeMsg->buf = reinterpret_cast<char *>(payload.value);
             saeMsg->bufLen = payload.length;
-            printf("after dot2 buf=%p, len=%d\n", payload.value, payload.length);
+            //printf("after dot2 buf=%p, len=%d\n", payload.value, payload.length);
         }
 #endif
 
@@ -479,7 +481,7 @@ int SplitsCodecImpl::encodeWsmp(std::shared_ptr<v2xMsg> msg, bool secured)
         header.length = RESERVE_HEADER_LEN;
         header.value = data;
         if (saeCodec_->encode(wsmp, header)) {
-            std::cout << "encode WSMP failed!" << std::endl;
+            LOGE(__FUNCTION__, " encode WSMP failed!");
             return -1;
         }
 
@@ -499,7 +501,7 @@ int SplitsCodecImpl::encodeWsmp(std::shared_ptr<v2xMsg> msg, bool secured)
 
 int SplitsCodecImpl::decodeWsmp(std::shared_ptr<v2xMsg> msg) {
     if (msg == nullptr || msg->buf == 0 || msg->bufLen == 0) {
-        std::cout << "no data to decode" << std::endl;
+        LOGE(__FUNCTION__, " no data to decode");
         return -1;
     }
     std::shared_ptr<v2xMsgSae> saeMsg = std::dynamic_pointer_cast<v2xMsgSae>(msg);
@@ -512,7 +514,7 @@ int SplitsCodecImpl::decodeWsmp(std::shared_ptr<v2xMsg> msg) {
         buf.length = msg->bufLen;
         buf.value = (unsigned char*)(msg->buf);
         if (saeCodec_->decode(buf, header)) {
-            std::cout << "wsmp decode failed" << std::endl;
+            LOGE(__FUNCTION__, " wsmp decode failed");
             //free(buf.value);
             return -1;
         }
@@ -532,12 +534,12 @@ int SplitsCodecImpl::decodeWsmp(std::shared_ptr<v2xMsg> msg) {
         //decode wsmp header
         WsmpHeader header;
         if (saeCodec_->decode(buf, header)) {
-            std::cout << "wsmp decode failed" << std::endl;
+            LOGE(__FUNCTION__, " wsmp decode failed");
             free(buf.value);
             return -1;
         }else{
             saeMsg->bufLen = buf.length;
-            std::cout << " printing buffer of wsmp after decode\n";
+            LOGD(__FUNCTION__, " printing buffer of wsmp after decode");
             //print_buffer(buf.value, buf.length);
             //std::cout << "buf addr of rxmsg after: " << saeMsg->buf << "\n";
             saeMsg->buf = saeMsg->buf + buf.length;
@@ -550,7 +552,7 @@ int SplitsCodecImpl::decodeWsmp(std::shared_ptr<v2xMsg> msg) {
             return (int)(header.type);
         } */
     }
-    std::cout << "Invalid stack type\n";
+    LOGI(__FUNCTION__, " Invalid stack type");
     return -1;
  }
 
@@ -573,7 +575,7 @@ int SplitsCodecImpl::decodeIeee1609Dot2Unsecured(Ieee1609Dot2Data& dot2Data, uin
     if (*buf & 0x80) {
         int numoctets = *buf & 0x7F;
         if (numoctets > 4) {
-            std::cout << "length is " << numoctets << "octets, too big!" << std::endl;
+            LOGE(__FUNCTION__, " length is ", numoctets, " octets, too big!");
             return -1;
         }
         buf++;
@@ -599,7 +601,6 @@ int SplitsCodecImpl::encodeIeee1609Dot2Unsecured(const Ieee1609Dot2Data& dot2Dat
     if (dot2Data.payloadLen > 127) {
         //only support 2 octets for simplicity
         if (dot2Data.payloadLen > 32767) {
-            std::cout << "Length > 32767? " << std::endl;
             return -1;
         }
         *buf = dot2Data.payloadLen & 0xFF;

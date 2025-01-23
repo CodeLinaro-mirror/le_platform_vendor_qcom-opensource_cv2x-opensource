@@ -5,12 +5,11 @@ include(GNUInstallDirs)
 set(CODEC_TARGET splits_codec)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare -Wno-unused-variable")
 
-include_directories(BEFORE 
+include_directories(BEFORE
     ${SPLITS_ROOT_PATH}/include
-    ${SPLITS_ROOT_PATH}/src/core
     ${CMAKE_INSTALL_PREFIX}/include
     ${SYS_INCLUDE}
-    ${SYS_INCLUDE}/splits-dds-gen
+    ${SPLITS_ROOT_PATH}/src/core
 )
 set(CODEC_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/SplitsCodecImpl.cpp

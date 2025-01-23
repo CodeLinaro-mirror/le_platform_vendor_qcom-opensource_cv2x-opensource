@@ -1,7 +1,6 @@
-
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 /**
@@ -71,9 +70,16 @@ public:
      * @param[in] cfgFileName config file name.
      * @param[in] rxpduFileName if string is not empty, use Pdu file for receiving/sending, if
      * rxpdufileName is used, no radio initialization will be performed.
+     * @param[in] txpduFileName if string is not empty, use Pdu file for receiving/sending, if
+     * txpdufileName is used, no radio initialization will be performed.
+     * @param[in] csvFileName if string is not empty, save the receiving/sending message to
+     * the csv file.
      * @returns 0 on success of negative on failure
      */
-    virtual int init(std::string cfgFileName, std::string rxpduFileName, std::string txpduFileName) = 0;
+    virtual int init(std::string cfgFileName,
+                     std::string rxpduFileName,
+                     std::string txpduFileName,
+                     std::string csvFileName) = 0;
     /**
      * send message.
      *
@@ -116,12 +122,10 @@ public:
     virtual std::shared_ptr<v2xMsg> getFreeMsg(void) {
         std::lock_guard<std::mutex> lk(rxPoolMtx_);
         if (rxPool_.empty()) {
-            //std::cout<< "rx pool is empty\n";
             return nullptr;
         } else {
             auto msg = rxPool_.front();
             rxPool_.pop();
-            //std::cout << "get: rxpool size is: " << rxPool_.size() <<"\n";
             return msg;
         }
     }
@@ -133,7 +137,6 @@ public:
     virtual void putFreeMsg(std::shared_ptr<v2xMsg> msg) {
         std::lock_guard<std::mutex> lk(rxPoolMtx_);
         rxPool_.push(msg);
-        //std::cout << "put: rxpool size is: " << rxPool_.size() <<"\n";
     }
 
     /**
@@ -147,7 +150,6 @@ public:
         rxQueueCv_.wait(lk, [this]{return rxQueue_.empty() == false;});
         auto msg = rxQueue_.front();
         rxQueue_.pop();
-        //std::cout << "dequeue: rx queue size is: " << rxQueue_.size() <<"\n";
         return msg;
     }
     /**
@@ -159,10 +161,10 @@ public:
         std::unique_lock<std::mutex> lk(rxQueueMtx_);
         rxQueue_.push(msg);
         rxQueueCv_.notify_all();
-        //std::cout << "enqueue: rx queue size is: " << rxQueue_.size() <<"\n";
     }
 protected:
     StackType st_;
+    // map: msgID <-> v2xMsgBuffer
     std::map<int, std::shared_ptr<v2xMsg>> txSpsMsgs_;
     std::map<int, std::shared_ptr<v2xMsg>> txEventMsgs_;
     std::mutex stateMutex_;

@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -8,24 +8,25 @@
 #include "TxScheduler.hpp"
 #include "SplitsCore.hpp"
 
+#include "Logger.hpp"
+
 namespace SPLITS {
 namespace Core {
 
-Status TxScheduler::scheduleSpsTransmit(int id, int interval_ms)
-{
+Status TxScheduler::scheduleSpsTransmit(int id, int interval_ms) {
     if (congestCtrl_ != nullptr) {
         //when congestion control enabled, tx scheduler for SPS depends on congestion control
         //library's timer value, which is 100ms.
         if (interval_ms != 100) {
-            std::cout << "Can only schedule 100ms interval with congestion control enabled" << std::endl;
+            LOGE(__FUNCTION__, " Can only schedule 100ms interval with congestion control enabled");
             return Status::INVALIDPARAM;
         }
     }
     return calculateTimerPeriod(id, interval_ms, spsIntervalsMap_);
 }
-Status TxScheduler::scheduleEventTransmit(int id, int interval_ms)
-{
-    Status ret;
+
+Status TxScheduler::scheduleEventTransmit(int id, int interval_ms) {
+    Status ret = Status::SUCCESS;
     if (interval_ms > 0) {
         //schedule periodic event msg
         ret = calculateTimerPeriod(id, interval_ms, eventIntervalsMap_);
@@ -35,9 +36,9 @@ Status TxScheduler::scheduleEventTransmit(int id, int interval_ms)
     }
     return ret;
 }
+
 Status TxScheduler::calculateTimerPeriod(int id, int interval_ms,
-        std::map<int, std::vector<int>> &intervalsMap)
-{
+                                         std::map<int, std::vector<int>> &intervalsMap) {
     //interval should be in SPS values range: 20, 50, 100...
     if (interval_ms < 20) {
         return Status::INVALIDPARAM;
@@ -61,11 +62,12 @@ Status TxScheduler::calculateTimerPeriod(int id, int interval_ms,
         timerPeriod_ = 100;
     }
     resetCount_ = max / timerPeriod_;
-    std::cout << "timerPeriod=" << timerPeriod_ << " resetCount=" << resetCount_ << std::endl;
+    LOGD(__FUNCTION__, " timerPeriod = ", timerPeriod_, " resetCount = ", resetCount_);
     return Status::SUCCESS;
 }
-Status TxScheduler::start(void)
-{
+
+Status TxScheduler::start(void) {
+    LOGD(__FUNCTION__);
     struct itimerspec its = {0};
 
     timerfd_ = timerfd_create(CLOCK_MONOTONIC, 0);
@@ -87,8 +89,9 @@ Status TxScheduler::start(void)
 
     return Status::SUCCESS;
 }
-void TxScheduler::stop(void)
-{
+
+void TxScheduler::stop(void) {
+    LOGD(__FUNCTION__);
     stop_ = true;
     txThread_.join();
     if (congestCtrl_ != nullptr) {
@@ -96,12 +99,14 @@ void TxScheduler::stop(void)
     }
 }
 
-void TxScheduler::runCongestCtrl(void)
-{
-    while(congestCtrl_->getCurrCongestionCtrlMgr() == nullptr){}
-    while(stop_ == false) {
-       sem_wait(congestCtrl_->getCurrCongestionCtrlMgr()->
-                    getCongestionControlUserData()->congestionControlSem);
+void TxScheduler::runCongestCtrl(void) {
+    LOGD(__FUNCTION__);
+    while (congestCtrl_->getCurrCongestionCtrlMgr() == nullptr) {
+    }
+    while (stop_ == false) {
+       sem_wait(congestCtrl_->
+                getCurrCongestionCtrlMgr()->
+                getCongestionControlUserData()->congestionControlSem);
        //only support 100ms sps msgs
        auto msgList = spsIntervalsMap_.find(100);
        if (msgList != spsIntervalsMap_.end()) {
@@ -111,11 +116,12 @@ void TxScheduler::runCongestCtrl(void)
        }
     }
 }
-void TxScheduler::run(void)
-{
+
+void TxScheduler::run(void) {
+    LOGD(__FUNCTION__);
     uint64_t exp;
     int ret;
-    while(stop_ == false) {
+    while (stop_ == false) {
         ret = read(timerfd_, &exp, sizeof(exp));
         if (ret == sizeof(uint64_t) && exp > 1) {
             timerMisses_ += 1;
@@ -123,11 +129,10 @@ void TxScheduler::run(void)
             timerCount_ += 1;
         }
         if (congestCtrl_ == nullptr) {
-            //use timer for SPS transmit if congestion control not enabled,
+            //use timer for SPS transmit if congestion control not enabled, 
             for (auto const & spsInt : spsIntervalsMap_) {
                 if (!((timerCount_ * timerPeriod_) % spsInt.first)) {
                     for (auto const & msgId : spsInt.second) {
-                        //std::cout << "send for sps msgid : " << msgId << std::endl;
                         splitsCore_->send(msgId, nullptr);
                     }
                 }
@@ -138,13 +143,13 @@ void TxScheduler::run(void)
         for (auto const & eventInt : eventIntervalsMap_) {
             if (!((timerCount_ * timerPeriod_) % eventInt.first)) {
                 for (auto const & msgId : eventInt.second) {
-                    //std::cout << "send for event msgid : " << msgId << std::endl;
                     splitsCore_->send(msgId, nullptr);
                 }
             }
         }
-        if (timerCount_ == resetCount_)
+        if (timerCount_ == resetCount_) {
             timerCount_ = 0;
+        }
     }
 }
 

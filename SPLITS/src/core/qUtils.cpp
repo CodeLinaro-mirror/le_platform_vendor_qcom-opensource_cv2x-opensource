@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *  Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted (subject to the limitations in the
@@ -39,23 +39,22 @@
   *
   */
 
-#include "qUtils.hpp"
 #include <cstring>
 #include <telux/sec/RandomNumberManager.hpp>
 #include <telux/sec/SecurityFactory.hpp>
 
-void QUtils::initDiagLog()
-{
+#include "Logger.hpp"
+#include "qUtils.hpp"
+
+void QUtils::initDiagLog() {
     //v2x_diag_log_init();
 }
 
-void QUtils::deInitDiagLog()
-{
+void QUtils::deInitDiagLog() {
     //v2x_diag_log_deinit();
 }
 
-int QUtils::hwTRNGInt(uint32_t& randomNumber)
-{
+int QUtils::hwTRNGInt(uint32_t& randomNumber) {
     telux::common::ErrorCode ec;
     std::shared_ptr<telux::sec::IRandomNumberManager> rngMgr;
 
@@ -64,22 +63,20 @@ int QUtils::hwTRNGInt(uint32_t& randomNumber)
     /* Get CryptoManager instance with TRNG as source */
     rngMgr = secFact.getRandomNumberManager(telux::sec::RNGSource::QTI_HW_TRNG, ec);
     if (!rngMgr) {
-        std::cout << "Can't allocate IRandomNumberManager, err: " <<
-                static_cast<int>(ec) << std::endl;
+        LOGD(__FUNCTION__, " Can't allocate IRandomNumberManager, err: ",
+                static_cast<int>(ec));
         return -1;
     }
      /* Generate 32 bit random number */
     ec = rngMgr->getRandomNumber(randomNumber);
     if (ec != telux::common::ErrorCode::SUCCESS) {
-        std::cout << "failed 32 bit number generation, err: " <<
-            static_cast<int>(ec) << std::endl;
-            return -1;
+        LOGD(__FUNCTION__, " failed 32 bit number generation, err: ", static_cast<int>(ec));
+        return -1;
     }
     return 0;
 }
 
-int QUtils::hwTRNGChar(uint8_t *randomNumber)
-{
+int QUtils::hwTRNGChar(uint8_t *randomNumber) {
     telux::common::ErrorCode ec;
     std::vector<uint8_t> generatedData(1, 0);
     size_t numBytes = 0;
@@ -89,14 +86,13 @@ int QUtils::hwTRNGChar(uint8_t *randomNumber)
     /* Get CryptoManager instance with TRNG as source */
     rngMgr = secFact.getRandomNumberManager(telux::sec::RNGSource::QTI_HW_TRNG, ec);
     if (!rngMgr) {
-        std::cout << "Can't allocate IRandomNumberManager, err: " <<
-                static_cast<int>(ec) << std::endl;
+        LOGD(__FUNCTION__, " Can't allocate IRandomNumberManager, err: ",
+                static_cast<int>(ec));
         return -1;
     }
     ec = rngMgr->getRandomData(generatedData, numBytes);
     if (ec != telux::common::ErrorCode::SUCCESS) {
-        std::cout << "failed data generation, err: " <<
-            static_cast<int>(ec) << std::endl;
+        LOGD(__FUNCTION__, " failed data generation, err: ", static_cast<int>(ec));
         return -1;
     }
     memcpy(randomNumber,generatedData.data(),sizeof(generatedData.data()));

@@ -39,6 +39,7 @@
 #define PP_BUFFER_MAX_SIZE 6000
 
 using SPLITS::Core::SplitsFilter;
+using SPLITS::Core::SplitsCore;
 
 
 namespace SPLITS {
@@ -96,11 +97,11 @@ typedef struct asyncCbData_t {
     int indexToData;
     bool verifSuccess;
     bool mbdDetected;
-    AsyncCbState asyncState=FREE;
+    AsyncCbState asyncState = FREE;
     SecuredMessageParserC smp;
     BsmData rvBsmData;
-    void* congCtrl;
     std::shared_ptr<void> rxMsg;
+    std::weak_ptr<SplitsCore> splitsCore;
     int index;
     // uint32_t psid;
     // uint8_t msg_index;
@@ -113,16 +114,16 @@ typedef struct asyncCbData_t {
 
 class AsyncVerifDataPool {
     public:
-        AsyncVerifDataPool(){};
-        ~AsyncVerifDataPool(){};
-        void add(const asyncCbData_t& cbData){
+        AsyncVerifDataPool() {};
+        ~AsyncVerifDataPool() {};
+        void add(const asyncCbData_t& cbData) {
             asyncVerifDataPool_.push_back(cbData);
             asyncVerifDataPoolSize++;
         }
-        int getFreeIndex() {
+        int getFreeIndex() const {
             return freeVerifDataIndex;
         }
-        int getBufferFull(){
+        int getBufferFull() const {
             return verifDataPoolFull;
         }
         asyncCbData_t* getFreeVerifData();
@@ -174,6 +175,13 @@ class SecurityInterface : public ILocationListener,
         asyncCbData_t* getFreeVerifData();
         std::shared_ptr<SecurityInterface> getptr() {
             return shared_from_this();
+        }
+        uint64_t timeSinceLastIdChange() const {
+            return timeSinceLastIdChange_;
+        }
+
+        double distSinceLastIdChange() const {
+            return distSinceLastIdChange_;
         }
 
     private:

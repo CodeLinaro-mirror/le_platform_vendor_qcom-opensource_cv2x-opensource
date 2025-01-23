@@ -24,6 +24,7 @@ include_directories(BEFORE
     ${SPLITS_ROOT_PATH}/src/core
     ${SPLITS_ROOT_PATH}/src/logger
     ${COMMONAPI_INCLUDE_DIRS}
+    ${CMAKE_INSTALL_PREFIX}/include/cv2x-remote-gen/core
     ${CMAKE_INSTALL_PREFIX}/include
     ${CMAKE_INSTALL_PREFIX}/include/splits-dds-gen
     ${CMAKE_INSTALL_PREFIX}/include/splits-commonapi-gen/core
@@ -33,6 +34,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
 add_executable(${TARGET_CLIENT} ${TARGET_CLIENT_SOURCES})
+
 target_link_libraries(${TARGET_CLIENT}
     splits_interface CommonAPI splitsdds_gen splits_logger jsoncpp
 )

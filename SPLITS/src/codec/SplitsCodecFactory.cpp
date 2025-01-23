@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -10,11 +10,10 @@
 namespace SPLITS {
 namespace Codec {
 
-    SplitsCodecFactory::SplitsCodecFactory() {
-    std::cout << "CodecFactory ctor" << std::endl;
+SplitsCodecFactory::SplitsCodecFactory() {
 }
+
 SplitsCodecFactory::~SplitsCodecFactory() {
-    std::cout << "CodecFactory dtor" << std::endl;
 }
 
 SplitsCodecFactory & SplitsCodecFactory::getInstance() {

@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "SplitsDataPubSub.hpp"
-
+#include "Logger.hpp"
 
 using namespace eprosima::fastdds::dds;
 
@@ -65,8 +65,8 @@ SplitsDataPubSub::SplitsDataPubSub()
     msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_MSG_PDU);
 
 }
-std::string SplitsDataPubSub::removeNameSpace(const std::string & typeName)
-{
+
+std::string SplitsDataPubSub::removeNameSpace(const std::string & typeName) {
     std::string::size_type n;
     n = typeName.rfind(":");
     return typeName.substr(n + 1, std::string::npos);
@@ -81,9 +81,7 @@ SplitsDataPubSub::~SplitsDataPubSub()
     DomainParticipantFactory::get_instance()->delete_participant(participant_);
 }
 
-bool SplitsDataPubSub::init(std::string topicPrefix)
-{
-
+bool SplitsDataPubSub::init(std::string topicPrefix) {
     //CREATE THE PARTICIPANT
     DomainParticipantQos pqos;
     pqos.name("cv2x_sub");
@@ -92,7 +90,7 @@ bool SplitsDataPubSub::init(std::string topicPrefix)
             SPLITS_DDS_DOMAIN_ID, pqos);
     if (participant_ == nullptr)
     {
-        std::cerr << "Failed to create dds participant" << std::endl;
+        LOGE(__FUNCTION__, " Failed to create dds participant");
         return false;
     }
 
@@ -103,14 +101,16 @@ bool SplitsDataPubSub::init(std::string topicPrefix)
     //CREATE THE TOPIC
     for (auto const & type : types_) {
         auto typeName = removeNameSpace(type.get_type_name());
-        auto topic = participant_->create_topic(topicPrefix + typeName, type.get_type_name(), TOPIC_QOS_DEFAULT);
+        auto topic = participant_->create_topic(topicPrefix + typeName,
+                                                type.get_type_name(),
+                                                TOPIC_QOS_DEFAULT);
         if (topic == nullptr)
         {
-            std::cerr << "Failed to create dds topic for type: " << type.get_type_name() << std::endl;
+            LOGE(__FUNCTION__, " Failed to create dds topic for type: ", type.get_type_name());
             return false;
         }
         auto topicId = msgType2IdMap_[typeName];
-        std::cout << "creating topic: " << topicPrefix + typeName <<"id: " << topicId <<  std::endl;
+        LOGD(__FUNCTION__, " creating topic: ", (topicPrefix + typeName), ", id: ", topicId);
         topics_[topicId] = topic;
     }
     return true;

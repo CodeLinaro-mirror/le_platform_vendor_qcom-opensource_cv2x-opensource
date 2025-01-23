@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -8,59 +8,63 @@
 #include <unistd.h>
 #include <iostream>
 #include "SplitsCoreFactory.hpp"
+#include "Logger.hpp"
 
-gid_t getGidByName(char* names) {
+gid_t getGidByName(const char* names) {
     struct group* tempGrp;
-    gid_t tmpGid;
-    if((tempGrp = getgrnam(names)) != NULL) {
+    gid_t tmpGid = {};
+    if ((tempGrp = getgrnam(names)) != NULL) {
         tmpGid = tempGrp->gr_gid;
     }
     return tmpGid;
 }
 
-
-int setSupplementaryGroups(char** grps, int size) {
+int setSupplementaryGroups(const char** grps, int size) {
     gid_t groupId[size];
     for (int i = 0; i < size; i++) {
         groupId[i] = getGidByName(*(grps+i));
     }
     int numGroups = getgroups(0, NULL);
     if (-1 == numGroups) {
-        std::cout << "getgroups failed" << std::endl;
+        LOGE("getgroups failed");
         return -1;
     }
     gid_t gid[numGroups+size];
     if (-1 == getgroups(numGroups, gid)) {
-        std::cout << "getgroups failed" << std::endl;
+        LOGE("getgroups failed");
         return -1;
     }
     for (int i = 0; i < size; i++) {
         gid[numGroups + i] = groupId[i];
     }
     if (-1 == setgroups(numGroups+size, gid)) {
-        std::cout << "setgroups failed" << std::endl;
+        LOGE("setgroups failed");
         return -1;
     }
     return 0;
 }
 
 int main(int argc, char **argv) {
+
+    LOGD("Splits Service Starts");
+
     int c;
-    char* groups[] = {"system", "diag", "radio", "locclient", "mvm",
-                                    "dlt", "spi", "gpio", "logd"};
+    const char* groups[] = {"system", "diag", "radio", "locclient", "mvm",
+                            "dlt", "spi", "gpio", "logd"};
     std::string rxpduFileName;
     std::string txpduFileName;
     std::string cfgFileName;
+    std::string csvFileDir;
     if (setSupplementaryGroups(&groups[0], 1)) {
         return -1;
     }
-    while ((c = getopt(argc, argv, "t:p:f:")) != -1) {
+    while ((c = getopt(argc, argv, "t:p:f:F:")) != -1) {
         switch(c) {
         case 'p':
              if (optarg) {
              rxpduFileName = optarg;
              } else {
-                 std::cout << "Must followed by a pdu file name if '-p' supplied" << std::endl;
+                 LOGE("Must followed by a pdu file name if '-p' supplied");
                  return -1;
              }
              break;
@@ -68,31 +72,43 @@ int main(int argc, char **argv) {
              if (optarg) {
                  txpduFileName = optarg;
              } else {
-                 std::cout << "Must followed by a pdu file name if '-t' supplied" << std::endl;
+                 LOGE("Must followed by a pdu file name if '-t' supplied");
                  return -1;
              }
+             break;
         case 'f':
              if (optarg) {
                  cfgFileName = optarg;
              } else {
-                 std::cout << "Must followed by a config file name if '-f' supplied" << std::endl;
+                 LOGE("Must followed by a config file name if '-f' supplied");
                  return -1;
              }
-
-        default:
-            std::cout << "Usage: splits_service [-f cfgFileName] [-p rxpduFileName | -t txpduFileName ]" << std::endl;
+             break;
+        case 'F':
+            if (optarg) {
+                csvFileDir = optarg;
+            } else {
+                LOGE("Must followed by a directory if '-F' supplied");
+                return -1;
+            }
             break;
-
+        default:
+            LOGE("Usage:");
+            LOGE("splits_service [-f cfgFileName]");
+            LOGE("               [-p rxpduFileName]");
+            LOGE("               [-t txpduFileName]");
+            LOGE("               [-F csvFileDir]");
+            break;
          }
      }
     auto coreFactory = SPLITS::Core::SplitsCoreFactory::getInstance();
     auto core = coreFactory.getCore();
     if (nullptr == core) {
-        std::cout << "failed to get SPLITS core" << std::endl;
+        LOGE("failed to get SPLITS core");
         return -1;
     }
-    if (core->init(cfgFileName, rxpduFileName, txpduFileName) < 0) {
-        std::cout << "failed to init core" << std::endl;
+    if (core->init(cfgFileName, rxpduFileName, txpduFileName, csvFileDir) < 0) {
+        LOGE("failed to init core");
         return -1;
     }
 

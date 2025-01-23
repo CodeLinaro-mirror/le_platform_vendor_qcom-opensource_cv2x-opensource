@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <cstring>
@@ -7,13 +7,12 @@
 #include <telux/cv2x/Cv2xRadioTypes.hpp>
 #include "v2xMsgSae.hpp"
 #include "SplitsWra.hpp"
+#include "Logger.hpp"
 
 namespace SPLITS {
-
 namespace Core {
 
-SplitsWra::~SplitsWra()
-{
+SplitsWra::~SplitsWra() {
     if (ipSessionActive_) {
         if (role_ == Role::OBU) {
         {
@@ -30,16 +29,16 @@ SplitsWra::~SplitsWra()
         }
     }
 }
+
 int SplitsWra::onReceiveWra(const IEEE1609Dot3::idl::RoutingAdvertisement &wra,
-        const uint8_t *sourceMacAddr, int macAddrlen)
-{
+        const uint8_t *sourceMacAddr, int macAddrlen) {
     int ret = 0;
     telux::cv2x::IPv6AddrType ipPrefix;
     telux::cv2x::GlobalIPUnicastRoutingInfo routingInfo;
 
     if (ipSessionActive_ == false) {
         if (wra.ipPrefix().size() > CV2X_IPV6_ADDR_ARRAY_LEN) {
-            std::cerr << "invalid ip prefix length: " << wra.ipPrefix().size() << std::endl;
+            LOGE(__FUNCTION__, " invalid ip prefix length: ", wra.ipPrefix().size());
             return -1;
         }
         //received first valid WRA message
@@ -53,19 +52,19 @@ int SplitsWra::onReceiveWra(const IEEE1609Dot3::idl::RoutingAdvertisement &wra,
         std::memcpy(prevSourceMac, sourceMacAddr, CV2X_MAC_ADDR_LEN);
         if (radio_ != nullptr) {
             if ((ret = radio_->setGlobalIPInfo(ipPrefix, config_->getServiceId()))) {
-                std::cerr << "Failed to set Global IP" << std::endl;
+                LOGE(__FUNCTION__, " Failed to set Global IP");
                 stop_ = true;
                 return -1;
             } else {
-                std::cout << "Global IP set" << std::endl;
+                LOGD(__FUNCTION__, " Global IP set");
             }
             std::memcpy(routingInfo.destMacAddr, sourceMacAddr, CV2X_MAC_ADDR_LEN);
             if ((ret = radio_->setRoutingInfo(routingInfo))) {
-                std::cerr << "Failed to set routing Info" << std::endl;
+                LOGE(__FUNCTION__, " Failed to set routing Info");
                 stop_ = true;
                 return ret;
             } else {
-                std::cout << "Routing info set" << std::endl;
+                LOGD(__FUNCTION__, " Routing info set");
             }
             auto func = [this](int routerLifetime) {
                 threadFunc(routerLifetime);
@@ -98,14 +97,14 @@ int SplitsWra::onReceiveWra(const IEEE1609Dot3::idl::RoutingAdvertisement &wra,
             std::memcpy(routingInfo.destMacAddr, sourceMacAddr, CV2X_MAC_ADDR_LEN);
             std::memcpy(prevSourceMac, sourceMacAddr, CV2X_MAC_ADDR_LEN);
             if ((ret = radio_->setRoutingInfo(routingInfo))) {
-                std::cerr << "Failed to update routing info" << std::endl;
+                LOGE(__FUNCTION__, " Failed to update routing info");
             }
         }
     }
     return ret;
 }
-void SplitsWra::threadFunc(int routerLifetime)
-{
+
+void SplitsWra::threadFunc(int routerLifetime) {
     std::unique_lock<std::mutex> lk(mtx_);
     std::cv_status status;
 
@@ -125,24 +124,23 @@ void SplitsWra::threadFunc(int routerLifetime)
         if (status == std::cv_status::timeout) {
             radio_->onWraTimedout();
             ipSessionActive_ = false;
-            std::cout << "IP session stopped due to WRA timeout" << std::endl;
+            LOGD(__FUNCTION__, " IP session stopped due to WRA timeout");
             return;
         }
     }
 }
 
-int SplitsWra::fillWra(std::shared_ptr<v2xMsg> msg)
-{
+int SplitsWra::fillWra(std::shared_ptr<v2xMsg> msg) {
     std::shared_ptr<IEEE1609Dot3::idl::SrvAdvMsg> sp;
     auto wsaMsg = std::dynamic_pointer_cast<SPLITS::v2xMsgSae>(msg);
     if (wsaMsg == nullptr) {
-        std::cerr << "No msg " << std::endl;
+        LOGE(__FUNCTION__, " No msg ");
         return -1;
     }
     if ((sp = wsaMsg->SrvAdvMsg()) == nullptr) {
         sp = std::make_shared<IEEE1609Dot3::idl::SrvAdvMsg>();
         if (sp == nullptr) {
-            std::cerr << "Failed to create wsa idl message" << std::endl;
+            LOGE(__FUNCTION__, " Failed to create wsa idl message");
             return -1;
         } else {
             wsaMsg->SrvAdvMsg(sp);
@@ -157,19 +155,7 @@ int SplitsWra::fillWra(std::shared_ptr<v2xMsg> msg)
         auto prefix = config_->getIpPrefix();
         auto defaultGw = config_->getDefaultGateway();
         auto primaryDns = config_->getPrimaryDns();
-#if 0
-        std::cout << "ipPrefixLen=" << config_->getIpPrefixLength() << std::endl;
-        std::cout << "defaultGw: " << std::endl;
-        for (auto const & v : defaultGw) {
-            std::cout << std::hex << std::setw(2) << std::setfill('0') << (unsigned int)v << ":";
-        }
-        std::cout << std::endl;
-        std::cout << "primaryDns: " << std::endl;
-        for (auto const & v : primaryDns) {
-            std::cout << std::hex << std::setw(2) << std::setfill('0') << (unsigned int)v << ":";
-        }
-        std::cout << std::endl;
-#endif
+
         routingAdvertisement.lifetime(config_->getRouterLifetime());
         std::copy(prefix.begin(), prefix.end(), idlPrefix.begin());
         routingAdvertisement.ipPrefix(std::move(idlPrefix));
@@ -189,8 +175,7 @@ int SplitsWra::fillWra(std::shared_ptr<v2xMsg> msg)
     }
     return 0;
 }
-int SplitsWra::setGlobalIPv6Prefix(void)
-{
+int SplitsWra::setGlobalIPv6Prefix(void) {
     int ret = 0;
     telux::cv2x::IPv6AddrType IpPrefix;
     if (ipSessionActive_ == false) {
@@ -202,16 +187,15 @@ int SplitsWra::setGlobalIPv6Prefix(void)
             ret = -1;
         }
         if (!ret) {
-            std::cout << "Global IP info set" << std::endl;
+            LOGD(__FUNCTION__, " Global IP info set");
             ipSessionActive_ = true;
         } else {
-            std::cerr << "Global IP info failed to " << std::endl;
+            LOGE(__FUNCTION__, " Global IP info failed to ");
         }
     }
     return ret;
 }
-int SplitsWra::clearGlobalIPv6Prefix(void)
-{
+int SplitsWra::clearGlobalIPv6Prefix(void) {
     int ret = 0;
     ipSessionActive_ = false;
     if (radio_ != nullptr) {

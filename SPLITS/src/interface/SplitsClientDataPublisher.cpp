@@ -1,8 +1,9 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "SplitsClientDataPublisher.hpp"
+#include "Logger.hpp"
 
 using namespace eprosima::fastdds::dds;
 
@@ -22,15 +23,14 @@ void SplitsClientDataPublisher::publish(void)
             continue;
         }
 
-        std::cout << "got msg " << std::endl;
+        LOGI(__FUNCTION__, " got msg ");
         for (const auto listener : pubListeners_) {
-            if (listener->firstConnected_ || listener->matched_ > 0)
-            {
-                std::cout << "topic id: " << listener->topicId_ << std::endl;
+            if (listener->firstConnected_ || listener->matched_ > 0) {
+                LOGD(__FUNCTION__, "topic id: ", listener->topicId_);
                 if (listener->topicId_ == static_cast<int>(msg->msgType_)) {
                     if (!isCSAE(msg->msgType_)){
                         saeMsg = std::dynamic_pointer_cast<SPLITS::v2xMsgSae>(msg);
-                        std::cout << "type=" << static_cast<int>(msg->msgType_) << std::endl;
+                        LOGI(__FUNCTION__,  " type = ", static_cast<int>(msg->msgType_));
                         switch(msg->msgType_) {
                             case SPLITS::v2xMsgType::V2X_SAE_MSG_BSM:
                                 listener->writer_->write(saeMsg->BSM().get());
@@ -42,7 +42,6 @@ void SplitsClientDataPublisher::publish(void)
                                 listener->writer_->write(saeMsg->Map().get());
                                 break;
                             case SPLITS::v2xMsgType::V2X_SAE_MSG_RTCM:
-                                std::cout << "Send rtcm" << std::endl;
                                 listener->writer_->write(saeMsg->RTCMcorrection().get());
                                 break;
                             case SPLITS::v2xMsgType::V2X_SAE_MSG_RSM:
@@ -60,16 +59,16 @@ void SplitsClientDataPublisher::publish(void)
                             case SPLITS::v2xMsgType::V2X_SAE_MSG_WSA:
                                 listener->writer_->write(saeMsg->SrvAdvMsg().get());
                                 break;
-                            case SPLITS::v2xMsgType::V2X_MSG_PDU:
-                                {
-                                std::cout << "write pdu" << std::endl;
+                            case SPLITS::v2xMsgType::V2X_MSG_PDU: {
+                                LOGD(__FUNCTION__, " write pdu");
                                 auto msgData = saeMsg->MsgData();
-                                std::cout << "sid=" << msgData->serviceId() << "len=" << msgData->length() << std::endl;
+                                LOGD(__FUNCTION__, " sid = ", msgData->serviceId(),
+                                     ", len = ", msgData->length());
                                 listener->writer_->write(saeMsg->MsgData().get());
                                 }
                                 break;
                             default:
-                                std::cerr << "Unknown sae msg type" << std::endl;
+                                LOGE(__FUNCTION__, " Unknown sae msg type");
                                 break;
                         }
                     } else {
@@ -83,7 +82,7 @@ void SplitsClientDataPublisher::publish(void)
                             case SPLITS::v2xMsgType::V2X_CSAE_MSG_RSM:
                                 break;
                             default:
-                                std::cerr << "Unknown c-sae msg type" << std::endl;
+                                LOGE(__FUNCTION__, " Unknown c-sae msg type");
                                 break;
                         }
                     }

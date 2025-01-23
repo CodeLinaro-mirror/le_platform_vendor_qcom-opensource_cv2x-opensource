@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -11,10 +11,8 @@ namespace SPLITS {
 namespace Core {
 
 SplitsCoreFactory::SplitsCoreFactory() {
-    std::cout << "CoreFactory ctor" << std::endl;
 }
 SplitsCoreFactory::~SplitsCoreFactory() {
-    std::cout << "CoreFactory dtor" << std::endl;
 }
 
 SplitsCoreFactory & SplitsCoreFactory::getInstance() {

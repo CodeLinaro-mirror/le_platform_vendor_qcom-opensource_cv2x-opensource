@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 
-project("Cv2xRemoteAPI")
-set(PRJ_NAME Cv2xRemoteAPI)
+project("SPLITS")
+set(PRJ_NAME SPLITS)
 
 #set(CMAKE_VERBOSE_MAKEFILE on)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE BOTH)
@@ -61,9 +61,10 @@ message(STATUS "FASTRTPS_INCLUDE_DIRS: ${FASTRTPS_INCLUDE_DIR}")
 
 # Boost
 find_package( Boost 1.54 COMPONENTS system thread log REQUIRED )
-include_directories( ${Boost_INCLUDE_DIR}
+include_directories(${Boost_INCLUDE_DIR}
     ${SYS_INCLUDE}
     ${SYS_INCLUDE}/splits-dds-gen
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/
     )
 
 set(SPLITS_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
