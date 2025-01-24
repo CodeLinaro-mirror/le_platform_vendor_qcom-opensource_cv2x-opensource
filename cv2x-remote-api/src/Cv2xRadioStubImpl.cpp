@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -102,6 +102,7 @@ void Cv2xRadioStubImpl::createRxSubscription(const std::shared_ptr<CommonAPI::Cl
 {
     uint32_t subscriptionId = 0;
     ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
     std::shared_ptr<std::vector<uint32_t>> idList;
 
     if (_idList.size() == 0) {
@@ -130,7 +131,7 @@ void Cv2xRadioStubImpl::createRxSubscription(const std::shared_ptr<CommonAPI::Cl
                 COMMONAPI_DEBUG("rxSub and dds pub for sub ", subscriptionId, " created");
             }
         }
-        CallbackPromise_.set_value(error);
+        prom.set_value(error);
     };
     if (cv2xRadio_ != nullptr) {
         auto status = cv2xRadio_->createRxSubscription(static_cast<telux::cv2x::TrafficIpType>((uint8_t)_ipType),
@@ -141,10 +142,8 @@ void Cv2xRadioStubImpl::createRxSubscription(const std::shared_ptr<CommonAPI::Cl
         if (status != Status::SUCCESS) {
             error = ErrorCode::GENERIC_FAILURE;
         } else {
-            error = CallbackPromise_.get_future().get();
+            error = prom.get_future().get();
         }
-        //reset callback promise
-        CallbackPromise_ =  promise<ErrorCode>();
     } else {
         error = ErrorCode::RADIO_NOT_AVAILABLE;
     }
@@ -159,8 +158,9 @@ void Cv2xRadioStubImpl::enableRxMetaDataReport(const std::shared_ptr<CommonAPI::
             bool _enable, std::vector< uint32_t > _idList, enableRxMetaDataReportReply_t _reply)
 {
     ErrorCode error;
-    auto enableRxMetaDataCallback = [this](ErrorCode error) {
-        CallbackPromise_.set_value(error);
+    std::promise<telux::common::ErrorCode> prom;
+    auto enableRxMetaDataCallback = [&prom, this](ErrorCode error) {
+        prom.set_value(error);
     };
     if (cv2xRadio_ != nullptr) {
         auto status = cv2xRadio_->enableRxMetaDataReport(static_cast<telux::cv2x::TrafficIpType>((uint8_t)_ipType),
@@ -168,7 +168,7 @@ void Cv2xRadioStubImpl::enableRxMetaDataReport(const std::shared_ptr<CommonAPI::
         if (status != Status::SUCCESS) {
             error = ErrorCode::GENERIC_FAILURE;
         } else {
-            error = CallbackPromise_.get_future().get();
+            error = prom.get_future().get();
         }
     } else {
         error = ErrorCode::RADIO_NOT_AVAILABLE;
@@ -183,6 +183,7 @@ void Cv2xRadioStubImpl::createTxSpsFlow(const std::shared_ptr<CommonAPI::ClientI
             uint16_t _spsSrcPort, bool _eventSrcPortValid, uint16_t _eventSrcPort, createTxSpsFlowReply_t _reply)
 {
     ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
     uint32_t spsFlowId, eventFlowId;
 
     auto closeTxFlowCallback = [this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txFlow, ErrorCode error) {
@@ -220,19 +221,30 @@ void Cv2xRadioStubImpl::createTxSpsFlow(const std::shared_ptr<CommonAPI::ClientI
                  }
             }
             if (_eventSrcPortValid == false) {
-                CallbackPromise_.set_value(spsError);
+                prom.set_value(spsError);
             } else {
                 if (spsError != ErrorCode::SUCCESS) {
-                    CallbackPromise_.set_value(spsError);
+                    prom.set_value(spsError);
                 } else if (eventError != ErrorCode::SUCCESS) {
-                    CallbackPromise_.set_value(eventError);
+                    prom.set_value(eventError);
                 } else {
-                    CallbackPromise_.set_value(ErrorCode::SUCCESS);
+                    prom.set_value(ErrorCode::SUCCESS);
                 }
             }
         };
-        //TODO convert _spsInfo to spsInfo
         telux::cv2x::SpsFlowInfo spsInfo;
+        spsInfo.priority = static_cast<telux::cv2x::Priority>(_spsInfo.getPriority().value_);
+        spsInfo.periodicity = static_cast<telux::cv2x::Periodicity>(_spsInfo.getPeriodicity().value_);
+        spsInfo.periodicityMs = _spsInfo.getPeriodicityMs();
+        spsInfo.nbytesReserved = _spsInfo.getNbytesReserved();
+        spsInfo.autoRetransEnabledValid = _spsInfo.getAutoRetransEnabledValid();
+        spsInfo.autoRetransEnabled = _spsInfo.getAutoRetransEnabled();
+        spsInfo.peakTxPowerValid = _spsInfo.getPeakTxPowerValid();
+        spsInfo.peakTxPower = _spsInfo.getPeakTxPower();
+        spsInfo.mcsIndexValid = _spsInfo.getMcsIndexValid();
+        spsInfo.mcsIndex = _spsInfo.getMcsIndex();
+        spsInfo.txPoolIdValid = _spsInfo.getTxPoolIdValid();
+        spsInfo.txPoolId = _spsInfo.getTxPoolId();
         auto status = cv2xRadio_->createTxSpsFlow(static_cast<telux::cv2x::TrafficIpType>((uint8_t)_ipType),
                                     _serviceId,
                                     spsInfo,
@@ -243,9 +255,8 @@ void Cv2xRadioStubImpl::createTxSpsFlow(const std::shared_ptr<CommonAPI::ClientI
         if (status != Status::SUCCESS) {
             error = ErrorCode::GENERIC_FAILURE;
         } else {
-            error = CallbackPromise_.get_future().get();
+            error = prom.get_future().get();
         }
-        CallbackPromise_ =  promise<ErrorCode>();
     } else {
         error = ErrorCode::RADIO_NOT_AVAILABLE;
     }
@@ -258,9 +269,12 @@ void Cv2xRadioStubImpl::createTxSpsFlow(const std::shared_ptr<CommonAPI::ClientI
 
 void Cv2xRadioStubImpl::createTxEventFlow(const std::shared_ptr<CommonAPI::ClientId> _client,
             ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::TrafficIpType _ipType,
-            uint32_t _serviceId, uint16_t _eventSrcPort, createTxEventFlowReply_t _reply)
+            uint32_t _serviceId,
+            ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::EventFlowInfo _flowInfo,
+            uint16_t _eventSrcPort, createTxEventFlowReply_t _reply)
 {
     ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
     uint32_t eventFlowId;
 
     auto closeTxFlowCallback = [this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txFlow, ErrorCode error) {
@@ -283,9 +297,18 @@ void Cv2xRadioStubImpl::createTxEventFlow(const std::shared_ptr<CommonAPI::Clien
                      txFlows_[eventFlowId] = txEventFlow;
                  }
             }
-            CallbackPromise_.set_value(error);
+            prom.set_value(error);
         };
         telux::cv2x::EventFlowInfo flowInfo;
+        flowInfo.autoRetransEnabledValid = _flowInfo.getAutoRetransEnabledValid();
+        flowInfo.autoRetransEnabled = _flowInfo.getAutoRetransEnabled();
+        flowInfo.peakTxPowerValid = _flowInfo.getPeakTxPowerValid();
+        flowInfo.peakTxPower = _flowInfo.getPeakTxPower();
+        flowInfo.mcsIndexValid = _flowInfo.getMcsIndexValid();
+        flowInfo.mcsIndex = _flowInfo.getMcsIndex();
+        flowInfo.txPoolIdValid = _flowInfo.getTxPoolIdValid();
+        flowInfo.txPoolId = _flowInfo.getTxPoolId();
+        flowInfo.isUnicast = _flowInfo.getIsUnicast();
         auto status = cv2xRadio_->createTxEventFlow(static_cast<telux::cv2x::TrafficIpType>((uint8_t)_ipType),
                                     _serviceId,
                                     flowInfo,
@@ -294,12 +317,11 @@ void Cv2xRadioStubImpl::createTxEventFlow(const std::shared_ptr<CommonAPI::Clien
         if (status != Status::SUCCESS) {
             error = ErrorCode::GENERIC_FAILURE;
         } else {
-            error = CallbackPromise_.get_future().get();
+            error = prom.get_future().get();
         }
     } else {
         error = ErrorCode::RADIO_NOT_AVAILABLE;
     }
-    CallbackPromise_ =  promise<ErrorCode>();
 
     _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error), eventFlowId);
 }
@@ -308,27 +330,29 @@ void Cv2xRadioStubImpl::closeRxSubscription(const std::shared_ptr<CommonAPI::Cli
              uint32_t _subscriptionId, closeRxSubscriptionReply_t _reply)
 {
     ErrorCode error;
-    auto closeRxSubCallback = [this](std::shared_ptr<ICv2xRxSubscription> rxSub, ErrorCode error) {
-        CallbackPromise_.set_value(error);
+    std::promise<telux::common::ErrorCode> prom;
+    auto closeRxSubCallback = [&prom, this](std::shared_ptr<ICv2xRxSubscription> rxSub, ErrorCode error) {
+        prom.set_value(error);
     };
     if (cv2xRadio_ != nullptr) {
         if (rxSubs_.find(_subscriptionId) != rxSubs_.end()) {
             if (shutdown(rxSubs_[_subscriptionId]->getSock(), SHUT_RD) == -1) {
                 int temp_error = errno;
-                COMMONAPI_ERROR("Failed to shutdown read direction ", temp_error);
+                if (temp_error != ENOTCONN) {
+                    COMMONAPI_ERROR("Failed to shutdown read direction ", temp_error);
+                }
             }
             auto status = cv2xRadio_->closeRxSubscription(rxSubs_[_subscriptionId], closeRxSubCallback);
             if (status != Status::SUCCESS) {
                 error = ErrorCode::GENERIC_FAILURE;
             } else {
-                error = CallbackPromise_.get_future().get();
+                error = prom.get_future().get();
                 if (error == ErrorCode::SUCCESS) {
                     COMMONAPI_DEBUG("deleting rxsub ", _subscriptionId);
                     rxSubs_.erase(_subscriptionId);
                     pubs_.erase(_subscriptionId);
                 }
             }
-            CallbackPromise_ =  promise<ErrorCode>();
         } else {
             COMMONAPI_ERROR(":closeRxSubscription subId ", _subscriptionId, " Not found");
             error = ErrorCode::GENERIC_FAILURE;
@@ -343,8 +367,9 @@ void Cv2xRadioStubImpl::closeTxFlow(const std::shared_ptr<CommonAPI::ClientId> _
              uint32_t _txFlowId, closeTxFlowReply_t _reply)
 {
     ErrorCode error;
-    auto closeTxFlowCallback = [this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txFlow, ErrorCode error) {
-        CallbackPromise_.set_value(error);
+    std::promise<telux::common::ErrorCode> prom;
+    auto closeTxFlowCallback = [&prom, this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txFlow, ErrorCode error) {
+        prom.set_value(error);
     };
     if (cv2xRadio_ != nullptr) {
         if (txFlows_.find(_txFlowId) != txFlows_.end()) {
@@ -352,14 +377,13 @@ void Cv2xRadioStubImpl::closeTxFlow(const std::shared_ptr<CommonAPI::ClientId> _
             if (status != Status::SUCCESS) {
                 error = ErrorCode::GENERIC_FAILURE;
             } else {
-                error = CallbackPromise_.get_future().get();
+                error = prom.get_future().get();
                 if (error == ErrorCode::SUCCESS) {
                     COMMONAPI_DEBUG("deleting txflow ", _txFlowId);
                     txFlows_.erase(_txFlowId);
                     subs_.erase(_txFlowId);
                 }
             }
-            CallbackPromise_ =  promise<ErrorCode>();
         } else {
             COMMONAPI_ERROR("closeTxFlow: flowId ", _txFlowId, " Not found");
             error = ErrorCode::GENERIC_FAILURE;
@@ -376,6 +400,7 @@ void Cv2xRadioStubImpl:: changeSpsFlowInfo(const std::shared_ptr<CommonAPI::Clie
 
 {
     ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
     telux::cv2x::SpsFlowInfo teluxSpsInfo;
 
     teluxSpsInfo.priority = static_cast<telux::cv2x::Priority>((uint8_t)_spsInfo.getPriority());
@@ -391,22 +416,19 @@ void Cv2xRadioStubImpl:: changeSpsFlowInfo(const std::shared_ptr<CommonAPI::Clie
     teluxSpsInfo.txPoolIdValid = _spsInfo.getTxPoolIdValid();
     teluxSpsInfo.txPoolId = _spsInfo.getTxPoolId();
 
-    auto changeSpsFlowInfoCallback = [this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txSpsFlow, ErrorCode error) {
-        //TODO update flow in the map?
-        CallbackPromise_.set_value(error);
+    auto changeSpsFlowInfoCallback = [&prom, this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txSpsFlow, ErrorCode error) {
+        prom.set_value(error);
     };
 
     if (cv2xRadio_ != nullptr) {
-        //for (std::shared_ptr<telux::cv2x::ICv2xTxFlow> TxFlow : txFlows_) {
         if (txFlows_.find(_txFlowId) != txFlows_.end()) {
             auto status = cv2xRadio_->changeSpsFlowInfo(txFlows_[_txFlowId], teluxSpsInfo,
                     changeSpsFlowInfoCallback);
             if (status != Status::SUCCESS) {
                 error = ErrorCode::GENERIC_FAILURE;
             } else {
-                error = CallbackPromise_.get_future().get();
+                error = prom.get_future().get();
             }
-            CallbackPromise_ =  promise<ErrorCode>();
         } else {
             COMMONAPI_ERROR("changeSpsFlowInfo: flowId ", _txFlowId, " Not found");
             error = ErrorCode::GENERIC_FAILURE;
@@ -422,9 +444,10 @@ void Cv2xRadioStubImpl:: requestSpsFlowInfo(const std::shared_ptr<CommonAPI::Cli
              uint32_t _txFlowId, requestSpsFlowInfoReply_t _reply)
 {
     ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
     capicv2x::Cv2xRadioTypes::SpsFlowInfo capiSpsInfo;
-    auto requestSpsFlowInfoCallback = [&capiSpsInfo, this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txSpsFlow,
-            const telux::cv2x::SpsFlowInfo & spsInfo,
+    auto requestSpsFlowInfoCallback = [&prom, &capiSpsInfo, this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txSpsFlow,
+            const telux::cv2x::SpsFlowInfo& spsInfo,
             ErrorCode error) {
         if (ErrorCode::SUCCESS == error) {
             capiSpsInfo.setPriority(static_cast<capicv2x::Cv2xRadioTypes::Priority::Literal>(spsInfo.priority));
@@ -440,7 +463,7 @@ void Cv2xRadioStubImpl:: requestSpsFlowInfo(const std::shared_ptr<CommonAPI::Cli
             capiSpsInfo.setTxPoolIdValid(spsInfo.txPoolIdValid);
             capiSpsInfo.setTxPoolId(spsInfo.txPoolId);
         }
-        CallbackPromise_.set_value(error);
+        prom.set_value(error);
     };
     if (cv2xRadio_ != nullptr) {
         if (txFlows_.find(_txFlowId) != txFlows_.end()) {
@@ -449,10 +472,9 @@ void Cv2xRadioStubImpl:: requestSpsFlowInfo(const std::shared_ptr<CommonAPI::Cli
             if (status != Status::SUCCESS) {
                 error = ErrorCode::GENERIC_FAILURE;
             } else {
-                error = CallbackPromise_.get_future().get();
+                error = prom.get_future().get();
                 COMMONAPI_DEBUG("requestSpsFlowInfo: ERROR ", static_cast<int>(error));
             }
-            CallbackPromise_ =  promise<ErrorCode>();
         } else {
             COMMONAPI_ERROR("requestSpsFlowInfo: flowId ", _txFlowId, " Not found");
             error = ErrorCode::GENERIC_FAILURE;
@@ -469,6 +491,7 @@ void Cv2xRadioStubImpl:: changeEventFlowInfo(const std::shared_ptr<CommonAPI::Cl
              changeEventFlowInfoReply_t _reply)
 {
     ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
     telux::cv2x::EventFlowInfo teluxEventInfo;
 
     teluxEventInfo.autoRetransEnabledValid = _eventInfo.getAutoRetransEnabledValid();
@@ -481,9 +504,8 @@ void Cv2xRadioStubImpl:: changeEventFlowInfo(const std::shared_ptr<CommonAPI::Cl
     teluxEventInfo.txPoolId = _eventInfo.getTxPoolId();
     teluxEventInfo.isUnicast = _eventInfo.getIsUnicast();
 
-    auto changeEventFlowInfoCallback = [this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txEventFlow, ErrorCode error) {
-        //TODO: update txEventFlow?
-        CallbackPromise_.set_value(error);
+    auto changeEventFlowInfoCallback = [&prom, this](std::shared_ptr<telux::cv2x::ICv2xTxFlow> txEventFlow, ErrorCode error) {
+        prom.set_value(error);
     };
 
     if (cv2xRadio_ != nullptr) {
@@ -493,9 +515,8 @@ void Cv2xRadioStubImpl:: changeEventFlowInfo(const std::shared_ptr<CommonAPI::Cl
             if (status != Status::SUCCESS) {
                 error = ErrorCode::GENERIC_FAILURE;
             } else {
-                error = CallbackPromise_.get_future().get();
+                error = prom.get_future().get();
             }
-            CallbackPromise_ =  promise<ErrorCode>();
         } else {
             COMMONAPI_ERROR("changeEventFlow: flowId ", _txFlowId, " Not found");
             error = ErrorCode::GENERIC_FAILURE;
@@ -507,12 +528,13 @@ void Cv2xRadioStubImpl:: changeEventFlowInfo(const std::shared_ptr<CommonAPI::Cl
     _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error));
 }
 
-void Cv2xRadioStubImpl:: requestCapability(const std::shared_ptr<CommonAPI::ClientId> _client,
+void Cv2xRadioStubImpl::requestCapability(const std::shared_ptr<CommonAPI::ClientId> _client,
              requestCapabilityReply_t _reply)
 {
     ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
     capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities capiCapabilities;
-    auto requestCapabilitiesCallback = [&capiCapabilities, this](const telux::cv2x::Cv2xRadioCapabilities & capabilities,
+    auto requestCapabilitiesCallback = [&prom, &capiCapabilities, this](const telux::cv2x::Cv2xRadioCapabilities & capabilities,
             ErrorCode error) {
         if (ErrorCode::SUCCESS == error) {
             capiCapabilities.setLinkIpMtuBytes(capabilities.linkIpMtuBytes);
@@ -542,21 +564,21 @@ void Cv2xRadioStubImpl:: requestCapability(const std::shared_ptr<CommonAPI::Clie
             capiCapabilities.setTxPoolIdsSupported(txPoolIdsSupported);
             capiCapabilities.setIsUnicastSupported(capabilities.isUnicastSupported);
         }
-        CallbackPromise_.set_value(error);
+        prom.set_value(error);
     };
     if (cv2xRadio_ != nullptr) {
         auto status = cv2xRadio_->requestCapabilities(requestCapabilitiesCallback);
         if (status != Status::SUCCESS) {
             error = ErrorCode::GENERIC_FAILURE;
         } else {
-            error = CallbackPromise_.get_future().get();
+            error = prom.get_future().get();
         }
-        CallbackPromise_ =  promise<ErrorCode>();
     } else {
         error = ErrorCode::RADIO_NOT_AVAILABLE;
     }
     _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error), capiCapabilities);
 }
+
 capicv2x::Cv2xRadioTypes::Cv2xStatus Cv2xRadioStubImpl::teluxCv2xStatus2capi(
         const telux::cv2x::Cv2xStatus status)
 {
@@ -693,4 +715,333 @@ uint8_t Cv2xRadioStubImpl::bitset2Uint8(const std::bitset<8> bits)
     }
 
     return data;
+}
+
+void Cv2xRadioStubImpl::requestDataSessionSettings(const std::shared_ptr<CommonAPI::ClientId> _client,
+    requestDataSessionSettingsReply_t _reply)
+{
+    ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
+    capicv2x::Cv2xRadioTypes::DataSessionSettings capiDataSessionSettings;
+    auto requestDataSessionSettingCallback = [&prom, &capiDataSessionSettings, this](const telux::cv2x::DataSessionSettings & dataSessionSettings,
+            ErrorCode error) {
+        if (ErrorCode::SUCCESS == error) {
+            capiDataSessionSettings.setMtuValid(dataSessionSettings.mtuValid);
+            capiDataSessionSettings.setMtu(dataSessionSettings.mtu);
+            capiDataSessionSettings.setIpv6AddrValid(dataSessionSettings.ipv6AddrValid);
+            capicv2x::Cv2xRadioTypes::IPv6Address ipv6Address;
+            std::vector< uint8_t > ipv6str;
+            for (auto s : dataSessionSettings.ipv6Addr.addr) {
+                ipv6str.push_back(s);
+            }
+            ipv6Address.setAddr(ipv6str);
+            capiDataSessionSettings.setIpv6Addr(ipv6Address);
+        }
+        prom.set_value(error);
+    };
+    if (cv2xRadio_ != nullptr) {
+        auto status = cv2xRadio_->requestDataSessionSettings(requestDataSessionSettingCallback);
+        if (status != Status::SUCCESS) {
+            error = ErrorCode::GENERIC_FAILURE;
+        } else {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error), capiDataSessionSettings);
+}
+
+void Cv2xRadioStubImpl::updateSrcL2Info(const std::shared_ptr<CommonAPI::ClientId> _client,
+    updateSrcL2InfoReply_t _reply)
+{
+    ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
+    auto updateSrcL2InfoCallback = [&prom, this](ErrorCode error) {
+        prom.set_value(error);
+    };
+    if (cv2xRadio_ != nullptr) {
+        auto status = cv2xRadio_->updateSrcL2Info(updateSrcL2InfoCallback);
+        if (status != Status::SUCCESS) {
+            error = ErrorCode::GENERIC_FAILURE;
+        } else {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error));
+}
+
+void Cv2xRadioStubImpl::updateTrustedUEList(const std::shared_ptr<CommonAPI::ClientId> _client,
+    ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::TrustedUEInfoList _infoList,
+    updateTrustedUEListReply_t _reply)
+{
+    ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
+    telux::cv2x::TrustedUEInfoList teluxTrustedUEInfoList;
+
+    teluxTrustedUEInfoList.maliciousIdsValid = _infoList.getMaliciousIdsValid();
+    auto maliciousIdList = _infoList.getMaliciousIds();
+    for (auto id : maliciousIdList) {
+        teluxTrustedUEInfoList.maliciousIds.push_back(id);
+    }
+    teluxTrustedUEInfoList.trustedUEsValid = _infoList.getTrustedUEsValid();
+    auto trustedUEList = _infoList.getTrustedUEs();
+    for (auto trustedUE : trustedUEList) {
+        telux::cv2x::TrustedUEInfo teluxTrustedUE;
+        teluxTrustedUE.sourceL2Id = trustedUE.getSourceL2Id();
+        teluxTrustedUE.timeUncertainty = trustedUE.getTimeUncertainty();
+        teluxTrustedUE.timeConfidenceLevel = trustedUE.getTimeConfidenceLevel();
+        teluxTrustedUE.positionConfidenceLevel = trustedUE.getPositionConfidenceLevel();
+        teluxTrustedUE.propagationDelay = trustedUE.getPropagationDelay();
+        teluxTrustedUEInfoList.trustedUEs.push_back(teluxTrustedUE);
+    }
+
+    auto updateTrustedUEListCallback = [&prom, this](ErrorCode error) {
+        prom.set_value(error);
+    };
+
+    if (cv2xRadio_ != nullptr) {
+        auto status = cv2xRadio_->updateTrustedUEList(teluxTrustedUEInfoList, updateTrustedUEListCallback);
+        if (status != Status::SUCCESS) {
+            error = ErrorCode::GENERIC_FAILURE;
+        } else {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error));
+}
+
+void Cv2xRadioStubImpl::getIfaceNameFromIpType(const std::shared_ptr<CommonAPI::ClientId> _client,
+        ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::TrafficIpType _ipType,
+        getIfaceNameFromIpTypeReply_t _reply)
+{
+
+    ErrorCode error;
+    telux::cv2x::TrafficIpType teluxTrafficIpType;
+    std::string ifaceName = "";
+
+    switch (_ipType)
+    {
+    case ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::TrafficIpType::TRAFFIC_IP:
+        teluxTrafficIpType = telux::cv2x::TrafficIpType::TRAFFIC_IP;
+        break;
+    case ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::TrafficIpType::TRAFFIC_NON_IP:
+        teluxTrafficIpType = telux::cv2x::TrafficIpType::TRAFFIC_NON_IP;
+        break;
+    default:
+        teluxTrafficIpType = telux::cv2x::TrafficIpType::TRAFFIC_IP;
+        break;
+    }
+
+    if (cv2xRadio_ != nullptr) {
+        ifaceName = cv2xRadio_->getIfaceNameFromIpType(teluxTrafficIpType);
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error), ifaceName);
+}
+
+void Cv2xRadioStubImpl::createCv2xTcpSocket(const std::shared_ptr<CommonAPI::ClientId> _client,
+        ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::EventFlowInfo _eventFlowInfo,
+        ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::SocketInfo _socketInfo,
+        createCv2xTcpSocketReply_t _reply)
+{
+    ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
+    telux::cv2x::EventFlowInfo teluxEventFlowInfo;
+    telux::cv2x::SocketInfo teluxSocketInfo;
+
+    teluxEventFlowInfo.autoRetransEnabledValid = _eventFlowInfo.getAutoRetransEnabledValid();
+    teluxEventFlowInfo.autoRetransEnabled = _eventFlowInfo.getAutoRetransEnabled();
+    teluxEventFlowInfo.peakTxPowerValid = _eventFlowInfo.getPeakTxPowerValid();
+    teluxEventFlowInfo.peakTxPower = _eventFlowInfo.getPeakTxPower();
+    teluxEventFlowInfo.mcsIndexValid = _eventFlowInfo.getMcsIndexValid();
+    teluxEventFlowInfo.mcsIndex = _eventFlowInfo.getMcsIndex();
+    teluxEventFlowInfo.txPoolIdValid = _eventFlowInfo.getTxPoolIdValid();
+    teluxEventFlowInfo.txPoolId = _eventFlowInfo.getTxPoolId();
+    teluxEventFlowInfo.isUnicast = _eventFlowInfo.getIsUnicast();
+
+    teluxSocketInfo.serviceId = _socketInfo.getServiceId();
+    teluxSocketInfo.localPort = _socketInfo.getLocalPort();
+
+    auto createCv2xTcpSocketCallback = [&prom, this](std::shared_ptr<telux::cv2x::ICv2xTxRxSocket> sock, ErrorCode error) {
+        sockets_[sock->getId()] = sock;
+        prom.set_value(error);
+    };
+
+    if (cv2xRadio_ != nullptr) {
+        auto status = cv2xRadio_->createCv2xTcpSocket(teluxEventFlowInfo, teluxSocketInfo, createCv2xTcpSocketCallback);
+        if (status != Status::SUCCESS) {
+            error = ErrorCode::GENERIC_FAILURE;
+        } else {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error));
+}
+
+void Cv2xRadioStubImpl::closeCv2xTcpSocket(const std::shared_ptr<CommonAPI::ClientId> _client,
+        uint32_t _sockId, closeCv2xTcpSocketReply_t _reply)
+{
+    ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
+
+    auto closeCv2xTcpSocketCallback = [&prom, this](std::shared_ptr<telux::cv2x::ICv2xTxRxSocket> sock, ErrorCode error) {
+        prom.set_value(error);
+    };
+
+    if (cv2xRadio_ != nullptr) {
+        if (sockets_.find(_sockId) != sockets_.end()) {
+            auto status = cv2xRadio_->closeCv2xTcpSocket(sockets_[_sockId], closeCv2xTcpSocketCallback);
+            if (status != Status::SUCCESS) {
+                error = ErrorCode::GENERIC_FAILURE;
+            } else {
+                error = prom.get_future().get();
+                if (error == ErrorCode::SUCCESS) {
+                    COMMONAPI_DEBUG("deleting socket ", _sockId);
+                    sockets_.erase(_sockId);
+                }
+            }
+        } else {
+            COMMONAPI_ERROR("closeTxFlow: flowId ", _sockId, " Not found");
+            error = ErrorCode::GENERIC_FAILURE;
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error));
+}
+
+void Cv2xRadioStubImpl::setGlobalIPInfo(const std::shared_ptr<CommonAPI::ClientId> _client,
+        ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::IPv6AddrType _ipv6Addr,
+        setGlobalIPInfoReply_t _reply)
+{
+    ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
+    telux::cv2x::IPv6AddrType teluxIpv6Addr = {0};
+
+    teluxIpv6Addr.prefixLen = _ipv6Addr.getPrefixLen();
+    auto ipv6Address = _ipv6Addr.getIpv6Addr();
+    for (int index = 0; index < teluxIpv6Addr.prefixLen; index++) {
+        teluxIpv6Addr.ipv6Addr[index] = ipv6Address[index];
+    }
+
+    auto setGlobalIPInfoCallback = [&prom, this](ErrorCode error) {
+        prom.set_value(error);
+    };
+
+    if (cv2xRadio_ != nullptr) {
+        auto status = cv2xRadio_->setGlobalIPInfo(teluxIpv6Addr, setGlobalIPInfoCallback);
+        if (status != Status::SUCCESS) {
+            error = ErrorCode::GENERIC_FAILURE;
+        } else {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error));
+}
+
+void Cv2xRadioStubImpl::setGlobalIPUnicastRoutingInfo(const std::shared_ptr<CommonAPI::ClientId> _client,
+        ::v1::commonapi::telux::cv2x::Cv2xRadioTypes::GlobalIPUnicastRoutingInfo _destL2Addr,
+        setGlobalIPUnicastRoutingInfoReply_t _reply)
+{
+    ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
+    telux::cv2x::GlobalIPUnicastRoutingInfo teluxDestL2Addr = {0};
+
+    std::vector< uint8_t > destMacAddr = _destL2Addr.getDestMacAddr();
+    std::copy(std::begin(destMacAddr), std::end(destMacAddr),
+        std::begin(teluxDestL2Addr.destMacAddr));
+
+    auto setGlobalIPUnicastRoutingInfoCallback = [&prom, this](ErrorCode error) {
+        prom.set_value(error);
+    };
+
+    if (cv2xRadio_ != nullptr) {
+        auto status = cv2xRadio_->setGlobalIPUnicastRoutingInfo(teluxDestL2Addr, setGlobalIPUnicastRoutingInfoCallback);
+        if (status != Status::SUCCESS) {
+            error = ErrorCode::GENERIC_FAILURE;
+        } else {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error));
+}
+
+void Cv2xRadioStubImpl::getCapabilities(const std::shared_ptr<CommonAPI::ClientId> _client,
+        getCapabilitiesReply_t _reply)
+{
+    ErrorCode error;
+
+    capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities capiCv2xRadioCapabilities;
+    if (cv2xRadio_ != nullptr) {
+        capabilities_ = cv2xRadio_->getCapabilities();
+        capiCv2xRadioCapabilities.setLinkIpMtuBytes(capabilities_.linkIpMtuBytes);
+        capiCv2xRadioCapabilities.setLinkNonIpMtuBytes(capabilities_.linkNonIpMtuBytes);
+        capiCv2xRadioCapabilities.setMaxSupportedConcurrency(
+            static_cast<capicv2x::Cv2xRadioTypes::RadioConcurrencyMode::Literal>(capabilities_.maxSupportedConcurrency));
+        capiCv2xRadioCapabilities.setNonIpTxPayloadOffsetBytes(capabilities_.nonIpTxPayloadOffsetBytes);
+        capiCv2xRadioCapabilities.setNonIpRxPayloadOffsetBytes(capabilities_.nonIpRxPayloadOffsetBytes);
+        capiCv2xRadioCapabilities.setPeriodicitiesSupported(static_cast<uint8_t>(capabilities_.periodicitiesSupported.to_ulong()));
+        capiCv2xRadioCapabilities.setPeriodicities(capabilities_.periodicities);
+        capiCv2xRadioCapabilities.setMaxNumAutoRetransmissions(capabilities_.maxNumAutoRetransmissions);
+        capiCv2xRadioCapabilities.setLayer2MacAddressSize(capabilities_.layer2MacAddressSize);
+        capiCv2xRadioCapabilities.setPrioritiesSupported(static_cast<uint8_t>(capabilities_.prioritiesSupported.to_ulong()));
+        capiCv2xRadioCapabilities.setMaxNumSpsFlows(capabilities_.maxNumSpsFlows);
+        capiCv2xRadioCapabilities.setMaxNumNonSpsFlows(capabilities_.maxNumNonSpsFlows);
+        capiCv2xRadioCapabilities.setMaxTxPower(capabilities_.maxTxPower);
+        capiCv2xRadioCapabilities.setMinTxPower(capabilities_.minTxPower);
+        std::vector<capicv2x::Cv2xRadioTypes::TxPoolIdInfo> capiTxPoolIdsSupported;
+        for (auto info : capabilities_.txPoolIdsSupported) {
+            capicv2x::Cv2xRadioTypes::TxPoolIdInfo capiInfo;
+            capiInfo = capicv2x::Cv2xRadioTypes::TxPoolIdInfo(info.poolId, info.minFreq, info.maxFreq);
+            capiTxPoolIdsSupported.push_back(capiInfo);
+
+        }
+        capiCv2xRadioCapabilities.setTxPoolIdsSupported(capiTxPoolIdsSupported);
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error), capiCv2xRadioCapabilities);
+}
+
+void Cv2xRadioStubImpl::injectVehicleSpeed(const std::shared_ptr<CommonAPI::ClientId> _client,
+        uint32_t _speed, injectVehicleSpeedReply_t _reply)
+{
+    ErrorCode error;
+    std::promise<telux::common::ErrorCode> prom;
+
+    auto injectVehicleSpeedCallback = [&prom, this](ErrorCode error) {
+        prom.set_value(error);
+    };
+
+    if (cv2xRadio_ != nullptr) {
+        auto status = cv2xRadio_->injectVehicleSpeed(_speed, injectVehicleSpeedCallback);
+        if (status != Status::SUCCESS) {
+            error = ErrorCode::GENERIC_FAILURE;
+        } else {
+            error = prom.get_future().get();
+        }
+    } else {
+        error = ErrorCode::RADIO_NOT_AVAILABLE;
+    }
+
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error));
 }

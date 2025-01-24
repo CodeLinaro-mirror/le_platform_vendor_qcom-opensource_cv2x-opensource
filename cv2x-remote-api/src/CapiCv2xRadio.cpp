@@ -1,32 +1,20 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <CommonAPI/CommonAPI.hpp>
 #include "CapiCv2xRadio.hpp"
 #include "CapiCv2xRxSubscription.hpp"
 #include "CapiCv2xTxFlow.hpp"
+#include "CapiCv2xTxRxSocket.hpp"
 
 #define PROXY_TIMEOUT_MS 50000
 
-CapiCv2xRadio::~CapiCv2xRadio()
-{
-    COMMONAPI_DEBUG("CapiRadioManager::Descrustor");
-    {
-        std::lock_guard<std::mutex> lck(exitMutex_);
-        exiting_ = true;
-        exitCv_.notify_all();
-    }
+namespace telux {
 
-    if (asyncFuture_.valid()) {
-        /*Make sure the async task completed*/
-        asyncFuture_.wait();
-    }
-    proxy_ = nullptr;
-}
+namespace cv2x {
 
-Cv2xStatus CapiCv2xRadio::capi2teluxCv2xStatus(const capicv2x::Cv2xRadioTypes::Cv2xStatus &status)
-{
+Cv2xStatus Capi2teluxHelper::capi2teluxCv2xStatus(const capicv2x::Cv2xRadioTypes::Cv2xStatus &status) {
     Cv2xStatus st;
     st.rxStatus = static_cast<Cv2xStatusType>(status.getRxStatus().value_);
     st.txStatus = static_cast<Cv2xStatusType>(status.getTxStatus().value_);
@@ -36,32 +24,30 @@ Cv2xStatus CapiCv2xRadio::capi2teluxCv2xStatus(const capicv2x::Cv2xRadioTypes::C
     st.cbrValueValid = status.getCbrValueValid();
     return st;
 }
-std::vector<Cv2xPoolStatus> CapiCv2xRadio::capi2teluxCv2xPoolStatus(
-                            const std::vector<capicv2x::Cv2xRadioTypes::Cv2xPoolStatus> &status)
-{
+std::vector<Cv2xPoolStatus> Capi2teluxHelper::capi2teluxCv2xPoolStatus(
+    const std::vector<capicv2x::Cv2xRadioTypes::Cv2xPoolStatus> &status) {
     std::vector<Cv2xPoolStatus> pv;
     for (auto st : status) {
         Cv2xPoolStatus ps;
         ps.poolId = st.getPoolId();
-        ps.status = capi2teluxCv2xStatus(st.getStatus());
+        ps.status = Capi2teluxHelper::capi2teluxCv2xStatus(st.getStatus());
         pv.push_back(ps);
     }
     return pv;
 }
 
-Cv2xStatusEx CapiCv2xRadio::capi2teluxCv2xStatusEx(const capicv2x::Cv2xRadioTypes::Cv2xStatusEx statusEx)
-{
+Cv2xStatusEx Capi2teluxHelper::capi2teluxCv2xStatusEx(
+    const capicv2x::Cv2xRadioTypes::Cv2xStatusEx statusEx) {
     Cv2xStatusEx stex;
 
-    stex.status = CapiCv2xRadio::capi2teluxCv2xStatus(statusEx.getStatus());
-    stex.poolStatus = CapiCv2xRadio::capi2teluxCv2xPoolStatus(statusEx.getPoolStatus());
+    stex.status = Capi2teluxHelper::capi2teluxCv2xStatus(statusEx.getStatus());
+    stex.poolStatus = Capi2teluxHelper::capi2teluxCv2xPoolStatus(statusEx.getPoolStatus());
     stex.timeUncertaintyValid = statusEx.getTimeUncertaintyValid();
     stex.timeUncertainty = statusEx.getTimeUncertainty();
     return stex;
 }
-std::vector<TxPoolIdInfo> CapiCv2xRadio::capi2teluxSupportedPoolIds(
-                            const std::vector<capicv2x::Cv2xRadioTypes::TxPoolIdInfo> &idInfos)
-{
+std::vector<TxPoolIdInfo> Capi2teluxHelper::capi2teluxSupportedPoolIds(
+    const std::vector<capicv2x::Cv2xRadioTypes::TxPoolIdInfo> &idInfos) {
     std::vector<TxPoolIdInfo> pv;
 
     for (auto idInfo : idInfos) {
@@ -74,13 +60,13 @@ std::vector<TxPoolIdInfo> CapiCv2xRadio::capi2teluxSupportedPoolIds(
     return pv;
 }
 
-Cv2xRadioCapabilities CapiCv2xRadio::capi2teluxRadioCapbilities(
-                            const capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities &capabilities)
-{
-    Cv2xRadioCapabilities cap;
+telux::cv2x::Cv2xRadioCapabilities Capi2teluxHelper::capi2teluxRadioCapbilities(
+    const capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities &capabilities) {
+    telux::cv2x::Cv2xRadioCapabilities cap;
     cap.linkIpMtuBytes = capabilities.getLinkIpMtuBytes();
     cap.linkNonIpMtuBytes = capabilities.getLinkNonIpMtuBytes();
-    cap.maxSupportedConcurrency = static_cast<RadioConcurrencyMode>(capabilities.getMaxSupportedConcurrency().value_);
+    cap.maxSupportedConcurrency = static_cast<RadioConcurrencyMode>(
+        capabilities.getMaxSupportedConcurrency().value_);
     cap.nonIpTxPayloadOffsetBytes = capabilities.getNonIpTxPayloadOffsetBytes();
     cap.nonIpRxPayloadOffsetBytes = capabilities.getNonIpRxPayloadOffsetBytes();
     cap.periodicitiesSupported = capabilities.getPeriodicitiesSupported();
@@ -96,10 +82,84 @@ Cv2xRadioCapabilities CapiCv2xRadio::capi2teluxRadioCapbilities(
 
     return cap;
 }
-void CapiCv2xRadio::init(InitResponseCb callback)
+
+std::vector<TrustedUEInfo> Capi2teluxHelper::capi2teluxTrustedUEs(
+    const std::vector<capicv2x::Cv2xRadioTypes::TrustedUEInfo> &capiTrustedUEs) {
+    std::vector<TrustedUEInfo> infos;
+    for (auto &capiTrustedUE : capiTrustedUEs) {
+        TrustedUEInfo info;
+        info.sourceL2Id = capiTrustedUE.getSourceL2Id();
+        info.timeUncertainty = capiTrustedUE.getTimeUncertainty();
+        info.timeConfidenceLevel = capiTrustedUE.getTimeConfidenceLevel();
+        info.positionConfidenceLevel = capiTrustedUE.getPositionConfidenceLevel();
+        info.propagationDelay = capiTrustedUE.getPropagationDelay();
+        infos.push_back(info);
+    }
+    return infos;
+}
+
+SpsFlowInfo Capi2teluxHelper::capi2teluxSpsFlowInfo(
+        const capicv2x::Cv2xRadioTypes::SpsFlowInfo &flowInfo) {
+    SpsFlowInfo spsInfo;
+    spsInfo.priority = static_cast<Priority>(flowInfo.getPriority().value_);
+    spsInfo.periodicity = static_cast<Periodicity>(flowInfo.getPeriodicity().value_);
+    spsInfo.periodicityMs = flowInfo.getPeriodicityMs();
+    spsInfo.nbytesReserved = flowInfo.getNbytesReserved();
+    spsInfo.autoRetransEnabledValid = flowInfo.getAutoRetransEnabledValid();
+    spsInfo.autoRetransEnabled = flowInfo.getAutoRetransEnabled();
+    spsInfo.peakTxPowerValid = flowInfo.getPeakTxPowerValid();
+    spsInfo.peakTxPower = flowInfo.getPeakTxPower();
+    spsInfo.mcsIndexValid = flowInfo.getMcsIndexValid();
+    spsInfo.mcsIndex = flowInfo.getMcsIndex();
+    spsInfo.txPoolIdValid = flowInfo.getTxPoolIdValid();
+    spsInfo.txPoolId = flowInfo.getTxPoolId();
+    return spsInfo;
+}
+
+SlssRxInfo Capi2teluxHelper::capi2teluxSlssRxInfo(
+        const capicv2x::Cv2xRadioTypes::SlssRxInfo &slssRxInfo) {
+    telux::cv2x::SlssRxInfo teluxInfo;
+    for (auto capiUe : slssRxInfo.getUeInfo()) {
+        telux::cv2x::SyncRefUeInfo teluxUeInfo;
+        teluxUeInfo.slssId = capiUe.getSlssId();
+        teluxUeInfo.inCoverage = capiUe.getInCoverage();
+        teluxUeInfo.pattern = static_cast<SlssSyncPattern>(capiUe.getPattern().value_);
+        teluxUeInfo.rsrp = capiUe.getRsrp();
+        teluxUeInfo.selected = capiUe.getSelected();
+        teluxInfo.ueInfo.push_back(teluxUeInfo);
+    }
+    return teluxInfo;
+}
+
+CapiCv2xRadio::CapiCv2xRadio()
 {
-    asyncFuture_ = std::async(std::launch::async, [this, callback]() {
-            this->initSync(callback);}).share();
+    isInitialized_ = false;
+}
+
+CapiCv2xRadio::~CapiCv2xRadio()
+{
+    COMMONAPI_DEBUG("CapiCv2xRadio destructor");
+    {
+        std::lock_guard<std::mutex> lck(exitMutex_);
+        exiting_ = true;
+        exitCv_.notify_all();
+    }
+
+    proxy_ = nullptr;
+}
+
+void CapiCv2xRadio::init(std::weak_ptr<telux::common::AsyncTaskQueue<void>> taskQ,
+    InitResponseCb callback)
+{
+    myself_ = shared_from_this();
+    taskQ_ = taskQ;
+    auto f = [this, callback]() {
+        this->initSync(callback);
+    };
+    auto sp = taskQ_.lock();
+    if(sp) {
+        sp->add(f, myself_, std::launch::async);
+    }
 }
 
 void CapiCv2xRadio::initSync(InitResponseCb callback)
@@ -109,7 +169,7 @@ void CapiCv2xRadio::initSync(InitResponseCb callback)
 
     std::string domain = "local";
     std::string instance = "commonapi.telux.cv2x.Cv2xRadio";
-    proxy_ = 
+    proxy_ =
         runtime->buildProxy<capicv2x::Cv2xRadioProxy>(domain, instance, "client-Cv2xRadio");
 
     const char *env_value = std::getenv("CV2X_REMOTE_CONNECT_TIMEOUT");
@@ -150,7 +210,7 @@ void CapiCv2xRadio::initSync(InitResponseCb callback)
     }
     COMMONAPI_INFO("Cv2xRadio Proxy registration succesful");
     proxy_->getCurrentCv2xStatusEvent().subscribe([&](const capicv2x::Cv2xRadioTypes::Cv2xStatus &status) {
-            Cv2xStatus st = capi2teluxCv2xStatus(status);
+            Cv2xStatus st = Capi2teluxHelper::capi2teluxCv2xStatus(status);
             std::lock_guard<std::mutex> lock(listenersMutex_);
             for (auto listener : listeners_) {
                 auto sp = listener.lock();
@@ -161,8 +221,8 @@ void CapiCv2xRadio::initSync(InitResponseCb callback)
     });
     proxy_->getCurrentCv2xStatusExEvent().subscribe([&](const capicv2x::Cv2xRadioTypes::Cv2xStatusEx &statusEx) {
             Cv2xStatusEx stex;
-            stex.status = capi2teluxCv2xStatus(statusEx.getStatus());
-            stex.poolStatus = capi2teluxCv2xPoolStatus(statusEx.getPoolStatus());
+            stex.status = Capi2teluxHelper::capi2teluxCv2xStatus(statusEx.getStatus());
+            stex.poolStatus = Capi2teluxHelper::capi2teluxCv2xPoolStatus(statusEx.getPoolStatus());
             stex.timeUncertaintyValid = statusEx.getTimeUncertaintyValid();
             stex.timeUncertainty = statusEx.getTimeUncertainty();
             std::lock_guard<std::mutex> lock(listenersMutex_);
@@ -182,7 +242,7 @@ void CapiCv2xRadio::initSync(InitResponseCb callback)
                 }
             }
     });
-    proxy_->getCurrentSpsOffsetEvent().subscribe([&](const int spsId, 
+    proxy_->getCurrentSpsOffsetEvent().subscribe([&](const int spsId,
                                 const capicv2x::Cv2xRadioTypes::MacDetails details) {
             MacDetails mc;
             mc.periodicityInUseNs = details.getPeriodicityInUseNs();
@@ -198,7 +258,7 @@ void CapiCv2xRadio::initSync(InitResponseCb callback)
     });
     proxy_->getCurrentCapabilitiesEvent().subscribe([&](
                             const capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities & capabilities) {
-            Cv2xRadioCapabilities cap = capi2teluxRadioCapbilities(capabilities);
+            Cv2xRadioCapabilities cap = Capi2teluxHelper::capi2teluxRadioCapbilities(capabilities);
             std::lock_guard<std::mutex> lock(listenersMutex_);
             for (auto listener : listeners_) {
                 auto sp = listener.lock();
@@ -232,7 +292,7 @@ ServiceStatus CapiCv2xRadio::getServiceStatus(void)
     capitelux::CommonDefines::ErrorCode err;
     capitelux::CommonDefines::ServiceStatus serviceStatus;
 
-    //sync call only.
+    // sync call only.
     proxy_->getServiceStatus(callStatus, err, serviceStatus);
     if (callStatus == CommonAPI::CallStatus::SUCCESS &&
             err == capitelux::CommonDefines::ErrorCode::SUCCESS ) {
@@ -290,60 +350,115 @@ Status CapiCv2xRadio::createRxSubscription(
         std::shared_ptr<std::vector<uint32_t>> idList)
 {
     Status status = Status::FAILED;
-    ErrorCode teluxError = ErrorCode::GENERIC_FAILURE; ;
 
     if (!proxy_->isAvailable()) {
         COMMONAPI_DEBUG("proxy is not available");
         return Status::NOTREADY;
     }
-        //Async call
-        auto fcb = [&](const CommonAPI::CallStatus &callstatus,
-                const capitelux::CommonDefines::ErrorCode &err,
-                const uint32_t &rxSubId){
+    // async call
+    auto fcb = [this, cb](const CommonAPI::CallStatus &callstatus,
+            const capitelux::CommonDefines::ErrorCode &err,
+            const uint32_t &rxSubId){
+        ErrorCode teluxError = ErrorCode::GENERIC_FAILURE;
+        std::shared_ptr<ICv2xRxSubscription> rxSub = nullptr;
 
-            std::shared_ptr<ICv2xRxSubscription> rxSub = nullptr;
+        if (callstatus == CommonAPI::CallStatus::SUCCESS &&
+                err == capitelux::CommonDefines::ErrorCode::SUCCESS) {
+            // creae DDS subscriber and rxSubscription objects
+            std::shared_ptr<Cv2xDataSubscriber> ddsSub = std::make_shared<Cv2xDataSubscriber>();
 
-            if (callstatus == CommonAPI::CallStatus::SUCCESS &&
-                    err == capitelux::CommonDefines::ErrorCode::SUCCESS) {
-                //creae DDS subscriber and rxSubscription objects
-                std::shared_ptr<Cv2xDataSubscriber> ddsSub = std::make_shared<Cv2xDataSubscriber>();
-
-                if (ddsSub->init(rxSubId) != false) {
-                    rxSub = std::make_shared<CapiCv2xRxSubscription>(ddsSub->getClientSock(),
-                            rxSubId);
-                    subs_.push_back(ddsSub);
-                    teluxError = ErrorCode::SUCCESS;
-                } else {
-                    COMMONAPI_ERROR("failed to init dds subscriber");
-                    teluxError = ErrorCode::GENERIC_FAILURE;
-                }
+            if (ddsSub->init(rxSubId) != false) {
+                rxSub = std::make_shared<CapiCv2xRxSubscription>(ddsSub->getClientSock(),
+                        rxSubId);
+                subs_.push_back(ddsSub);
+                teluxError = ErrorCode::SUCCESS;
             } else {
-                COMMONAPI_ERROR("rpc call failure");
-                if (callstatus == CommonAPI::CallStatus::SUCCESS) {
-                    teluxError = static_cast<ErrorCode>(err.value_);
-                } else {
-                    teluxError = ErrorCode::GENERIC_FAILURE;
-                }
+                COMMONAPI_ERROR("failed to init dds subscriber");
+                teluxError = ErrorCode::GENERIC_FAILURE;
             }
-            if (cb) {
-                cb(rxSub, teluxError);
+        } else {
+            COMMONAPI_ERROR("rpc call failure");
+            if (callstatus == CommonAPI::CallStatus::SUCCESS) {
+                teluxError = static_cast<ErrorCode>(err.value_);
+            } else {
+                teluxError = ErrorCode::GENERIC_FAILURE;
+            }
+        }
+        if (cb) {
+            cb(rxSub, teluxError);
+        }
+    };
+    std::vector<uint32_t> idv;
+    if (idList != nullptr) {
+        idv = *idList;
+    }
+    auto f = [this, ipType, port, idv, fcb]() {
+        proxy_->createRxSubscriptionAsync(
+        static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
+        port,
+        idv,
+        fcb);
+    };
+    auto sp = taskQ_.lock();
+    if(sp) {
+        status = sp->add(f, myself_, std::launch::async);
+    }
+
+    return status;
+}
+
+telux::common::Status CapiCv2xRadio::enableRxMetaDataReport(TrafficIpType ipType,
+    bool enable,
+    std::shared_ptr<std::vector<std::uint32_t>> idList,
+    telux::common::ResponseCallback cb)
+{
+    CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
+    Status status = Status::FAILED;
+    capitelux::CommonDefines::ErrorCode error;
+
+    if (!proxy_->isAvailable()) {
+        return Status::NOTREADY;
+    }
+    std::vector<uint32_t> idv;
+    if (idList != nullptr) {
+        idv = *idList;
+    }
+    if (not cb) {
+        // sync call
+        proxy_->enableRxMetaDataReport(
+            static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
+            enable,
+            idv,
+            callStatus,
+            error);
+        if (callStatus != CommonAPI::CallStatus::SUCCESS) {
+            status = telux::common::Status::FAILED;
+        } else {
+            status = telux::common::Status::SUCCESS;
+        }
+    } else {
+        // async call
+        auto fcb = [cb](const CommonAPI::CallStatus &callstatus,
+                const capitelux::CommonDefines::ErrorCode err) {
+            if (callstatus == CommonAPI::CallStatus::SUCCESS) {
+                cb(static_cast<ErrorCode>(err.value_));
+            } else {
+                cb(ErrorCode::GENERIC_FAILURE);
             }
         };
-        //std::future<CommonAPI::CallStatus>
-        std::vector<uint32_t> idv;
-        if (idList != nullptr) {
-            idv = *idList;
-        }
-        auto rpcStatus = proxy_->createRxSubscriptionAsync(
+
+        auto f = [this, ipType, enable, idv, fcb]() {
+            proxy_->enableRxMetaDataReportAsync(
                 static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
-                port,
+                enable,
                 idv,
                 fcb);
-        if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
-            status =  Status::FAILED;
-        } else {
-            status = Status::SUCCESS;
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
         }
+    }
 
     return status;
 }
@@ -359,7 +474,6 @@ telux::common::Status CapiCv2xRadio::createTxSpsFlow(TrafficIpType ipType,
     CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
     Status status = Status::FAILED;
     capitelux::CommonDefines::ErrorCode error, spsError, eventError;
-    ErrorCode teluxError, teluxEventError;
     uint32_t txSpsFlowId, txEventFlowId;
     if (!proxy_->isAvailable()) {
         return Status::NOTREADY;
@@ -379,7 +493,7 @@ telux::common::Status CapiCv2xRadio::createTxSpsFlow(TrafficIpType ipType,
             flowInfo.txPoolIdValid,
             flowInfo.txPoolId);
     if (not cb) {
-        //sync call
+        // sync call
         proxy_->createTxSpsFlow(static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
                 serviceId,
                 capiSpsInfo,
@@ -396,27 +510,29 @@ telux::common::Status CapiCv2xRadio::createTxSpsFlow(TrafficIpType ipType,
             status = telux::common::Status::FAILED;
         }
     } else {
-        //Async call
-        auto fcb = [&](const CommonAPI::CallStatus &callstatus,
+        // async call
+        auto fcb = [this, ipType, serviceId, flowInfo, eventSrcPortValid, cb](
+                const CommonAPI::CallStatus &callstatus,
                 const capitelux::CommonDefines::ErrorCode err,
                 const uint32_t spsFlowId,
                 const uint32_t eventFlowId,
                 const capitelux::CommonDefines::ErrorCode spsError,
                 const capitelux::CommonDefines::ErrorCode eventError) {
-
+            ErrorCode teluxError, teluxEventError;
             std::shared_ptr<ICv2xTxFlow> txSpsFlow = nullptr;
             std::shared_ptr<ICv2xTxFlow> txEventFlow = nullptr;
 
             if (callstatus == CommonAPI::CallStatus::SUCCESS &&
                     spsError == capitelux::CommonDefines::ErrorCode::SUCCESS) {
-                //creae DDS publishers and txFlow objects
-                std::shared_ptr<Cv2xDataPublisher> ddsSpsPub = std::make_shared<Cv2xDataPublisher>();
+                // creae DDS publishers and txFlow objects
+                std::shared_ptr<Cv2xDataPublisher> ddsSpsPub =
+                    std::make_shared<Cv2xDataPublisher>();
                 if (ddsSpsPub->init(spsFlowId) != false ) {
                     txSpsFlow = std::make_shared<CapiCv2xTxSpsFlow>(spsFlowId, ipType, serviceId,
                             ddsSpsPub->getServerSock(), flowInfo);
                     pubs_[spsFlowId]= ddsSpsPub;
                     teluxError = ErrorCode::SUCCESS;
-                    //create event flow and publisher
+                    // create event flow and publisher
                     if (eventSrcPortValid &&
                             eventError == capitelux::CommonDefines::ErrorCode::SUCCESS) {
                         std::shared_ptr<Cv2xDataPublisher> ddsEventPub =
@@ -447,8 +563,9 @@ telux::common::Status CapiCv2xRadio::createTxSpsFlow(TrafficIpType ipType,
                 cb(txSpsFlow, txEventFlow, teluxError, teluxEventError);
             }
         };
-        //std::future<CommonAPI::CallStatus>
-        auto rpcStatus = proxy_->createTxSpsFlowAsync(
+        auto f = [this, ipType, serviceId, capiSpsInfo, spsSrcPort,
+            eventSrcPortValid, eventSrcPort, fcb]() {
+            proxy_->createTxSpsFlowAsync(
                 static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
                 serviceId,
                 capiSpsInfo,
@@ -456,10 +573,10 @@ telux::common::Status CapiCv2xRadio::createTxSpsFlow(TrafficIpType ipType,
                 eventSrcPortValid,
                 eventSrcPort,
                 fcb);
-        if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
-            status =  telux::common::Status::FAILED;
-        } else {
-            status = telux::common::Status::SUCCESS;
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
         }
     }
 
@@ -490,7 +607,6 @@ telux::common::Status CapiCv2xRadio::createTxEventFlow(TrafficIpType ipType,
     CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
     Status status = Status::FAILED;
     capitelux::CommonDefines::ErrorCode error;
-    ErrorCode teluxError;
     uint32_t txEventFlowId;
 
     if (!proxy_->isAvailable()) {
@@ -509,7 +625,7 @@ telux::common::Status CapiCv2xRadio::createTxEventFlow(TrafficIpType ipType,
         flowInfo.isUnicast);
 
     if (not cb) {
-        //sync call
+        // sync call
         proxy_->createTxEventFlow(
                 static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
                 serviceId,
@@ -522,11 +638,11 @@ telux::common::Status CapiCv2xRadio::createTxEventFlow(TrafficIpType ipType,
             status = Status::FAILED;
         }
     } else {
-        //Async call
-        auto fcb = [&](const CommonAPI::CallStatus &callstatus,
+        // async call
+        auto fcb = [this, ipType, serviceId, cb](const CommonAPI::CallStatus &callstatus,
                 const capitelux::CommonDefines::ErrorCode err,
                 const uint32_t flowId) {
-
+            ErrorCode teluxError;
             std::shared_ptr<ICv2xTxFlow> txEventFlow = nullptr;
             if (callstatus == CommonAPI::CallStatus::SUCCESS &&
                     err == capitelux::CommonDefines::ErrorCode::SUCCESS) {
@@ -549,17 +665,17 @@ telux::common::Status CapiCv2xRadio::createTxEventFlow(TrafficIpType ipType,
                     cb(txEventFlow, teluxError);
             }
         };
-        auto rpcStatus = proxy_->createTxEventFlowAsync(
+        auto f = [this, ipType, serviceId, capiEventInfo, eventSrcPort, fcb]() {
+            proxy_->createTxEventFlowAsync(
                 static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
                 serviceId,
                 capiEventInfo,
                 eventSrcPort,
                 fcb);
-        if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
-            COMMONAPI_ERROR("RPC failure");
-            status =  Status::FAILED;
-        } else {
-            status = Status::SUCCESS;
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
         }
     }
 
@@ -578,7 +694,7 @@ telux::common::Status CapiCv2xRadio::closeRxSubscription(std::shared_ptr<ICv2xRx
     }
 
     if (not cb) {
-        //sync call
+        // sync call
         proxy_->closeRxSubscription(
                 rxSub->getSubscriptionId(),
                 callStatus,
@@ -589,8 +705,8 @@ telux::common::Status CapiCv2xRadio::closeRxSubscription(std::shared_ptr<ICv2xRx
             status = Status::SUCCESS;
         }
     } else {
-        //Async call
-        auto fcb = [&](const CommonAPI::CallStatus &callstatus,
+        // async call
+        auto fcb = [rxSub, cb](const CommonAPI::CallStatus &callstatus,
                 const capitelux::CommonDefines::ErrorCode err) {
             if (callstatus == CommonAPI::CallStatus::SUCCESS) {
                 cb(rxSub, static_cast<ErrorCode>(err.value_));
@@ -598,14 +714,14 @@ telux::common::Status CapiCv2xRadio::closeRxSubscription(std::shared_ptr<ICv2xRx
                 cb(rxSub, ErrorCode::GENERIC_FAILURE);
             }
         };
-        //std::future<CommonAPI::CallStatus>
-        auto rpcStatus = proxy_->closeRxSubscriptionAsync(
+        auto f = [this, rxSub, fcb]() {
+            proxy_->closeRxSubscriptionAsync(
                 rxSub->getSubscriptionId(),
                 fcb);
-        if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
-            status =  Status::FAILED;
-        } else {
-            status = Status::SUCCESS;
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
         }
     }
 
@@ -624,7 +740,7 @@ telux::common::Status CapiCv2xRadio::closeTxFlow(std::shared_ptr<ICv2xTxFlow> tx
     }
 
     if (not cb) {
-        //sync call
+        // sync call
         proxy_->closeTxFlow(
                 txFlow->getFlowId(),
                 callStatus,
@@ -638,8 +754,8 @@ telux::common::Status CapiCv2xRadio::closeTxFlow(std::shared_ptr<ICv2xTxFlow> tx
             status = Status::SUCCESS;
         }
     } else {
-        //Async call
-        auto fcb = [&](const CommonAPI::CallStatus &callstatus,
+        // async call
+        auto fcb = [txFlow, cb](const CommonAPI::CallStatus &callstatus,
                 const capitelux::CommonDefines::ErrorCode err) {
             if (callstatus == CommonAPI::CallStatus::SUCCESS) {
                 cb(txFlow, static_cast<ErrorCode>(err.value_));
@@ -647,15 +763,17 @@ telux::common::Status CapiCv2xRadio::closeTxFlow(std::shared_ptr<ICv2xTxFlow> tx
                 cb(txFlow, ErrorCode::GENERIC_FAILURE);
             }
         };
-        //std::future<CommonAPI::CallStatus>
-        auto rpcStatus = proxy_->closeTxFlowAsync(txFlow->getFlowId(), fcb);
-        if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
-            status =  Status::FAILED;
-        } else {
+        auto f = [this, txFlow, fcb]() {
+            proxy_->closeTxFlowAsync(txFlow->getFlowId(), fcb);
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
+        }
+        if (status == Status::SUCCESS) {
             if (pubs_.find(txFlow->getFlowId()) != pubs_.end()) {
                 pubs_.erase(txFlow->getFlowId());
             }
-            status = Status::SUCCESS;
         }
     }
 
@@ -688,7 +806,7 @@ telux::common::Status CapiCv2xRadio::changeSpsFlowInfo(std::shared_ptr<ICv2xTxFl
             flowInfo.txPoolIdValid,
             flowInfo.txPoolId);
     if (not cb) {
-        //sync call
+        // sync call
         proxy_->changeSpsFlowInfo(
                 txFlow->getFlowId(),
                 capiSpsInfo,
@@ -700,8 +818,8 @@ telux::common::Status CapiCv2xRadio::changeSpsFlowInfo(std::shared_ptr<ICv2xTxFl
             status = telux::common::Status::SUCCESS;
         }
     } else {
-        //Async call
-        auto fcb = [&](const CommonAPI::CallStatus &callstatus,
+        // async call
+        auto fcb = [txFlow, cb](const CommonAPI::CallStatus &callstatus,
                 const capitelux::CommonDefines::ErrorCode err) {
             if (callstatus == CommonAPI::CallStatus::SUCCESS) {
                 cb(txFlow, static_cast<ErrorCode>(err.value_));
@@ -709,15 +827,15 @@ telux::common::Status CapiCv2xRadio::changeSpsFlowInfo(std::shared_ptr<ICv2xTxFl
                 cb(txFlow, ErrorCode::GENERIC_FAILURE);
             }
         };
-        //std::future<CommonAPI::CallStatus>
-        auto rpcStatus = proxy_->changeSpsFlowInfoAsync(
+        auto f = [this, txFlow, capiSpsInfo, fcb]() {
+            proxy_->changeSpsFlowInfoAsync(
                 txFlow->getFlowId(),
                 capiSpsInfo,
                 fcb);
-        if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
-            status =  telux::common::Status::FAILED;
-        } else {
-            status = telux::common::Status::SUCCESS;
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
         }
     }
 
@@ -727,8 +845,7 @@ telux::common::Status CapiCv2xRadio::changeSpsFlowInfo(std::shared_ptr<ICv2xTxFl
 telux::common::Status CapiCv2xRadio::requestSpsFlowInfo(std::shared_ptr<ICv2xTxFlow> txFlow,
                                              RequestSpsFlowInfoCallback cb)
 {
-    //async only call
-    CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
+    // async only call
     Status status = telux::common::Status::FAILED;;
 
     if (!proxy_->isAvailable()) {
@@ -738,38 +855,28 @@ telux::common::Status CapiCv2xRadio::requestSpsFlowInfo(std::shared_ptr<ICv2xTxF
         return Status::INVALIDPARAM;
     }
 
-    //Async call
-    auto fcb = [&](const CommonAPI::CallStatus &callstatus,
+    // async call
+    auto fcb = [txFlow, cb](const CommonAPI::CallStatus &callstatus,
             const capitelux::CommonDefines::ErrorCode &err,
-            const capicv2x::Cv2xRadioTypes::SpsFlowInfo &flowInfo ) {
-        SpsFlowInfo spsInfo;
-        spsInfo.priority = static_cast<Priority>(flowInfo.getPriority().value_);
-        spsInfo.periodicity = static_cast<Periodicity>(flowInfo.getPeriodicity().value_);
-        spsInfo.periodicityMs = flowInfo.getPeriodicityMs();
-        spsInfo.nbytesReserved = flowInfo.getNbytesReserved();
-        spsInfo.autoRetransEnabledValid = flowInfo.getAutoRetransEnabledValid();
-        spsInfo.autoRetransEnabled = flowInfo.getAutoRetransEnabled();
-        spsInfo.peakTxPowerValid = flowInfo.getPeakTxPowerValid();
-        spsInfo.peakTxPower = flowInfo.getPeakTxPower();
-        spsInfo.mcsIndexValid = flowInfo.getMcsIndexValid();
-        spsInfo.mcsIndex = flowInfo.getMcsIndex();
-        spsInfo.txPoolIdValid = flowInfo.getTxPoolIdValid();
-        spsInfo.txPoolId = flowInfo.getTxPoolId();
+            const capicv2x::Cv2xRadioTypes::SpsFlowInfo &flowInfo) {
+        SpsFlowInfo spsInfo = Capi2teluxHelper::capi2teluxSpsFlowInfo(flowInfo);
         if (callstatus == CommonAPI::CallStatus::SUCCESS) {
             cb(txFlow, spsInfo, static_cast<ErrorCode>(err.value_));
         } else {
             cb(txFlow, spsInfo, ErrorCode::GENERIC_FAILURE);
         }
     };
-    //std::future<CommonAPI::CallStatus>
-    auto rpcStatus = proxy_->requestSpsFlowInfoAsync(
+
+    auto f = [this, txFlow, fcb]() {
+        proxy_->requestSpsFlowInfoAsync(
             txFlow->getFlowId(),
             fcb);
-    if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
-        status =  telux::common::Status::FAILED;
-    } else {
-        status = telux::common::Status::SUCCESS;
+    };
+    auto sp = taskQ_.lock();
+    if(sp) {
+        status = sp->add(f, myself_, std::launch::async);
     }
+
     return status;
 }
 telux::common::Status CapiCv2xRadio::changeEventFlowInfo(std::shared_ptr<ICv2xTxFlow> txFlow,
@@ -795,7 +902,7 @@ telux::common::Status CapiCv2xRadio::changeEventFlowInfo(std::shared_ptr<ICv2xTx
             flowInfo.txPoolId,
             flowInfo.isUnicast);
     if (not cb) {
-        //sync call
+        // sync call
         proxy_->changeEventFlowInfo(
                 txFlow->getFlowId(),
                 capiEventFlowInfo,
@@ -807,8 +914,8 @@ telux::common::Status CapiCv2xRadio::changeEventFlowInfo(std::shared_ptr<ICv2xTx
             status = telux::common::Status::SUCCESS;
         }
     } else {
-        //Async call
-        auto fcb = [&](const CommonAPI::CallStatus &callstatus,
+        // async call
+        auto fcb = [txFlow, cb](const CommonAPI::CallStatus &callstatus,
                 const capitelux::CommonDefines::ErrorCode err) {
             if (callstatus == CommonAPI::CallStatus::SUCCESS) {
                 cb(txFlow, static_cast<ErrorCode>(err.value_));
@@ -816,15 +923,15 @@ telux::common::Status CapiCv2xRadio::changeEventFlowInfo(std::shared_ptr<ICv2xTx
                 cb(txFlow, ErrorCode::GENERIC_FAILURE);
             }
         };
-        //std::future<CommonAPI::CallStatus>
-        auto rpcStatus = proxy_->changeEventFlowInfoAsync(
-                txFlow->getFlowId(),
-                capiEventFlowInfo,
-                fcb);
-        if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
-            status =  telux::common::Status::FAILED;
-        } else {
-            status = telux::common::Status::SUCCESS;
+        auto f = [this, txFlow, capiEventFlowInfo, fcb]() {
+            proxy_->changeEventFlowInfoAsync(
+                    txFlow->getFlowId(),
+                    capiEventFlowInfo,
+                    fcb);
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
         }
     }
 
@@ -833,7 +940,7 @@ telux::common::Status CapiCv2xRadio::changeEventFlowInfo(std::shared_ptr<ICv2xTx
 
 telux::common::Status CapiCv2xRadio::requestCapabilities(RequestCapabilitiesCallback cb)
 {
-    //Async only call
+    // async only call
     Status status = telux::common::Status::FAILED;
 
     if (!proxy_->isAvailable()) {
@@ -843,11 +950,11 @@ telux::common::Status CapiCv2xRadio::requestCapabilities(RequestCapabilitiesCall
         return Status::INVALIDPARAM;
     }
 
-    //Async call
-    auto fcb = [&](const CommonAPI::CallStatus &callstatus,
+    // async call
+    auto fcb = [cb](const CommonAPI::CallStatus &callstatus,
             const capitelux::CommonDefines::ErrorCode &err,
-            const capicv2x::Cv2xRadioTypes::Cv2xRadioTypes::Cv2xRadioCapabilities& capabilities) {
-        Cv2xRadioCapabilities cap = capi2teluxRadioCapbilities(capabilities);
+            const capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities& capabilities) {
+        Cv2xRadioCapabilities cap = Capi2teluxHelper::capi2teluxRadioCapbilities(capabilities);
         ErrorCode teluxError = ErrorCode::GENERIC_FAILURE;
         if (callstatus == CommonAPI::CallStatus::SUCCESS &&
                 err == capitelux::CommonDefines::ErrorCode::SUCCESS) {
@@ -861,12 +968,382 @@ telux::common::Status CapiCv2xRadio::requestCapabilities(RequestCapabilitiesCall
         }
         cb(cap, teluxError);
     };
-    //std::future<CommonAPI::CallStatus>
-    auto rpcStatus = proxy_->requestCapabilityAsync(fcb);
-    if (rpcStatus.get() != CommonAPI::CallStatus::SUCCESS) {
-        status =  telux::common::Status::FAILED;
-    } else {
-        status = telux::common::Status::SUCCESS;
+    auto f = [this, fcb]() {
+        proxy_->requestCapabilityAsync(fcb);
+    };
+    auto sp = taskQ_.lock();
+    if(sp) {
+        status = sp->add(f, myself_, std::launch::async);
     }
     return status;
 }
+
+telux::common::Status CapiCv2xRadio::requestDataSessionSettings(
+        RequestDataSessionSettingsCallback cb) {
+    return Status::NOTALLOWED;
+}
+
+telux::common::Status CapiCv2xRadio::updateSrcL2Info(UpdateSrcL2InfoCallback cb) {
+    CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
+    Status status = Status::FAILED;
+    capitelux::CommonDefines::ErrorCode error;
+
+    if (!proxy_->isAvailable()) {
+        return Status::NOTREADY;
+    }
+
+    if (not cb) {
+        // sync call
+        proxy_->updateSrcL2Info(
+                callStatus,
+                error);
+        if (callStatus != CommonAPI::CallStatus::SUCCESS) {
+            status = telux::common::Status::FAILED;
+        } else {
+            status = telux::common::Status::SUCCESS;
+        }
+    } else {
+        // async call
+        auto fcb = [cb](const CommonAPI::CallStatus &callstatus,
+                const capitelux::CommonDefines::ErrorCode err) {
+            if (callstatus == CommonAPI::CallStatus::SUCCESS) {
+                cb(static_cast<ErrorCode>(err.value_));
+            } else {
+                cb(ErrorCode::GENERIC_FAILURE);
+            }
+        };
+
+        auto f = [this, fcb]() {
+            proxy_->updateSrcL2InfoAsync(fcb);
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
+        }
+    }
+
+    return status;
+}
+
+telux::common::Status CapiCv2xRadio::updateTrustedUEList (
+    const TrustedUEInfoList &infoList,
+    UpdateTrustedUEListCallback cb) {
+    return Status::NOTALLOWED;
+}
+
+std::string CapiCv2xRadio::getIfaceNameFromIpType(TrafficIpType ipType)
+{
+    ServiceStatus teluxServiceStatus = ServiceStatus::SERVICE_UNAVAILABLE;
+    CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
+    capitelux::CommonDefines::ErrorCode err;
+    capitelux::CommonDefines::ServiceStatus serviceStatus;
+    std::string ifaceNameIp("");
+
+    proxy_->getIfaceNameFromIpType(static_cast<capicv2x::Cv2xRadioTypes::TrafficIpType::Literal>(ipType),
+        callStatus, err, ifaceNameIp);
+    if (callStatus == CommonAPI::CallStatus::SUCCESS &&
+            err == capitelux::CommonDefines::ErrorCode::SUCCESS ) {
+        teluxServiceStatus = static_cast<ServiceStatus>(serviceStatus.value_);
+    } else {
+        if (err != capitelux::CommonDefines::ErrorCode::SUCCESS) {
+            COMMONAPI_ERROR("getIfaceNameFromIpType returned error");
+        } else {
+            COMMONAPI_ERROR("CapiCv2xRadio::getIfaceNameFromIpType: RPC failure");
+        }
+    }
+    return ifaceNameIp;
+};
+
+telux::common::Status CapiCv2xRadio::createCv2xTcpSocket(
+        const EventFlowInfo &eventInfo, const SocketInfo &sockInfo, CreateTcpSocketCallback cb) {
+    Status status = telux::common::Status::FAILED;
+
+    if (!proxy_->isAvailable()) {
+        return Status::NOTREADY;
+    }
+    if (!cb) {
+        return Status::INVALIDPARAM;
+    }
+
+    capicv2x::Cv2xRadioTypes::EventFlowInfo capiEventInfo(
+        eventInfo.autoRetransEnabledValid,
+        eventInfo.autoRetransEnabled,
+        eventInfo.peakTxPowerValid,
+        eventInfo.peakTxPower,
+        eventInfo.mcsIndexValid,
+        eventInfo.mcsIndex,
+        eventInfo.txPoolIdValid,
+        eventInfo.txPoolId,
+        eventInfo.isUnicast);
+
+    capicv2x::Cv2xRadioTypes::SocketInfo capiSockInfo(
+        sockInfo.serviceId,
+        sockInfo.localPort);
+
+    // async call
+    auto fcb = [sockInfo, cb](const CommonAPI::CallStatus &callstatus,
+        const capitelux::CommonDefines::ErrorCode &err) {
+        ErrorCode teluxError = ErrorCode::GENERIC_FAILURE;
+        std::shared_ptr<ICv2xTxRxSocket> socket = nullptr;
+
+        if (callstatus == CommonAPI::CallStatus::SUCCESS &&
+                err == capitelux::CommonDefines::ErrorCode::SUCCESS) {
+            std::shared_ptr<Cv2xDataSubscriber> ddsSub = std::make_shared<Cv2xDataSubscriber>();
+
+            if (ddsSub->init() != false) {
+                socket = std::make_shared<CapiCv2xTxRxSocket>(sockInfo.serviceId,
+                    ddsSub->getClientSock());
+                teluxError = ErrorCode::SUCCESS;
+            } else {
+                COMMONAPI_ERROR("failed to init dds subscriber");
+                teluxError = ErrorCode::GENERIC_FAILURE;
+            }
+        } else {
+            COMMONAPI_ERROR("rpc call failure");
+            if (callstatus == CommonAPI::CallStatus::SUCCESS) {
+                teluxError = static_cast<ErrorCode>(err.value_);
+            } else {
+                teluxError = ErrorCode::GENERIC_FAILURE;
+            }
+        }
+        if (cb) {
+            cb(socket, teluxError);
+        }
+    };
+
+    auto f = [this, capiEventInfo, capiSockInfo, fcb]() {
+        proxy_->createCv2xTcpSocketAsync(capiEventInfo, capiSockInfo, fcb);
+    };
+    auto sp = taskQ_.lock();
+    if(sp) {
+        status = sp->add(f, myself_, std::launch::async);
+    }
+
+    return status;
+}
+
+telux::common::Status CapiCv2xRadio::closeCv2xTcpSocket(std::shared_ptr<ICv2xTxRxSocket> sock,
+                                                    CloseTcpSocketCallback cb) {
+    CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
+    Status status = Status::FAILED;
+    capitelux::CommonDefines::ErrorCode error;
+
+    if (!proxy_->isAvailable()) {
+        return Status::NOTREADY;
+    }
+
+    if (not cb) {
+        // sync call
+        proxy_->closeCv2xTcpSocket(
+            sock->getId(),
+            callStatus,
+            error);
+        if (callStatus != CommonAPI::CallStatus::SUCCESS) {
+            status = telux::common::Status::FAILED;
+        } else {
+            status = telux::common::Status::SUCCESS;
+        }
+    } else {
+        // async call
+        auto fcb = [sock, cb](const CommonAPI::CallStatus &callstatus,
+                const capitelux::CommonDefines::ErrorCode err) {
+            if (callstatus == CommonAPI::CallStatus::SUCCESS) {
+                cb(sock, static_cast<ErrorCode>(err.value_));
+            } else {
+                cb(sock, ErrorCode::GENERIC_FAILURE);
+            }
+        };
+
+        auto f = [this, sock, fcb]() {
+            proxy_->closeCv2xTcpSocketAsync(
+                sock->getId(),
+                fcb);
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
+        }
+    }
+
+    return status;
+}
+
+telux::common::Status CapiCv2xRadio::registerTxStatusReportListener(uint16_t port,
+        std::shared_ptr<ICv2xTxStatusReportListener> listener,
+        telux::common::ResponseCallback cb) {
+
+    return Status::NOTALLOWED;
+}
+
+telux::common::Status CapiCv2xRadio::deregisterTxStatusReportListener(uint16_t port,
+                        telux::common::ResponseCallback cb) {
+    return Status::NOTALLOWED;
+}
+
+telux::common::Status CapiCv2xRadio::setGlobalIPInfo(const IPv6AddrType &ipv6Addr,
+                        telux::common::ResponseCallback cb){
+
+    Status status = Status::FAILED;
+    CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
+    capitelux::CommonDefines::ErrorCode error;
+
+    if (!proxy_->isAvailable()) {
+        return Status::NOTREADY;
+    }
+
+    std::vector< uint8_t > vecIpv6Addr(std::begin(ipv6Addr.ipv6Addr), std::end(ipv6Addr.ipv6Addr));
+    std::shared_ptr<capicv2x::Cv2xRadioTypes::IPv6AddrType> capiIpv6Addr =
+        std::make_shared<capicv2x::Cv2xRadioTypes::IPv6AddrType>(
+        ipv6Addr.prefixLen,
+        vecIpv6Addr);
+
+    if (not cb) {
+        // sync call
+        proxy_->setGlobalIPInfo(
+            (capicv2x::Cv2xRadioTypes::IPv6AddrType)*(capiIpv6Addr.get()),
+            callStatus,
+            error);
+        if (callStatus != CommonAPI::CallStatus::SUCCESS) {
+            status = telux::common::Status::FAILED;
+        } else {
+            status = telux::common::Status::SUCCESS;
+        }
+    } else {
+        // async call
+        auto fcb = [cb](const CommonAPI::CallStatus &callstatus,
+                const capitelux::CommonDefines::ErrorCode err) {
+            if (callstatus == CommonAPI::CallStatus::SUCCESS) {
+                cb(static_cast<ErrorCode>(err.value_));
+            } else {
+                cb(ErrorCode::GENERIC_FAILURE);
+            }
+        };
+
+        auto f = [this, capiIpv6Addr, fcb]() {
+            proxy_->setGlobalIPInfoAsync(
+                (capicv2x::Cv2xRadioTypes::IPv6AddrType)*(capiIpv6Addr.get()),
+                fcb);
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
+        }
+    }
+
+    return status;
+}
+
+telux::common::Status CapiCv2xRadio::setGlobalIPUnicastRoutingInfo(
+        const GlobalIPUnicastRoutingInfo &destL2Addr,
+        telux::common::ResponseCallback cb) {
+
+    Status status = Status::FAILED;
+    CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
+    capitelux::CommonDefines::ErrorCode error;
+
+    if (!proxy_->isAvailable()) {
+        return Status::NOTREADY;
+    }
+
+    capicv2x::Cv2xRadioTypes::GlobalIPUnicastRoutingInfo capiDestL2Addr;
+    std::vector<uint8_t> addrs = std::vector<uint8_t>();
+    for (auto addr : destL2Addr.destMacAddr) {
+        addrs.push_back(addr);
+    }
+    capiDestL2Addr.setDestMacAddr(addrs);
+
+    if (not cb) {
+        // sync call
+        proxy_->setGlobalIPUnicastRoutingInfo(
+            capiDestL2Addr,
+            callStatus,
+            error);
+        if (callStatus != CommonAPI::CallStatus::SUCCESS) {
+            status = telux::common::Status::FAILED;
+        } else {
+            status = telux::common::Status::SUCCESS;
+        }
+    } else {
+        // async call
+        auto fcb = [cb](const CommonAPI::CallStatus &callstatus,
+                const capitelux::CommonDefines::ErrorCode err) {
+            if (callstatus == CommonAPI::CallStatus::SUCCESS) {
+                cb(static_cast<ErrorCode>(err.value_));
+            } else {
+                cb(ErrorCode::GENERIC_FAILURE);
+            }
+        };
+
+        auto f = [this, capiDestL2Addr, fcb]() {
+            proxy_->setGlobalIPUnicastRoutingInfoAsync(capiDestL2Addr, fcb);
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
+        }
+    }
+
+    return status;
+}
+
+telux::common::Status CapiCv2xRadio::injectVehicleSpeed(uint32_t speed, telux::common::ResponseCallback cb) {
+    Status status = Status::FAILED;
+    CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
+    capitelux::CommonDefines::ErrorCode error;
+
+    if (!proxy_->isAvailable()) {
+        return Status::NOTREADY;
+    }
+
+    if (not cb) {
+        // sync call
+        proxy_->injectVehicleSpeed(
+            speed,
+            callStatus,
+            error);
+        if (callStatus != CommonAPI::CallStatus::SUCCESS) {
+            status = telux::common::Status::FAILED;
+        } else {
+            status = telux::common::Status::SUCCESS;
+        }
+    } else {
+        // async call
+        auto fcb = [cb](const CommonAPI::CallStatus &callstatus,
+                const capitelux::CommonDefines::ErrorCode err) {
+            if (callstatus == CommonAPI::CallStatus::SUCCESS) {
+                cb(static_cast<ErrorCode>(err.value_));
+            } else {
+                cb(ErrorCode::GENERIC_FAILURE);
+            }
+        };
+
+        auto f = [this, speed, fcb]() {
+            proxy_->injectVehicleSpeedAsync(speed, fcb);
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            status = sp->add(f, myself_, std::launch::async);
+        }
+    }
+
+    return status;
+}
+
+bool CapiCv2xRadio::isInitialized() const
+{
+    return isInitialized_;
+}
+
+bool CapiCv2xRadio::isReady() const
+{
+    return false;
+}
+
+std::future<telux::common::Status> CapiCv2xRadio::onReady()
+{
+    return std::future<telux::common::Status>();
+}
+
+}  // namespace cv2x
+
+}  // namespace telux

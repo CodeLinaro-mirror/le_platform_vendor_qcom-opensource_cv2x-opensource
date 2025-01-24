@@ -1,10 +1,14 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <CommonAPI/CommonAPI.hpp>
 #include "CapiCv2xRadioManager.hpp"
 #include "CapiCv2xFactory.hpp"
+
+namespace telux {
+
+namespace cv2x {
 
 Cv2xFactory::Cv2xFactory() {
     COMMONAPI_DEBUG("Cv2xFactory");
@@ -98,3 +102,7 @@ std::shared_ptr<ICv2xRadioManager> CapiCv2xFactory::getCv2xRadioManager(
 
     return radioMgr;
 }
+
+}  // namespace cv2x
+
+}  // namespace telux

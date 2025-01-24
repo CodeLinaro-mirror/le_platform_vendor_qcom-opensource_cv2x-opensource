@@ -1,5 +1,5 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -92,6 +92,77 @@ define org.genivi.commonapi.someip.deployment for interface commonapi.telux.cv2x
         out {
         }
     }
+
+    method requestDataSessionSettings {
+        SomeIpMethodID = 30111
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method updateSrcL2Info {
+        SomeIpMethodID = 30112
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method updateTrustedUEList {
+        SomeIpMethodID = 30113
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method getIfaceNameFromIpType {
+        SomeIpMethodID = 30114
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method createCv2xTcpSocket {
+        SomeIpMethodID = 30115
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method closeCv2xTcpSocket {
+        SomeIpMethodID = 30116
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method setGlobalIPInfo {
+        SomeIpMethodID = 30117
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method setGlobalIPUnicastRoutingInfo {
+        SomeIpMethodID = 30118
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method getCapabilities {
+        SomeIpMethodID = 30119
+        SomeIpReliable = false
+        out {
+        }
+    }
+
+    method injectVehicleSpeed {
+        SomeIpMethodID = 30120
+        SomeIpReliable = false
+        out {
+        }
+    }
+
     broadcast currentCv2xStatus {
         SomeIpEventID = 32774
         SomeIpEventGroups = { 32769 }

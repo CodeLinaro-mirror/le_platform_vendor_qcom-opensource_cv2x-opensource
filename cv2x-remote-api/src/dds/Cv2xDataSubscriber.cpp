@@ -112,9 +112,7 @@ void Cv2xDataSubscriber::on_subscription_matched(
     {
         currentMatchedCount = info.total_count;
         std::cout << "Subscriber unmatched." << std::endl;
-    }
-    else
-    {
+    } else {
         std::cout << info.current_count_change
                   << " is not a valid value for SubscriptionMatchedStatus current count change" << std::endl;
     }
