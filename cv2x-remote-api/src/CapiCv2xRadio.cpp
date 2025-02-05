@@ -370,7 +370,7 @@ Status CapiCv2xRadio::createRxSubscription(
             if (ddsSub->init(rxSubId) != false) {
                 rxSub = std::make_shared<CapiCv2xRxSubscription>(ddsSub->getClientSock(),
                         rxSubId);
-                subs_.push_back(ddsSub);
+                subs_[rxSubId] = ddsSub;
                 teluxError = ErrorCode::SUCCESS;
             } else {
                 COMMONAPI_ERROR("failed to init dds subscriber");
@@ -689,6 +689,10 @@ telux::common::Status CapiCv2xRadio::closeRxSubscription(std::shared_ptr<ICv2xRx
     Status status = Status::FAILED;
     capitelux::CommonDefines::ErrorCode error;
 
+    if (subs_.find(rxSub->getSubscriptionId()) != subs_.end()) {
+        subs_.erase(rxSub->getSubscriptionId());
+    }
+
     if (!proxy_->isAvailable()) {
         return Status::NOTREADY;
     }
@@ -735,6 +739,10 @@ telux::common::Status CapiCv2xRadio::closeTxFlow(std::shared_ptr<ICv2xTxFlow> tx
     Status status = Status::FAILED;
     capitelux::CommonDefines::ErrorCode error;
 
+    if (pubs_.find(txFlow->getFlowId()) != pubs_.end()) {
+        pubs_.erase(txFlow->getFlowId());
+    }
+
     if (!proxy_->isAvailable()) {
         return Status::NOTREADY;
     }
@@ -748,9 +756,6 @@ telux::common::Status CapiCv2xRadio::closeTxFlow(std::shared_ptr<ICv2xTxFlow> tx
         if (callStatus != CommonAPI::CallStatus::SUCCESS) {
             status = Status::FAILED;
         } else {
-            if (pubs_.find(txFlow->getFlowId()) != pubs_.end()) {
-                pubs_.erase(txFlow->getFlowId());
-            }
             status = Status::SUCCESS;
         }
     } else {
@@ -767,13 +772,8 @@ telux::common::Status CapiCv2xRadio::closeTxFlow(std::shared_ptr<ICv2xTxFlow> tx
             proxy_->closeTxFlowAsync(txFlow->getFlowId(), fcb);
         };
         auto sp = taskQ_.lock();
-        if(sp) {
+        if (sp) {
             status = sp->add(f, myself_, std::launch::async);
-        }
-        if (status == Status::SUCCESS) {
-            if (pubs_.find(txFlow->getFlowId()) != pubs_.end()) {
-                pubs_.erase(txFlow->getFlowId());
-            }
         }
     }
 
