@@ -794,7 +794,7 @@ void Cv2xRadioStubImpl::getIfaceNameFromIpType(const std::shared_ptr<CommonAPI::
         getIfaceNameFromIpTypeReply_t _reply)
 {
 
-    ErrorCode error;
+    ErrorCode error = ErrorCode::SUCCESS;
     telux::cv2x::TrafficIpType teluxTrafficIpType;
     std::string ifaceName = "";
 
@@ -960,7 +960,7 @@ void Cv2xRadioStubImpl::setGlobalIPUnicastRoutingInfo(const std::shared_ptr<Comm
 void Cv2xRadioStubImpl::getCapabilities(const std::shared_ptr<CommonAPI::ClientId> _client,
         getCapabilitiesReply_t _reply)
 {
-    ErrorCode error;
+    ErrorCode error = ErrorCode::SUCCESS;
 
     capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities capiCv2xRadioCapabilities;
     if (cv2xRadio_ != nullptr) {
@@ -968,14 +968,20 @@ void Cv2xRadioStubImpl::getCapabilities(const std::shared_ptr<CommonAPI::ClientI
         capiCv2xRadioCapabilities.setLinkIpMtuBytes(capabilities_.linkIpMtuBytes);
         capiCv2xRadioCapabilities.setLinkNonIpMtuBytes(capabilities_.linkNonIpMtuBytes);
         capiCv2xRadioCapabilities.setMaxSupportedConcurrency(
-            static_cast<capicv2x::Cv2xRadioTypes::RadioConcurrencyMode::Literal>(capabilities_.maxSupportedConcurrency));
-        capiCv2xRadioCapabilities.setNonIpTxPayloadOffsetBytes(capabilities_.nonIpTxPayloadOffsetBytes);
-        capiCv2xRadioCapabilities.setNonIpRxPayloadOffsetBytes(capabilities_.nonIpRxPayloadOffsetBytes);
-        capiCv2xRadioCapabilities.setPeriodicitiesSupported(static_cast<uint8_t>(capabilities_.periodicitiesSupported.to_ulong()));
+            static_cast<capicv2x::Cv2xRadioTypes::RadioConcurrencyMode::Literal>(
+                capabilities_.maxSupportedConcurrency));
+        capiCv2xRadioCapabilities.setNonIpTxPayloadOffsetBytes(
+            capabilities_.nonIpTxPayloadOffsetBytes);
+        capiCv2xRadioCapabilities.setNonIpRxPayloadOffsetBytes(
+            capabilities_.nonIpRxPayloadOffsetBytes);
+        capiCv2xRadioCapabilities.setPeriodicitiesSupported(static_cast<uint8_t>(
+            capabilities_.periodicitiesSupported.to_ulong()));
         capiCv2xRadioCapabilities.setPeriodicities(capabilities_.periodicities);
-        capiCv2xRadioCapabilities.setMaxNumAutoRetransmissions(capabilities_.maxNumAutoRetransmissions);
+        capiCv2xRadioCapabilities.setMaxNumAutoRetransmissions(
+            capabilities_.maxNumAutoRetransmissions);
         capiCv2xRadioCapabilities.setLayer2MacAddressSize(capabilities_.layer2MacAddressSize);
-        capiCv2xRadioCapabilities.setPrioritiesSupported(static_cast<uint8_t>(capabilities_.prioritiesSupported.to_ulong()));
+        capiCv2xRadioCapabilities.setPrioritiesSupported(static_cast<uint8_t>(
+            capabilities_.prioritiesSupported.to_ulong()));
         capiCv2xRadioCapabilities.setMaxNumSpsFlows(capabilities_.maxNumSpsFlows);
         capiCv2xRadioCapabilities.setMaxNumNonSpsFlows(capabilities_.maxNumNonSpsFlows);
         capiCv2xRadioCapabilities.setMaxTxPower(capabilities_.maxTxPower);
@@ -983,7 +989,8 @@ void Cv2xRadioStubImpl::getCapabilities(const std::shared_ptr<CommonAPI::ClientI
         std::vector<capicv2x::Cv2xRadioTypes::TxPoolIdInfo> capiTxPoolIdsSupported;
         for (auto info : capabilities_.txPoolIdsSupported) {
             capicv2x::Cv2xRadioTypes::TxPoolIdInfo capiInfo;
-            capiInfo = capicv2x::Cv2xRadioTypes::TxPoolIdInfo(info.poolId, info.minFreq, info.maxFreq);
+            capiInfo =
+                capicv2x::Cv2xRadioTypes::TxPoolIdInfo(info.poolId, info.minFreq, info.maxFreq);
             capiTxPoolIdsSupported.push_back(capiInfo);
 
         }
@@ -992,7 +999,8 @@ void Cv2xRadioStubImpl::getCapabilities(const std::shared_ptr<CommonAPI::ClientI
         error = ErrorCode::RADIO_NOT_AVAILABLE;
     }
 
-    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error), capiCv2xRadioCapabilities);
+    _reply(static_cast<capiteluxcommon::CommonDefines::ErrorCode::Literal>(error),
+        capiCv2xRadioCapabilities);
 }
 
 void Cv2xRadioStubImpl::injectVehicleSpeed(const std::shared_ptr<CommonAPI::ClientId> _client,
