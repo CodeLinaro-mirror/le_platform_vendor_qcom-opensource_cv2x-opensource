@@ -10,16 +10,29 @@
 #include <v1/commonapi/telux/cv2x/Cv2xRadioManagerStubDefault.hpp>
 #include <telux/cv2x/Cv2xRadioManager.hpp>
 
-class Cv2xRadioManagerStubImpl: public v1::commonapi::telux::cv2x::Cv2xRadioManagerStubDefault,
-    public telux::cv2x::ICv2xListener,
+#include "Cv2xRemoteServerHelper.hpp"
+
+namespace capi = v1::commonapi::telux;
+namespace capicv2x = v1::commonapi::telux::cv2x;
+
+class Cv2xMgrListener : public telux::cv2x::ICv2xListener {
+ public:
+    Cv2xMgrListener(RpcCv2xMgrFires fireMethods);
+    void onServiceStatusChange(telux::common::ServiceStatus status) override;
+    void onStatusChanged(telux::cv2x::Cv2xStatusEx statusEx) override;
+    void onSlssRxInfoChanged(const telux::cv2x::SlssRxInfo& slssInfo) override;
+
+ private:
+    RpcCv2xMgrFires rpcFireMethods_;
+};
+
+class Cv2xRadioManagerStubImpl: public telux::cv2x::ICv2xListener,
+    public capicv2x::Cv2xRadioManagerStubDefault,
     public std::enable_shared_from_this<Cv2xRadioManagerStubImpl> {
 
 public:
     Cv2xRadioManagerStubImpl();
     virtual ~Cv2xRadioManagerStubImpl();
-    std::shared_ptr<Cv2xRadioManagerStubImpl> getptr() {
-        return shared_from_this();
-    }
 
     virtual void GetServiceStatus(const std::shared_ptr<CommonAPI::ClientId> _client,
         GetServiceStatusReply_t _reply);
@@ -31,9 +44,6 @@ public:
         requestCv2xStatusReply_t _reply);
     virtual void requestCv2xStatusEx(const std::shared_ptr<CommonAPI::ClientId> _client,
         requestCv2xStatusExReply_t _reply);
-    void onStatusChanged(telux::cv2x::Cv2xStatus status) override;
-    v1::commonapi::telux::cv2x::Cv2xRadioTypes::Cv2xStatus telux2capiCv2xStatus(
-        const telux::cv2x::Cv2xStatus &status);
 
     virtual void setPeakTxPower(const std::shared_ptr<CommonAPI::ClientId> _client,
         int8_t _txPower, setPeakTxPowerReply_t _reply);
@@ -49,9 +59,8 @@ public:
 
 private:
     std::shared_ptr<telux::cv2x::ICv2xRadioManager>cv2xRadioManager_ = nullptr;
-    telux::cv2x::Cv2xStatus currentStatus_;
-    bool isListenerRegistered = false;
     std::mutex m_;
+    std::shared_ptr<Cv2xMgrListener>  cv2xMgrListener_ = nullptr;
 };
 
 #endif // CV2XRADIOMANAGERSTUBIMPL_HPP_

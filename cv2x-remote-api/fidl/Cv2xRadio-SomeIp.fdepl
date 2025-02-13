@@ -171,7 +171,7 @@ define org.genivi.commonapi.someip.deployment for interface commonapi.telux.cv2x
         }
     }
 
-    broadcast currentCv2xStatusEx {
+    broadcast cv2xStatusEx {
         SomeIpEventID = 32769
         SomeIpEventGroups = { 32769 }
 

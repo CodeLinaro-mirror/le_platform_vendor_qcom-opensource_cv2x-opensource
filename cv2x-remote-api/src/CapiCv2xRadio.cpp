@@ -7,129 +7,12 @@
 #include "CapiCv2xRxSubscription.hpp"
 #include "CapiCv2xTxFlow.hpp"
 #include "CapiCv2xTxRxSocket.hpp"
-
-#define PROXY_TIMEOUT_MS 50000
+#include "Cv2xRemoteRadioHelper.hpp"
 
 namespace telux {
 
 namespace cv2x {
 
-Cv2xStatus Capi2teluxHelper::capi2teluxCv2xStatus(const capicv2x::Cv2xRadioTypes::Cv2xStatus &status) {
-    Cv2xStatus st;
-    st.rxStatus = static_cast<Cv2xStatusType>(status.getRxStatus().value_);
-    st.txStatus = static_cast<Cv2xStatusType>(status.getTxStatus().value_);
-    st.rxCause = static_cast<Cv2xCauseType>(status.getRxCause().value_);
-    st.txCause = static_cast<Cv2xCauseType>(status.getTxCause().value_);
-    st.cbrValue = status.getCbrValue();
-    st.cbrValueValid = status.getCbrValueValid();
-    return st;
-}
-std::vector<Cv2xPoolStatus> Capi2teluxHelper::capi2teluxCv2xPoolStatus(
-    const std::vector<capicv2x::Cv2xRadioTypes::Cv2xPoolStatus> &status) {
-    std::vector<Cv2xPoolStatus> pv;
-    for (auto st : status) {
-        Cv2xPoolStatus ps;
-        ps.poolId = st.getPoolId();
-        ps.status = Capi2teluxHelper::capi2teluxCv2xStatus(st.getStatus());
-        pv.push_back(ps);
-    }
-    return pv;
-}
-
-Cv2xStatusEx Capi2teluxHelper::capi2teluxCv2xStatusEx(
-    const capicv2x::Cv2xRadioTypes::Cv2xStatusEx statusEx) {
-    Cv2xStatusEx stex;
-
-    stex.status = Capi2teluxHelper::capi2teluxCv2xStatus(statusEx.getStatus());
-    stex.poolStatus = Capi2teluxHelper::capi2teluxCv2xPoolStatus(statusEx.getPoolStatus());
-    stex.timeUncertaintyValid = statusEx.getTimeUncertaintyValid();
-    stex.timeUncertainty = statusEx.getTimeUncertainty();
-    return stex;
-}
-std::vector<TxPoolIdInfo> Capi2teluxHelper::capi2teluxSupportedPoolIds(
-    const std::vector<capicv2x::Cv2xRadioTypes::TxPoolIdInfo> &idInfos) {
-    std::vector<TxPoolIdInfo> pv;
-
-    for (auto idInfo : idInfos) {
-        TxPoolIdInfo info;
-        info.poolId = idInfo.getPoolId();
-        info.minFreq = idInfo.getMinFreq();
-        info.maxFreq = idInfo.getMaxFreq();
-        pv.push_back(info);
-    }
-    return pv;
-}
-
-telux::cv2x::Cv2xRadioCapabilities Capi2teluxHelper::capi2teluxRadioCapbilities(
-    const capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities &capabilities) {
-    telux::cv2x::Cv2xRadioCapabilities cap;
-    cap.linkIpMtuBytes = capabilities.getLinkIpMtuBytes();
-    cap.linkNonIpMtuBytes = capabilities.getLinkNonIpMtuBytes();
-    cap.maxSupportedConcurrency = static_cast<RadioConcurrencyMode>(
-        capabilities.getMaxSupportedConcurrency().value_);
-    cap.nonIpTxPayloadOffsetBytes = capabilities.getNonIpTxPayloadOffsetBytes();
-    cap.nonIpRxPayloadOffsetBytes = capabilities.getNonIpRxPayloadOffsetBytes();
-    cap.periodicitiesSupported = capabilities.getPeriodicitiesSupported();
-    cap.periodicities = capabilities.getPeriodicities();
-    cap.maxNumAutoRetransmissions = capabilities.getMaxNumAutoRetransmissions();
-    cap.layer2MacAddressSize = capabilities.getLayer2MacAddressSize();
-    cap.prioritiesSupported = capabilities.getPrioritiesSupported();
-    cap.maxNumSpsFlows = capabilities.getMaxNumSpsFlows();
-    cap.maxNumNonSpsFlows = capabilities.getMaxNumNonSpsFlows();
-    cap.maxTxPower = capabilities.getMaxTxPower();
-    cap.minTxPower = capabilities.getMinTxPower();
-    cap.txPoolIdsSupported = capi2teluxSupportedPoolIds(capabilities.getTxPoolIdsSupported());
-
-    return cap;
-}
-
-std::vector<TrustedUEInfo> Capi2teluxHelper::capi2teluxTrustedUEs(
-    const std::vector<capicv2x::Cv2xRadioTypes::TrustedUEInfo> &capiTrustedUEs) {
-    std::vector<TrustedUEInfo> infos;
-    for (auto &capiTrustedUE : capiTrustedUEs) {
-        TrustedUEInfo info;
-        info.sourceL2Id = capiTrustedUE.getSourceL2Id();
-        info.timeUncertainty = capiTrustedUE.getTimeUncertainty();
-        info.timeConfidenceLevel = capiTrustedUE.getTimeConfidenceLevel();
-        info.positionConfidenceLevel = capiTrustedUE.getPositionConfidenceLevel();
-        info.propagationDelay = capiTrustedUE.getPropagationDelay();
-        infos.push_back(info);
-    }
-    return infos;
-}
-
-SpsFlowInfo Capi2teluxHelper::capi2teluxSpsFlowInfo(
-        const capicv2x::Cv2xRadioTypes::SpsFlowInfo &flowInfo) {
-    SpsFlowInfo spsInfo;
-    spsInfo.priority = static_cast<Priority>(flowInfo.getPriority().value_);
-    spsInfo.periodicity = static_cast<Periodicity>(flowInfo.getPeriodicity().value_);
-    spsInfo.periodicityMs = flowInfo.getPeriodicityMs();
-    spsInfo.nbytesReserved = flowInfo.getNbytesReserved();
-    spsInfo.autoRetransEnabledValid = flowInfo.getAutoRetransEnabledValid();
-    spsInfo.autoRetransEnabled = flowInfo.getAutoRetransEnabled();
-    spsInfo.peakTxPowerValid = flowInfo.getPeakTxPowerValid();
-    spsInfo.peakTxPower = flowInfo.getPeakTxPower();
-    spsInfo.mcsIndexValid = flowInfo.getMcsIndexValid();
-    spsInfo.mcsIndex = flowInfo.getMcsIndex();
-    spsInfo.txPoolIdValid = flowInfo.getTxPoolIdValid();
-    spsInfo.txPoolId = flowInfo.getTxPoolId();
-    return spsInfo;
-}
-
-SlssRxInfo Capi2teluxHelper::capi2teluxSlssRxInfo(
-        const capicv2x::Cv2xRadioTypes::SlssRxInfo &slssRxInfo) {
-    telux::cv2x::SlssRxInfo teluxInfo;
-    for (auto capiUe : slssRxInfo.getUeInfo()) {
-        telux::cv2x::SyncRefUeInfo teluxUeInfo;
-        teluxUeInfo.slssId = capiUe.getSlssId();
-        teluxUeInfo.inCoverage = capiUe.getInCoverage();
-        teluxUeInfo.pattern = static_cast<SlssSyncPattern>(capiUe.getPattern().value_);
-        teluxUeInfo.rsrp = capiUe.getRsrp();
-        teluxUeInfo.selected = capiUe.getSelected();
-        teluxInfo.ueInfo.push_back(teluxUeInfo);
-    }
-    return teluxInfo;
-}
 
 CapiCv2xRadio::CapiCv2xRadio()
 {
@@ -144,8 +27,22 @@ CapiCv2xRadio::~CapiCv2xRadio()
         exiting_ = true;
         exitCv_.notify_all();
     }
+    if (proxy_) {
+        proxy_->getProxyStatusEvent().unsubscribe(subscription_);
+        subscription_ = UINT32_MAX;
+        proxy_ = nullptr;
+    }
+}
 
-    proxy_ = nullptr;
+void CapiCv2xRadio::onConnectionChange(const CommonAPI::AvailabilityStatus& s) {
+    COMMONAPI_DEBUG("CapiCv2xRadioManager::onConnectionChange ", static_cast<int>(s));
+    if (s == CommonAPI::AvailabilityStatus::NOT_AVAILABLE) {
+        Cv2xStatusEx cv2xStatus;
+        telux::cv2x::Capi2teluxHelper::resetV2xStatusEx(cv2xStatus);
+        cv2xStatusCallback(cv2xStatus);
+    } else {
+        return;
+    }
 }
 
 void CapiCv2xRadio::init(std::weak_ptr<telux::common::AsyncTaskQueue<void>> taskQ,
@@ -162,15 +59,85 @@ void CapiCv2xRadio::init(std::weak_ptr<telux::common::AsyncTaskQueue<void>> task
     }
 }
 
-void CapiCv2xRadio::initSync(InitResponseCb callback)
-{
+void CapiCv2xRadio::initSync(InitResponseCb callback) {
+    do {
+        if (false == initProxy()) {
+            break;
+        }
+
+        proxy_->getCv2xStatusExEvent().subscribe(std::bind(&CapiCv2xRadio::onCv2xStatusExChange, this,
+            std::placeholders::_1 ));
+
+        proxy_->getCurrentL2AddrEvent().subscribe([&](const uint32_t newL2Addr) {
+            std::lock_guard<std::mutex> lock(listenersMutex_);
+            for (auto listener : listeners_) {
+                auto sp = listener.lock();
+                if (sp) {
+                    sp->onL2AddrChanged(newL2Addr);
+                }
+            }
+        });
+        proxy_->getCurrentSpsOffsetEvent().subscribe([&](const int spsId,
+                                const capicv2x::Cv2xRadioTypes::MacDetails details) {
+            MacDetails mc;
+            mc.periodicityInUseNs = details.getPeriodicityInUseNs();
+            mc.currentlyReservedPeriodicBytes = details.getCurrentlyReservedPeriodicBytes();
+            mc.txReservationOffsetNs = details.getTxReservationOffsetNs();
+            std::lock_guard<std::mutex> lock(listenersMutex_);
+            for (auto listener : listeners_) {
+                auto sp = listener.lock();
+                if (sp) {
+                    sp->onSpsOffsetChanged(spsId, mc);
+                }
+            }
+        });
+        proxy_->getCurrentCapabilitiesEvent().subscribe([&](
+                            const capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities & capabilities) {
+            Cv2xRadioCapabilities cap = Capi2teluxHelper::capi2teluxRadioCapbilities(capabilities);
+            std::lock_guard<std::mutex> lock(listenersMutex_);
+            for (auto listener : listeners_) {
+                auto sp = listener.lock();
+                if (sp) {
+                    sp->onCapabilitiesChanged(cap);
+                }
+            }
+        });
+
+        proxy_->getMacAddrCloneEvent().subscribe([&](const bool detected) {
+            std::lock_guard<std::mutex> lock(listenersMutex_);
+            for (auto listener : listeners_) {
+                auto sp = listener.lock();
+                if (sp) {
+                    sp->onMacAddressCloneAttack(detected);
+                }
+            }
+        });
+
+        serviceStatus_ = getServiceStatus();
+        isInitialized_ = true;
+    } while(0);
+
+    if (callback) {
+        COMMONAPI_DEBUG("calling init callback");
+        callback(serviceStatus_);
+    }
+}
+
+bool CapiCv2xRadio::initProxy() {
     unsigned int count = PROXY_TIMEOUT_MS;
     std::shared_ptr<CommonAPI::Runtime> runtime = CommonAPI::Runtime::get();
-
     std::string domain = "local";
     std::string instance = "commonapi.telux.cv2x.Cv2xRadio";
+
+    if (proxy_) {
+        return false;
+    }
     proxy_ =
         runtime->buildProxy<capicv2x::Cv2xRadioProxy>(domain, instance, "client-Cv2xRadio");
+    if (proxy_) {
+        subscription_ = proxy_->getProxyStatusEvent().subscribe(std::bind(
+            &CapiCv2xRadio::onConnectionChange, this, std::placeholders::_1));
+    }
 
     const char *env_value = std::getenv("CV2X_REMOTE_CONNECT_TIMEOUT");
     if (!env_value) {
@@ -203,100 +170,24 @@ void CapiCv2xRadio::initSync(InitResponseCb callback)
 
     if (!proxy_->isAvailable() || exiting_) {
         COMMONAPI_ERROR("Exit or connect timeout:proxy not available");
-        if (callback) {
-            callback(telux::common::ServiceStatus::SERVICE_FAILED);
-        }
-        return;
-    }
-    COMMONAPI_INFO("Cv2xRadio Proxy registration succesful");
-    proxy_->getCurrentCv2xStatusEvent().subscribe([&](const capicv2x::Cv2xRadioTypes::Cv2xStatus &status) {
-            Cv2xStatus st = Capi2teluxHelper::capi2teluxCv2xStatus(status);
-            std::lock_guard<std::mutex> lock(listenersMutex_);
-            for (auto listener : listeners_) {
-                auto sp = listener.lock();
-                if (sp) {
-                    sp->onStatusChanged(st);
-                }
-            }
-    });
-    proxy_->getCurrentCv2xStatusExEvent().subscribe([&](const capicv2x::Cv2xRadioTypes::Cv2xStatusEx &statusEx) {
-            Cv2xStatusEx stex;
-            stex.status = Capi2teluxHelper::capi2teluxCv2xStatus(statusEx.getStatus());
-            stex.poolStatus = Capi2teluxHelper::capi2teluxCv2xPoolStatus(statusEx.getPoolStatus());
-            stex.timeUncertaintyValid = statusEx.getTimeUncertaintyValid();
-            stex.timeUncertainty = statusEx.getTimeUncertainty();
-            std::lock_guard<std::mutex> lock(listenersMutex_);
-            for (auto listener : listeners_) {
-                auto sp = listener.lock();
-                if (sp) {
-                    sp->onStatusChanged(stex);
-                }
-            }
-    });
-    proxy_->getCurrentL2AddrEvent().subscribe([&](const uint32_t newL2Addr) {
-            std::lock_guard<std::mutex> lock(listenersMutex_);
-            for (auto listener : listeners_) {
-                auto sp = listener.lock();
-                if (sp) {
-                    sp->onL2AddrChanged(newL2Addr);
-                }
-            }
-    });
-    proxy_->getCurrentSpsOffsetEvent().subscribe([&](const int spsId,
-                                const capicv2x::Cv2xRadioTypes::MacDetails details) {
-            MacDetails mc;
-            mc.periodicityInUseNs = details.getPeriodicityInUseNs();
-            mc.currentlyReservedPeriodicBytes = details.getCurrentlyReservedPeriodicBytes();
-            mc.txReservationOffsetNs = details.getTxReservationOffsetNs();
-            std::lock_guard<std::mutex> lock(listenersMutex_);
-            for (auto listener : listeners_) {
-                auto sp = listener.lock();
-                if (sp) {
-                    sp->onSpsOffsetChanged(spsId, mc);
-                }
-            }
-    });
-    proxy_->getCurrentCapabilitiesEvent().subscribe([&](
-                            const capicv2x::Cv2xRadioTypes::Cv2xRadioCapabilities & capabilities) {
-            Cv2xRadioCapabilities cap = Capi2teluxHelper::capi2teluxRadioCapbilities(capabilities);
-            std::lock_guard<std::mutex> lock(listenersMutex_);
-            for (auto listener : listeners_) {
-                auto sp = listener.lock();
-                if (sp) {
-                    sp->onCapabilitiesChanged(cap);
-                }
-            }
-    });
-
-    proxy_->getMacAddrCloneEvent().subscribe([&](const bool detected) {
-            std::lock_guard<std::mutex> lock(listenersMutex_);
-            for (auto listener : listeners_) {
-                auto sp = listener.lock();
-                if (sp) {
-                    sp->onMacAddressCloneAttack(detected);
-                }
-            }
-    });
-    isInitialized_ = true;
-    if (callback) {
-        COMMONAPI_DEBUG("calling init callback");
-        callback(ServiceStatus::SERVICE_AVAILABLE);
+        return false;
     }
 
+    COMMONAPI_INFO("CapiCv2xRadio Proxy registration succesful");
+    return true;
 }
 
 ServiceStatus CapiCv2xRadio::getServiceStatus(void)
 {
-    ServiceStatus teluxServiceStatus = ServiceStatus::SERVICE_UNAVAILABLE;
     CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
     capitelux::CommonDefines::ErrorCode err;
     capitelux::CommonDefines::ServiceStatus serviceStatus;
 
-    // sync call only.
+    //sync call only.
     proxy_->getServiceStatus(callStatus, err, serviceStatus);
     if (callStatus == CommonAPI::CallStatus::SUCCESS &&
-            err == capitelux::CommonDefines::ErrorCode::SUCCESS ) {
-        teluxServiceStatus = static_cast<ServiceStatus>(serviceStatus.value_);
+        err == capitelux::CommonDefines::ErrorCode::SUCCESS ) {
+        serviceStatus_ = static_cast<telux::common::ServiceStatus>(serviceStatus.value_);
     } else {
         if (err != capitelux::CommonDefines::ErrorCode::SUCCESS) {
             COMMONAPI_ERROR(" getServiceStatus returned error");
@@ -304,8 +195,9 @@ ServiceStatus CapiCv2xRadio::getServiceStatus(void)
             COMMONAPI_ERROR("CapiCv2xRadio::getServiceStatus: RPC failure");
         }
     }
-    return teluxServiceStatus;
+    return serviceStatus_;
 }
+
 Status CapiCv2xRadio::registerListener(std::weak_ptr<ICv2xRadioListener> listener)
 {
     auto sp = listener.lock();
@@ -342,6 +234,21 @@ Status CapiCv2xRadio::deregisterListener(std::weak_ptr<ICv2xRadioListener> liste
         return Status::SUCCESS;
     } else  {
         return Status::NOSUCH;
+    }
+}
+
+void CapiCv2xRadio::getAvailableListeners(std::vector<std::weak_ptr<ICv2xRadioListener>> &vec) {
+    // Entering critical section, copy lockable shared_ptr from global listener
+    std::lock_guard<std::mutex> lock(listenersMutex_);
+    for (auto it = listeners_.begin(); it != listeners_.end();) {
+        auto sp = (*it).lock();
+        if (sp) {
+            vec.emplace_back(sp);
+            ++it;
+        } else {
+            // if we unable to lock the listener, remove it
+            it = listeners_.erase(it);
+        }
     }
 }
 
@@ -1336,12 +1243,36 @@ bool CapiCv2xRadio::isInitialized() const
 
 bool CapiCv2xRadio::isReady() const
 {
-    return false;
+    return serviceStatus_ == common::ServiceStatus::SERVICE_AVAILABLE ? true : false;
 }
 
 std::future<telux::common::Status> CapiCv2xRadio::onReady()
 {
     return std::future<telux::common::Status>();
+}
+
+void CapiCv2xRadio::cv2xStatusCallback(telux::cv2x::Cv2xStatusEx status) {
+    COMMONAPI_DEBUG("CapiCv2xRadioManager::cv2xStatusCallback");
+    if (status.status.rxStatus == telux::cv2x::Cv2xStatusType::INACTIVE ||
+        status.status.txStatus == telux::cv2x::Cv2xStatusType::INACTIVE) {
+        COMMONAPI_INFO("cv2x radio status inactive");
+    }
+
+    std::vector<std::weak_ptr<ICv2xRadioListener>> listeners;
+    getAvailableListeners(listeners);
+    for (auto &listener : listeners) {
+        auto sp = std::dynamic_pointer_cast<ICv2xRadioListener>(listener.lock());
+        if (sp) {
+            sp->onStatusChanged(status.status);
+            sp->onStatusChanged(status);
+        }
+    }
+}
+
+telux::common::Status CapiCv2xRadio::onCv2xStatusExChange(
+    const capicv2x::Cv2xRadioTypes::Cv2xStatusEx &cv2xStatusEx) {
+    Cv2xStatusEx stEx = Capi2teluxHelper::capi2teluxCv2xStatusEx(cv2xStatusEx);
+    cv2xStatusCallback(stEx);
 }
 
 }  // namespace cv2x

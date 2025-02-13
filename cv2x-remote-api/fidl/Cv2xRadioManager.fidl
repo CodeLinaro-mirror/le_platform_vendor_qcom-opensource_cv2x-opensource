@@ -11,17 +11,17 @@ interface Cv2xRadioManager extends Cv2xRadioTypes {
 
     version { major 1 minor 0 }
 
+    broadcast cv2xStatusEx {
+        out {
+            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xStatusEx statusEx
+        }
+    }
+
     method GetServiceStatus {
         out {
             commonapi.telux.common.CommonDefines.ServiceStatus status
         }
         error commonapi.telux.common.CommonDefines.ErrorCode
-    }
-
-    broadcast currentCv2xStatus {
-        out {
-            commonapi.telux.cv2x.Cv2xRadioTypes.Cv2xStatus status
-        }
     }
 
     method startCv2x {

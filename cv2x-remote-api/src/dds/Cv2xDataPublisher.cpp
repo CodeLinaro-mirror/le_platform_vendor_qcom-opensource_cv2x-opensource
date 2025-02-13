@@ -20,6 +20,9 @@
 #include <thread>
 #include <chrono>
 
+#define CONN_INCREASE (1)
+#define CONN_DECREASE (-1)
+
 using namespace eprosima::fastdds::dds;
 
 Cv2xDataPublisher::Cv2xDataPublisher()
@@ -31,23 +34,36 @@ Cv2xDataPublisher::Cv2xDataPublisher()
 {
 }
 
-Cv2xDataPublisher::~Cv2xDataPublisher()
-{
-    if (udSockets[UD_SOCK_CLIENT_ID] >= 0) {
-        if (shutdown(udSockets[UD_SOCK_CLIENT_ID], SHUT_RD) == -1) {
-            int temp_error = errno;
-            std::cout << "Failed to shutdown read direction " << temp_error << std::endl;
+void Cv2xDataPublisher::shutdownUds() {
+    {
+        std::lock_guard<std::mutex> lock(udsMutex_);
+        if (udSockets[UD_SOCK_CLIENT_ID] >= 0) {
+            if (shutdown(udSockets[UD_SOCK_CLIENT_ID], SHUT_RD) == -1)
+            {
+                int temp_error = errno;
+                std::cout << "Failed to shutdown read direction " << temp_error << std::endl;
+            }
         }
-    }
-
-    if (udSockets[UD_SOCK_SERVER_ID] >= 0) {
-        close(udSockets[UD_SOCK_SERVER_ID]);
+        if (udSockets[UD_SOCK_SERVER_ID] >= 0) {
+            close(udSockets[UD_SOCK_SERVER_ID]);
+            udSockets[UD_SOCK_SERVER_ID] = -1;
+        }
     }
 
     if (td.joinable()) {
         td.join();
     }
+    std::cout << "shutdown completed." << std::endl;
+}
 
+
+Cv2xDataPublisher::~Cv2xDataPublisher()
+{
+    {
+        std::lock_guard<std::mutex> lock(udsMutex_);
+        udsCv_.notify_all();
+    }
+    shutdownUds();
     if (writer_ != nullptr) {
         publisher_->delete_datawriter(writer_);
     }
@@ -107,16 +123,19 @@ bool Cv2xDataPublisher::init()
     }
 
     std::cout << "Cv2xData DataWriter created." << std::endl;
-
+    auto res = true;
     if (not rxSub_) {
         //create Unix domain socket if it's called from client side
         if (socketpair(AF_UNIX, SOCK_DGRAM, 0, udSockets) < 0) {
-            udSockets[0] = udSockets[1] = -1;
+            udSockets[0] = udSockets[1] = -2;
             std::cout << "Failed to create socket pair " << strerror(errno) << std::endl;
-            return false;
+            res = false;
         }
+        std::lock_guard<std::mutex> lock(udsMutex_);
+        udsCv_.notify_all();
     }
-    return true;
+
+    return res;
 }
 
 void Cv2xDataPublisher::on_publication_matched(
@@ -130,20 +149,20 @@ void Cv2xDataPublisher::on_publication_matched(
         this->handleTxDDS();
     };
 
-    if (info.current_count_change == 1) {
+    if (info.current_count_change == CONN_INCREASE) {
         currentMatchedCount = info.current_count;
-        std::cout << "DataWriter matched." << std::endl;
+        std::cout << "DataWriter CONN_INCREASE." << std::endl;
         if (rxSub_) {
             td = std::thread(FuncHandleRxDDS);
         } else {
             td = std::thread(FuncHandleTxDDS);
         }
-    } else if (info.current_count_change == -1) {
+    } else if (info.current_count_change == CONN_DECREASE) {
         currentMatchedCount = info.current_count;
-        std::cout << "DataWriter unmatched." << std::endl;
+        std::cout << "DataWriter CONN_DECREASE. Count " << currentMatchedCount << std::endl;
     } else {
         std::cout << info.current_count_change
-                  << " is not a valid value for PublicationMatchedStatus current count change" << std::endl;
+                  << " is not a valid value for current count change" << std::endl;
     }
 }
 
@@ -211,12 +230,19 @@ void Cv2xDataPublisher::handleTxDDS(void)
     msg.msg_control = 0;
     msg.msg_controllen = 0;
 
+    {
+        std::unique_lock<std::mutex> lock(udsMutex_);
+        udsCv_.wait(lock, [this]{ return udSockets[UD_SOCK_CLIENT_ID] != -1; });
+        if (udSockets[UD_SOCK_CLIENT_ID] < 0) {
+            return;
+        }
+    }
+
     while (currentMatchedCount) {
         //receive packets from UDS
         if ((rlen = recvmsg(udSockets[UD_SOCK_CLIENT_ID], &msg, 0)) <= 0) {
-            close(udSockets[UD_SOCK_CLIENT_ID]);
             std::cout << "uds rx failed " << strerror(errno) << std::endl;
-            return;
+            break;
         }
 
         Cv2xData data;
@@ -224,5 +250,11 @@ void Cv2xDataPublisher::handleTxDDS(void)
         std::vector<uint8_t> msg(p, p + rlen);
         data.msg(std::move(msg));
         writer_->write(&data);
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(udsMutex_);
+        close(udSockets[UD_SOCK_CLIENT_ID]);
+        udSockets[UD_SOCK_CLIENT_ID] = -1;
     }
 }

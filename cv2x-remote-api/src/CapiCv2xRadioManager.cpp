@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <thread>
+#include <unistd.h>
+
 #include <CommonAPI/CommonAPI.hpp>
 #include "CapiCv2xRadioManager.hpp"
 #include "CapiCv2xRadio.hpp"
-
-#define PROXY_TIMEOUT_MS 50000
+#include "Cv2xRemoteRadioHelper.hpp"
 
 namespace telux {
-
 namespace cv2x {
 
 std::shared_ptr<telux::common::AsyncTaskQueue<void>> clientTaskQ
@@ -21,16 +21,43 @@ CapiCv2xRadioManager::CapiCv2xRadioManager()
     taskQ_ = clientTaskQ;
 }
 
-CapiCv2xRadioManager::~CapiCv2xRadioManager()
-{
-    COMMONAPI_DEBUG("CapiRadioManager::Descrustor");
+CapiCv2xRadioManager::~CapiCv2xRadioManager() {
+    COMMONAPI_DEBUG("~CapiCv2xRadioManager");
     {
         std::lock_guard<std::mutex> lck(exitMutex_);
         exiting_ = true;
         exitCv_.notify_all();
     }
+    if (proxy_) {
+        proxy_->getProxyStatusEvent().unsubscribe(subscription_);
+        subscription_ = UINT32_MAX;
+        proxy_ = nullptr;
+    }
+}
 
-    proxy_ = nullptr;
+void CapiCv2xRadioManager::onConnectionChange(const CommonAPI::AvailabilityStatus& s) {
+    COMMONAPI_DEBUG("CapiCv2xRadioManager::onConnectionChange ", static_cast<int>(s));
+    if (s == CommonAPI::AvailabilityStatus::AVAILABLE) {
+        auto f = [this]() {
+            onServiceStatusChange(telux::common::ServiceStatus::SERVICE_AVAILABLE);
+            /*upon service available, retrieve & update latest cv2x status*/
+            requestCv2xStatus(std::bind(&CapiCv2xRadioManager::cv2xStatusCallback, this,
+                std::placeholders::_1, std::placeholders::_2));
+        };
+        auto sp = taskQ_.lock();
+        if(sp) {
+            sp->add(f, myself_, std::launch::async);
+        }
+    } else if (s == CommonAPI::AvailabilityStatus::NOT_AVAILABLE) {
+        subSysStatus_ = telux::common::ServiceStatus::SERVICE_UNAVAILABLE;
+        onServiceStatusChange(telux::common::ServiceStatus::SERVICE_UNAVAILABLE);
+
+        Cv2xStatusEx cv2xStatus;
+        telux::cv2x::Capi2teluxHelper::resetV2xStatusEx(cv2xStatus);
+        cv2xStatusCallback(cv2xStatus, telux::common::ErrorCode::SUCCESS);
+    } else {
+        return;
+    }
 }
 
 void CapiCv2xRadioManager::init(InitResponseCb callback)
@@ -46,70 +73,80 @@ void CapiCv2xRadioManager::init(InitResponseCb callback)
 }
 void CapiCv2xRadioManager::initSync(InitResponseCb callback)
 {
+    ServiceStatus ss = ServiceStatus::SERVICE_FAILED;
     unsigned int count = PROXY_TIMEOUT_MS;
-    std::shared_ptr<CommonAPI::Runtime> runtime = CommonAPI::Runtime::get();
-
-    std::string domain = "local";
-    std::string instance = "commonapi.telux.cv2x.Cv2xRadioManager";
-    proxy_ =
-        runtime->buildProxy<capicv2x::Cv2xRadioManagerProxy>(domain, instance, "client-Cv2xRadioManager");
-
     const char *env_value = std::getenv("CV2X_REMOTE_CONNECT_TIMEOUT");
-    if (!env_value) {
-        COMMONAPI_INFO("Not set CV2X_REMOTE_CONNECT_TIMEOUT, use default value");
-    } else {
-        try {
-            count = std::stoul(env_value);
-        } catch (const std::invalid_argument& e) {
-            COMMONAPI_ERROR("Invalid argument: ", e.what());
-        } catch (const std::out_of_range& e) {
-            COMMONAPI_ERROR("out of range: ", e.what());
-        }
-    }
-    /*
-     * Here we wait for the vsomeip layer client to connect to the service.
-     * Default value is 500ms, which can be set by the environment variable
-     * CV2X_REMOTE_CONNECT_TIMEOUT
-    */
-    for (unsigned int i = 0; i < count; i++) {
-        std::unique_lock<std::mutex> lck(exitMutex_);
-        if (not exitCv_.wait_for(lck, std::chrono::microseconds(10), [this] {
-                return proxy_->isAvailable() || exiting_; })) {
-            // Timeout will continue
-            continue;
-        } else {
-            // Connection or progress exit will break
+
+    do {
+        if (false == initProxy()) {
             break;
         }
-    }
 
-    if (!proxy_->isAvailable() || exiting_) {
-        COMMONAPI_ERROR("Exit or connect timeout:proxy not available");
-        if (callback) {
-            callback(telux::common::ServiceStatus::SERVICE_FAILED);
-        }
-        return;
-    }
-    COMMONAPI_INFO("Cv2xRadioManager Proxy registration succesful");
-    proxy_->getCurrentCv2xStatusEvent().subscribe([&](const capicv2x::Cv2xRadioTypes::Cv2xStatus &status) {
-            Cv2xStatus st = Capi2teluxHelper::capi2teluxCv2xStatus(status);
-            std::lock_guard<std::mutex> lock(listenersMutex_);
-            for (auto listener : listeners_) {
-                auto sp = listener.lock();
-                if (sp) {
-                    sp->onStatusChanged(st);
-                }
+        if (!env_value) {
+            COMMONAPI_INFO("Not set CV2X_REMOTE_CONNECT_TIMEOUT, use default value");
+        } else {
+            try {
+                count = std::stoul(env_value);
+            } catch (const std::invalid_argument& e) {
+                COMMONAPI_ERROR("Invalid argument: ", e.what());
+            } catch (const std::out_of_range& e) {
+                COMMONAPI_ERROR("out of range: ", e.what());
             }
-    });
+        }
+
+        /*
+         * Here we wait for the vsomeip layer client to connect to the service.
+         * Default value is 500ms, which can be set by the environment variable
+         * CV2X_REMOTE_CONNECT_TIMEOUT
+        */
+        for (unsigned int i = 0; i < count; i++) {
+            std::unique_lock<std::mutex> lck(exitMutex_);
+            if (not exitCv_.wait_for(lck, std::chrono::microseconds(10), [this] {
+                return proxy_->isAvailable() || exiting_; })) {
+                // Timeout will continue
+                continue;
+            } else {
+                // Connection or progress exit will break
+                break;
+            }
+        }
+
+        if (!proxy_->isAvailable() || exiting_) {
+            COMMONAPI_ERROR("Exit or connect timeout:proxy not available");
+            break;
+        }
+        ss = getServiceStatus();
+    } while (0);
 
     if (callback) {
-        //SERVICE_AWAILABLE only means we created proxy and found service on the service
-        //provider, the caller still need to call "getServiceStatus" to find out if remote
-        //RadioManager is in SERVICE_AWAILABLE state or not.
-        //callback(ServiceStatus::SERVICE_AVAILABLE);
-        callback(getServiceStatus());
+        callback(ss);
     }
 }
+
+bool CapiCv2xRadioManager::initProxy() {
+    std::shared_ptr<CommonAPI::Runtime> runtime = CommonAPI::Runtime::get();
+    std::string domain = "local";
+    std::string instance = "commonapi.telux.cv2x.Cv2xRadioManager";
+    std::string connection = "client-Cv2xRadioManager";
+
+    if (proxy_) {
+        return false;
+    }
+    proxy_ = runtime->buildProxy<capicv2x::Cv2xRadioManagerProxy>(domain, instance, connection);
+    if (not proxy_) {
+        COMMONAPI_INFO("proxy_ == null, exiting");
+        return false;
+    }
+
+    subscription_ = proxy_->getProxyStatusEvent().subscribe(std::bind(
+        &CapiCv2xRadioManager::onConnectionChange, this, std::placeholders::_1));
+    proxy_->getCv2xStatusExEvent().subscribe(std::bind(
+        &CapiCv2xRadioManager::onCv2xStatusExChange, this, std::placeholders::_1));
+
+    COMMONAPI_INFO("Cv2xRadioManager Proxy registration succesful");
+    return true;
+}
+
 ServiceStatus CapiCv2xRadioManager::getServiceStatus(void)
 {
     CommonAPI::CallStatus callStatus;
@@ -181,9 +218,9 @@ std::shared_ptr<ICv2xRadio> CapiCv2xRadioManager::getCv2xRadio(TrafficCategory c
                 std::thread th(f);
                 th.detach();
             }
-            COMMONAPI_DEBUG(" returns existing radio");
-            return radio;
         }
+        COMMONAPI_DEBUG(" returns existing radio");
+        return radio;
     }
     //no radio or radio in bad state. make a new instance
     COMMONAPI_DEBUG("creating new cv2x radio instance");
@@ -643,6 +680,58 @@ telux::common::Status CapiCv2xRadioManager::injectCoarseUtcTime(uint64_t utc, te
 
     return teluxStatus;
 };
+
+void CapiCv2xRadioManager::getAvailableListeners(std::vector<std::weak_ptr<ICv2xListener>> &vec) {
+    // Entering critical section, copy lockable shared_ptr from global listener
+    std::lock_guard<std::mutex> lock(listenersMutex_);
+    for (auto it = listeners_.begin(); it != listeners_.end();) {
+        auto sp = (*it).lock();
+        if (sp) {
+            vec.emplace_back(sp);
+            ++it;
+        } else {
+            // if we unable to lock the listener, remove it
+            it = listeners_.erase(it);
+        }
+    }
+}
+
+telux::common::Status CapiCv2xRadioManager::onServiceStatusChange(
+    const telux::common::ServiceStatus subsysStatus) {
+    std::vector<std::weak_ptr<ICv2xListener>> listeners;
+    COMMONAPI_INFO("CapiCv2xRadioManager::onServiceStatusChange ",
+        static_cast<int>(subsysStatus));
+    getAvailableListeners(listeners);
+    for (auto &listener : listeners) {
+        auto sp = std::dynamic_pointer_cast<ICv2xListener>(listener.lock());
+        if (sp) {
+            sp->onServiceStatusChange(subsysStatus);
+        }
+    }
+}
+
+void CapiCv2xRadioManager::cv2xStatusCallback(telux::cv2x::Cv2xStatusEx status,
+    telux::common::ErrorCode error) {
+    COMMONAPI_DEBUG("CapiCv2xRadioManager::cv2xStatusCallback errCode ",
+        static_cast<int>(error));
+    if (ErrorCode::SUCCESS == error) {
+        std::vector<std::weak_ptr<ICv2xListener>> listeners;
+        getAvailableListeners(listeners);
+        for (auto &listener : listeners) {
+            auto sp = std::dynamic_pointer_cast<ICv2xListener>(listener.lock());
+            if (sp) {
+                sp->onStatusChanged(status.status);
+                sp->onStatusChanged(status);
+            }
+        }
+    }
+}
+
+telux::common::Status CapiCv2xRadioManager::onCv2xStatusExChange(
+    const capicv2x::Cv2xRadioTypes::Cv2xStatusEx &cv2xStatusEx) {
+    Cv2xStatusEx stEx = Capi2teluxHelper::capi2teluxCv2xStatusEx(cv2xStatusEx);
+    cv2xStatusCallback(stEx, telux::common::ErrorCode::SUCCESS);
+}
 
 }  // namespace cv2x
 
