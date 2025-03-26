@@ -12,6 +12,7 @@ find_package(fastrtps 2.12 REQUIRED)
 find_package(CommonAPI 3.2.0 REQUIRED NO_SYSTEM_ENVIRONMENT_PATH NO_CMAKE_SYSTEM_PATH)
 find_package(CommonAPI-SomeIP 3.2.0 REQUIRED)
 find_package(vsomeip3 3.1.0 REQUIRED)
+find_library(SPLITSSRVICE_SOMIP NAMES SplitsService-someip REQUIRED)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-pragmas")
@@ -52,7 +53,7 @@ target_include_directories(${SPLITS_CORE_TARGET} PRIVATE
     ${SYS_INCLUDE}/splits-dds-gen
 )
 target_link_libraries(${SPLITS_CORE_TARGET} fastcdr fastrtps splits_radio
-    telux_cv2x telux_loc telux_squish telux_sec viicsec pthread rt)
+    telux_cv2x telux_loc telux_squish telux_sec viicsec pthread rt ${SPLITSSRVICE_SOMIP})
 
 install(TARGETS ${SPLITS_CORE_TARGET}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
