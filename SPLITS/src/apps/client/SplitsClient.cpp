@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 /**
@@ -16,7 +16,7 @@
  *
  * 3. Connects to NTRIP server (or read from rtcm data source file), send the RTCM message via
  * fast-dds interface (SplitsDataPublisher), the message is idl format, unencoded.
- * 
+ *
  */
 #include <sys/types.h>
 #include <stdlib.h>
@@ -27,10 +27,13 @@
 #include "v2xMsgTypes.hpp"
 #include "SplitsCore.hpp"
 
-#include "SplitsDataSubscriber.hpp"
-#include "SplitsClientDataPublisher.hpp"
+#include "data/SplitsDataSubscriberSae.hpp"
+#include "data/SplitsDataSubscriberCsae.hpp"
+#include "data/SplitsClientDataPublisherSae.hpp"
+#include "data/SplitsClientDataPublisherCsae.hpp"
 #include "SplitsNtrip.hpp"
 #include "v2xSaeMsgLogger.hpp"
+#include "v2xCsaeMsgLogger.hpp"
 #include "SplitsConfigStubImpl.hpp"
 #include "SplitsConfigFile.hpp"
 #include "SplitsRemoteRTCM.hpp"
@@ -38,24 +41,39 @@
 
 using SPLITS::v2xMsg;
 using SPLITS::v2xSaeMsgLogger;
+using SPLITS::v2xCsaeMsgLogger;
 using SPLITS::Config::SplitsConfigFile;
 using SPLITS::Config::SplitsConfigStubImpl;
 using SPLITS::Core::Role;
 using SPLITS::MsgSource;
 using SPLITS::MsgFormat;
 using SPLITS::Interface::SplitsDataSubscriber;
+using SPLITS::Interface::SplitsDataSubscriberSae;
+using SPLITS::Interface::SplitsDataSubscriberCsae;
 using SPLITS::Interface::SplitsClientDataPublisher;
+using SPLITS::Interface::SplitsClientDataPublisherSae;
+using SPLITS::Interface::SplitsClientDataPublisherCsae;
 using SPLITS::Interface::SplitsDataListener;
+using SPLITS::Interface::SplitsDataListenerSae;
+using SPLITS::Interface::SplitsDataListenerCsae;
+
 
 static char pduBuf[1024];
 int pduBufLen = 1024;
 v2xSaeMsgLogger logger(&std::cout);
+v2xCsaeMsgLogger csaelogger(&std::cout);
 
-class SampleDataListener : public SplitsDataListener {
+class SampleDataListenerSae : public SplitsDataListenerSae {
     void onBsmReady(std::shared_ptr<J2735::idl::BasicSafetyMessage> msg) {
         logger.logMsg(*msg);
     }
     void onPduReady(const J2735::idl::MsgData &pdu) {
+    }
+};
+
+class SampleDataListenerCsae : public SplitsDataListenerCsae {
+    void onBsmReady(std::shared_ptr<Csae::idl::BasicSafetyMessage> msg) {
+        csaelogger.logMsg(*msg);
     }
 };
 
@@ -94,8 +112,13 @@ int main(int argc, char **argv)
     CommonAPI::Runtime::setProperty("LogApplication", "SplitsService");
     CommonAPI::Runtime::setProperty("LibraryBase", "SplitsService");
 
-    while (( c = getopt(argc, argv, "hf:p:m:")) != -1 ) {
+    bool csae = false;
+    while (( c = getopt(argc, argv, "hf:p:m:c")) != -1 ) {
         switch(c) {
+            case 'c':
+                csae = true;
+                std::cout << "CCSA V2X stack" << std::endl;
+                break;
             case 'f':
                 if (optarg) {
                     cfgFileName = optarg;
@@ -122,7 +145,7 @@ int main(int argc, char **argv)
                 break;
             case 'h':
             default:
-                std::cout << "Usage: splits_client -f cfgFileName" << std::endl;
+                std::cout << "Usage: splits_client -f cfgFileName [-c for CCSA]" << std::endl;
                 return -1;
         }
     }
@@ -130,7 +153,7 @@ int main(int argc, char **argv)
     }
 
     std::shared_ptr<SplitsConfig::SplitsConfigData> cfg = std::make_shared<SplitsConfig::SplitsConfigData>();
-    SplitsConfigFile cfgFile(cfg);
+    SplitsConfigFile cfgFile(cfg, csae);
     if (cfgFile.loadConfigFromFile(cfgFileName)) {
         std::cerr << "Failed to load config file" << std::endl;
         return -1;
@@ -152,19 +175,33 @@ int main(int argc, char **argv)
     std::cout << "registed configService " << std::endl;
 
 
+    std::shared_ptr<SplitsDataSubscriber> sub = nullptr;
+    std::shared_ptr<SplitsClientDataPublisher> pub = nullptr;
+    std::shared_ptr<SplitsDataListener> listener = nullptr;
+
+    if (csae) {
+        sub = std::make_shared<SplitsDataSubscriberCsae>();
+        pub = std::make_shared<SplitsClientDataPublisherCsae>();
+        listener = std::make_shared<SampleDataListenerCsae>();
+    } else {
+        sub = std::make_shared<SplitsDataSubscriberSae>();
+        pub = std::make_shared<SplitsClientDataPublisherSae>();
+        listener = std::make_shared<SampleDataListenerSae>();
+    }
+    if (!sub or !pub or !listener) {
+        COMMONAPI_ERROR("Failed to create pub sub");
+        return -1;
+    }
     //Receive msg via subscriber interface. only showing bsm message
-    std::shared_ptr<SplitsDataSubscriber> sub = std::make_shared<SplitsDataSubscriber>();
     if (sub->init(std::string("SERVICE")) == false) {
         COMMONAPI_ERROR("Failed to init dds subscriber");
         return -1;
     }
-    auto listener = std::make_shared<SampleDataListener>();
     if (sub->registerListener(listener) == 0 ) {
         COMMONAPI_INFO("data listener registered");
     }
 
     //Transmit message via client data publisher interface.
-    std::shared_ptr<SplitsClientDataPublisher> pub = std::make_shared<SplitsClientDataPublisher>();
     if (pub->init(std::string("CLIENT")) == false) {
         COMMONAPI_ERROR("Failed to init dds publisher");
         return -1;

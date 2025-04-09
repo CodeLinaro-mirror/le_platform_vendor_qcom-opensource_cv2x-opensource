@@ -176,6 +176,186 @@ J2735::idl::LaneTypeAttributes& LaneAttributes::laneType()
 
 
 
+Connection::Connection()
+{
+}
+
+Connection::~Connection()
+{
+}
+
+Connection::Connection(
+        const Connection& x)
+{
+    m_remoteIntersection = x.m_remoteIntersection;
+    m_connectingLane = x.m_connectingLane;
+    m_phaseId = x.m_phaseId;
+}
+
+Connection::Connection(
+        Connection&& x) noexcept
+{
+    m_remoteIntersection = std::move(x.m_remoteIntersection);
+    m_connectingLane = std::move(x.m_connectingLane);
+    m_phaseId = x.m_phaseId;
+}
+
+Connection& Connection::operator =(
+        const Connection& x)
+{
+
+    m_remoteIntersection = x.m_remoteIntersection;
+    m_connectingLane = x.m_connectingLane;
+    m_phaseId = x.m_phaseId;
+    return *this;
+}
+
+Connection& Connection::operator =(
+        Connection&& x) noexcept
+{
+
+    m_remoteIntersection = std::move(x.m_remoteIntersection);
+    m_connectingLane = std::move(x.m_connectingLane);
+    m_phaseId = x.m_phaseId;
+    return *this;
+}
+
+bool Connection::operator ==(
+        const Connection& x) const
+{
+    return (m_remoteIntersection == x.m_remoteIntersection &&
+           m_connectingLane == x.m_connectingLane &&
+           m_phaseId == x.m_phaseId);
+}
+
+bool Connection::operator !=(
+        const Connection& x) const
+{
+    return !(*this == x);
+}
+
+/*!
+ * @brief This function copies the value in member remoteIntersection
+ * @param _remoteIntersection New value to be copied in member remoteIntersection
+ */
+void Connection::remoteIntersection(
+        const Csae::idl::NodeReferenceID& _remoteIntersection)
+{
+    m_remoteIntersection = _remoteIntersection;
+}
+
+/*!
+ * @brief This function moves the value in member remoteIntersection
+ * @param _remoteIntersection New value to be moved in member remoteIntersection
+ */
+void Connection::remoteIntersection(
+        Csae::idl::NodeReferenceID&& _remoteIntersection)
+{
+    m_remoteIntersection = std::move(_remoteIntersection);
+}
+
+/*!
+ * @brief This function returns a constant reference to member remoteIntersection
+ * @return Constant reference to member remoteIntersection
+ */
+const Csae::idl::NodeReferenceID& Connection::remoteIntersection() const
+{
+    return m_remoteIntersection;
+}
+
+/*!
+ * @brief This function returns a reference to member remoteIntersection
+ * @return Reference to member remoteIntersection
+ */
+Csae::idl::NodeReferenceID& Connection::remoteIntersection()
+{
+    return m_remoteIntersection;
+}
+
+
+/*!
+ * @brief This function copies the value in member connectingLane
+ * @param _connectingLane New value to be copied in member connectingLane
+ */
+void Connection::connectingLane(
+        const eprosima::fastcdr::optional<J2735::idl::ConnectingLane>& _connectingLane)
+{
+    m_connectingLane = _connectingLane;
+}
+
+/*!
+ * @brief This function moves the value in member connectingLane
+ * @param _connectingLane New value to be moved in member connectingLane
+ */
+void Connection::connectingLane(
+        eprosima::fastcdr::optional<J2735::idl::ConnectingLane>&& _connectingLane)
+{
+    m_connectingLane = std::move(_connectingLane);
+}
+
+/*!
+ * @brief This function returns a constant reference to member connectingLane
+ * @return Constant reference to member connectingLane
+ */
+const eprosima::fastcdr::optional<J2735::idl::ConnectingLane>& Connection::connectingLane() const
+{
+    return m_connectingLane;
+}
+
+/*!
+ * @brief This function returns a reference to member connectingLane
+ * @return Reference to member connectingLane
+ */
+eprosima::fastcdr::optional<J2735::idl::ConnectingLane>& Connection::connectingLane()
+{
+    return m_connectingLane;
+}
+
+
+/*!
+ * @brief This function copies the value in member phaseId
+ * @param _phaseId New value to be copied in member phaseId
+ */
+void Connection::phaseId(
+        const eprosima::fastcdr::optional<Csae::idl::PhaseID>& _phaseId)
+{
+    m_phaseId = _phaseId;
+}
+
+/*!
+ * @brief This function moves the value in member phaseId
+ * @param _phaseId New value to be moved in member phaseId
+ */
+void Connection::phaseId(
+        eprosima::fastcdr::optional<Csae::idl::PhaseID>&& _phaseId)
+{
+    m_phaseId = std::move(_phaseId);
+}
+
+/*!
+ * @brief This function returns a constant reference to member phaseId
+ * @return Constant reference to member phaseId
+ */
+const eprosima::fastcdr::optional<Csae::idl::PhaseID>& Connection::phaseId() const
+{
+    return m_phaseId;
+}
+
+/*!
+ * @brief This function returns a reference to member phaseId
+ * @return Reference to member phaseId
+ */
+eprosima::fastcdr::optional<Csae::idl::PhaseID>& Connection::phaseId()
+{
+    return m_phaseId;
+}
+
+
+
+
+
+
+
 Lane::Lane()
 {
 }
@@ -190,6 +370,10 @@ Lane::Lane(
     m_laneID = x.m_laneID;
     m_laneWidth = x.m_laneWidth;
     m_laneAttributes = x.m_laneAttributes;
+    m_maneuvers = x.m_maneuvers;
+    m_connectsTo = x.m_connectsTo;
+    m_speedLimits = x.m_speedLimits;
+    m_points = x.m_points;
 }
 
 Lane::Lane(
@@ -198,6 +382,10 @@ Lane::Lane(
     m_laneID = x.m_laneID;
     m_laneWidth = x.m_laneWidth;
     m_laneAttributes = std::move(x.m_laneAttributes);
+    m_maneuvers = std::move(x.m_maneuvers);
+    m_connectsTo = std::move(x.m_connectsTo);
+    m_speedLimits = std::move(x.m_speedLimits);
+    m_points = std::move(x.m_points);
 }
 
 Lane& Lane::operator =(
@@ -207,6 +395,10 @@ Lane& Lane::operator =(
     m_laneID = x.m_laneID;
     m_laneWidth = x.m_laneWidth;
     m_laneAttributes = x.m_laneAttributes;
+    m_maneuvers = x.m_maneuvers;
+    m_connectsTo = x.m_connectsTo;
+    m_speedLimits = x.m_speedLimits;
+    m_points = x.m_points;
     return *this;
 }
 
@@ -217,6 +409,10 @@ Lane& Lane::operator =(
     m_laneID = x.m_laneID;
     m_laneWidth = x.m_laneWidth;
     m_laneAttributes = std::move(x.m_laneAttributes);
+    m_maneuvers = std::move(x.m_maneuvers);
+    m_connectsTo = std::move(x.m_connectsTo);
+    m_speedLimits = std::move(x.m_speedLimits);
+    m_points = std::move(x.m_points);
     return *this;
 }
 
@@ -225,7 +421,11 @@ bool Lane::operator ==(
 {
     return (m_laneID == x.m_laneID &&
            m_laneWidth == x.m_laneWidth &&
-           m_laneAttributes == x.m_laneAttributes);
+           m_laneAttributes == x.m_laneAttributes &&
+           m_maneuvers == x.m_maneuvers &&
+           m_connectsTo == x.m_connectsTo &&
+           m_speedLimits == x.m_speedLimits &&
+           m_points == x.m_points);
 }
 
 bool Lane::operator !=(
@@ -338,6 +538,162 @@ const eprosima::fastcdr::optional<Csae::idl::LaneAttributes>& Lane::laneAttribut
 eprosima::fastcdr::optional<Csae::idl::LaneAttributes>& Lane::laneAttributes()
 {
     return m_laneAttributes;
+}
+
+
+/*!
+ * @brief This function copies the value in member maneuvers
+ * @param _maneuvers New value to be copied in member maneuvers
+ */
+void Lane::maneuvers(
+        const eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& _maneuvers)
+{
+    m_maneuvers = _maneuvers;
+}
+
+/*!
+ * @brief This function moves the value in member maneuvers
+ * @param _maneuvers New value to be moved in member maneuvers
+ */
+void Lane::maneuvers(
+        eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>&& _maneuvers)
+{
+    m_maneuvers = std::move(_maneuvers);
+}
+
+/*!
+ * @brief This function returns a constant reference to member maneuvers
+ * @return Constant reference to member maneuvers
+ */
+const eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& Lane::maneuvers() const
+{
+    return m_maneuvers;
+}
+
+/*!
+ * @brief This function returns a reference to member maneuvers
+ * @return Reference to member maneuvers
+ */
+eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& Lane::maneuvers()
+{
+    return m_maneuvers;
+}
+
+
+/*!
+ * @brief This function copies the value in member connectsTo
+ * @param _connectsTo New value to be copied in member connectsTo
+ */
+void Lane::connectsTo(
+        const eprosima::fastcdr::optional<Csae::idl::ConnectsToList>& _connectsTo)
+{
+    m_connectsTo = _connectsTo;
+}
+
+/*!
+ * @brief This function moves the value in member connectsTo
+ * @param _connectsTo New value to be moved in member connectsTo
+ */
+void Lane::connectsTo(
+        eprosima::fastcdr::optional<Csae::idl::ConnectsToList>&& _connectsTo)
+{
+    m_connectsTo = std::move(_connectsTo);
+}
+
+/*!
+ * @brief This function returns a constant reference to member connectsTo
+ * @return Constant reference to member connectsTo
+ */
+const eprosima::fastcdr::optional<Csae::idl::ConnectsToList>& Lane::connectsTo() const
+{
+    return m_connectsTo;
+}
+
+/*!
+ * @brief This function returns a reference to member connectsTo
+ * @return Reference to member connectsTo
+ */
+eprosima::fastcdr::optional<Csae::idl::ConnectsToList>& Lane::connectsTo()
+{
+    return m_connectsTo;
+}
+
+
+/*!
+ * @brief This function copies the value in member speedLimits
+ * @param _speedLimits New value to be copied in member speedLimits
+ */
+void Lane::speedLimits(
+        const eprosima::fastcdr::optional<J2735::idl::SpeedLimitList>& _speedLimits)
+{
+    m_speedLimits = _speedLimits;
+}
+
+/*!
+ * @brief This function moves the value in member speedLimits
+ * @param _speedLimits New value to be moved in member speedLimits
+ */
+void Lane::speedLimits(
+        eprosima::fastcdr::optional<J2735::idl::SpeedLimitList>&& _speedLimits)
+{
+    m_speedLimits = std::move(_speedLimits);
+}
+
+/*!
+ * @brief This function returns a constant reference to member speedLimits
+ * @return Constant reference to member speedLimits
+ */
+const eprosima::fastcdr::optional<J2735::idl::SpeedLimitList>& Lane::speedLimits() const
+{
+    return m_speedLimits;
+}
+
+/*!
+ * @brief This function returns a reference to member speedLimits
+ * @return Reference to member speedLimits
+ */
+eprosima::fastcdr::optional<J2735::idl::SpeedLimitList>& Lane::speedLimits()
+{
+    return m_speedLimits;
+}
+
+
+/*!
+ * @brief This function copies the value in member points
+ * @param _points New value to be copied in member points
+ */
+void Lane::points(
+        const eprosima::fastcdr::optional<Csae::idl::PointList>& _points)
+{
+    m_points = _points;
+}
+
+/*!
+ * @brief This function moves the value in member points
+ * @param _points New value to be moved in member points
+ */
+void Lane::points(
+        eprosima::fastcdr::optional<Csae::idl::PointList>&& _points)
+{
+    m_points = std::move(_points);
+}
+
+/*!
+ * @brief This function returns a constant reference to member points
+ * @return Constant reference to member points
+ */
+const eprosima::fastcdr::optional<Csae::idl::PointList>& Lane::points() const
+{
+    return m_points;
+}
+
+/*!
+ * @brief This function returns a reference to member points
+ * @return Reference to member points
+ */
+eprosima::fastcdr::optional<Csae::idl::PointList>& Lane::points()
+{
+    return m_points;
 }
 
 

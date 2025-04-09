@@ -1,12 +1,11 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <cmath>
 #include "BsmMsgGenerator.hpp"
 #include "SplitsCodec.hpp"
-#include "v2xMsgSae.hpp"
 #include "SplitsFilter.hpp"
 
 using J2735::idl::BasicSafetyMessage;

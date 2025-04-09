@@ -7,8 +7,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE BOTH)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(TARGET splits_interface)
-
 # Find requirements
 find_package(fastcdr REQUIRED)
 find_package(fastrtps 2.12 REQUIRED)
@@ -21,31 +19,51 @@ find_package(vsomeip3 3.1.0 REQUIRED)
 #find_library(${SPLITS_DDS_GEN_LIB} NAMES splitsdds_gen REQUIRED)
 #message(STATUS "SPLITS_DDS_GEN_LIB: ${SPLITS_DDS_GEN_LIB}")
 
-if (${BUILD_TARGET} STREQUAL "client")
+if (${BUILD_TARGET} STREQUAL "client" OR ${BUILD_TARGET} STREQUAL "client_on_target")
+    set(TARGET splits_interface_client)
     set(TARGET_SOURCES
-        SplitsDataPubSub.cpp
-        SplitsDataSubscriber.cpp
-        SplitsDataPublisher.cpp
-        SplitsClientDataPublisher.cpp
+        data/SplitsDataPubSub.cpp
+        data/SplitsDataSubscriber.cpp
+        data/SplitsDataSubscriberSae.cpp
+        data/SplitsDataSubscriberCsae.cpp
+        data/SplitsDataPublisher.cpp
+        data/SplitsClientDataPublisherSae.cpp
+        data/SplitsClientDataPublisherCsae.cpp
     )
     add_library( ${TARGET} SHARED ${TARGET_SOURCES})
+if (${BUILD_TARGET} STREQUAL "client")
     target_include_directories(${TARGET} PRIVATE
         ${SPLITS_ROOT_PATH}/
         ${SPLITS_ROOT_PATH}/include
         ${SPLITS_ROOT_PATH}/src/core
         ${CMAKE_INSTALL_PREFIX}/include/
-        ${CMAKE_INSTALL_PREFIX}/include/splits-commonapi-gen/commonapi/core
-        ${CMAKE_INSTALL_PREFIX}/include/splits-commonapi-gen/commonapi/someip
+        ${CMAKE_INSTALL_PREFIX}/include/splits-commonapi-gen/core
+        ${CMAKE_INSTALL_PREFIX}/include/splits-commonapi-gen/someip
         ${CMAKE_INSTALL_PREFIX}/include/splits-dds-gen/
         ${COMMONAPI_INCLUDE_DIRS}
     )
 else()
+    target_include_directories(${TARGET} PRIVATE
+        ${SPLITS_ROOT_PATH}/
+        ${SPLITS_ROOT_PATH}/include
+        ${SPLITS_ROOT_PATH}/src/core
+        ${SYS_INCLUDE}/splits-commonapi-gen/core
+        ${SYS_INCLUDE}/splits-commonapi-gen/someip
+        ${SYS_INCLUDE}/splits-dds-gen
+        ${COMMONAPI_INCLUDE_DIRS}
+    )
+endif()
+else()
+set(TARGET splits_interface)
     set(TARGET_SOURCES
-        SplitsDataPubSub.cpp
-        SplitsDataSubscriber.cpp
-        SplitsDataPublisher.cpp
-        SplitsServiceDataPublisher.cpp
-        SplitsStatisticsStubImpl.cpp
+        data/SplitsDataPubSub.cpp
+        data/SplitsDataSubscriber.cpp
+        data/SplitsDataSubscriberSae.cpp
+        data/SplitsDataSubscriberCsae.cpp
+        data/SplitsDataPublisher.cpp
+        data/SplitsServiceDataPublisherSae.cpp
+        data/SplitsServiceDataPublisherCsae.cpp
+        stubs/SplitsStatisticsStubImpl.cpp
         vehicle/VehicleInterfaceLocal.cpp
         vehicle/VehicleInterfaceIdl.cpp
         location/KinematicsReceive.cpp

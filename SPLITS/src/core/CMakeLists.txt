@@ -32,7 +32,8 @@ set(SPLITS_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/SplitsWra.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SplitsRTCM.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SplitsNtrip.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/SplitsCoreDataListener.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/SplitsCoreDataListenerSae.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/SplitsCoreDataListenerCsae.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils.c
     ${SPLITS_ROOT_PATH}/config/SplitsConfigFile.cpp
     ${SPLITS_ROOT_PATH}/config/SplitsConfigIdl.cpp

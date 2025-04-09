@@ -19,6 +19,8 @@ set(LOGGER_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/SaeSdsmLogger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SaeRsmLogger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SaeSrmLogger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/v2xCsaeMsgLogger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/CsaeBsmLogger.cpp
 )
 
 add_library(${LOGGER_TARGET} SHARED ${LOGGER_SRCS})

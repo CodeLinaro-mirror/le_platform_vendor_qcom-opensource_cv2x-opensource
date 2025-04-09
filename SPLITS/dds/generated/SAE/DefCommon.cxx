@@ -1004,6 +1004,7 @@ J2735::idl::Velocity& RegulatorySpeedLimit::speed()
 
 
 
+
 LaneTypeAttributes::LaneTypeAttributes()
 {
     m__d = 0;
@@ -1893,6 +1894,129 @@ J2735::idl::LaneAttributes_Parking& LaneTypeAttributes::parking()
     return m_parking;
 }
 
+
+
+
+
+ConnectingLane::ConnectingLane()
+{
+}
+
+ConnectingLane::~ConnectingLane()
+{
+}
+
+ConnectingLane::ConnectingLane(
+        const ConnectingLane& x)
+{
+    m_lane = x.m_lane;
+    m_aneuver = x.m_aneuver;
+}
+
+ConnectingLane::ConnectingLane(
+        ConnectingLane&& x) noexcept
+{
+    m_lane = x.m_lane;
+    m_aneuver = std::move(x.m_aneuver);
+}
+
+ConnectingLane& ConnectingLane::operator =(
+        const ConnectingLane& x)
+{
+
+    m_lane = x.m_lane;
+    m_aneuver = x.m_aneuver;
+    return *this;
+}
+
+ConnectingLane& ConnectingLane::operator =(
+        ConnectingLane&& x) noexcept
+{
+
+    m_lane = x.m_lane;
+    m_aneuver = std::move(x.m_aneuver);
+    return *this;
+}
+
+bool ConnectingLane::operator ==(
+        const ConnectingLane& x) const
+{
+    return (m_lane == x.m_lane &&
+           m_aneuver == x.m_aneuver);
+}
+
+bool ConnectingLane::operator !=(
+        const ConnectingLane& x) const
+{
+    return !(*this == x);
+}
+
+/*!
+ * @brief This function sets a value in member lane
+ * @param _lane New value for member lane
+ */
+void ConnectingLane::lane(
+        J2735::idl::LaneID _lane)
+{
+    m_lane = _lane;
+}
+
+/*!
+ * @brief This function returns the value of member lane
+ * @return Value of member lane
+ */
+J2735::idl::LaneID ConnectingLane::lane() const
+{
+    return m_lane;
+}
+
+/*!
+ * @brief This function returns a reference to member lane
+ * @return Reference to member lane
+ */
+J2735::idl::LaneID& ConnectingLane::lane()
+{
+    return m_lane;
+}
+
+
+/*!
+ * @brief This function copies the value in member aneuver
+ * @param _aneuver New value to be copied in member aneuver
+ */
+void ConnectingLane::aneuver(
+        const eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& _aneuver)
+{
+    m_aneuver = _aneuver;
+}
+
+/*!
+ * @brief This function moves the value in member aneuver
+ * @param _aneuver New value to be moved in member aneuver
+ */
+void ConnectingLane::aneuver(
+        eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>&& _aneuver)
+{
+    m_aneuver = std::move(_aneuver);
+}
+
+/*!
+ * @brief This function returns a constant reference to member aneuver
+ * @return Constant reference to member aneuver
+ */
+const eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& ConnectingLane::aneuver() const
+{
+    return m_aneuver;
+}
+
+/*!
+ * @brief This function returns a reference to member aneuver
+ * @return Reference to member aneuver
+ */
+eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& ConnectingLane::aneuver()
+{
+    return m_aneuver;
+}
 
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <chrono>
@@ -26,6 +26,7 @@ SplitsDataPublisher::~SplitsDataPublisher() {
 }
 
 bool SplitsDataPublisher::init(std::string topicPrefix) {
+    LOGD(__FUNCTION__);
     //call base class init method to create participant, topics and types
     SplitsDataPubSub::init(topicPrefix);
     //CREATE THE PUBLISHER
@@ -36,6 +37,7 @@ bool SplitsDataPublisher::init(std::string topicPrefix) {
         return false;
     }
     // CREATE THE WRITER
+    LOGD(__FUNCTION__, " jie, topic size:", topics_.size());
 
     for (const auto topic : topics_) {
         SplitsPubListener *listener = new SplitsPubListener(topic.first);

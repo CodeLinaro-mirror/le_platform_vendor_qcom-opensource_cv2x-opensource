@@ -1,17 +1,15 @@
 /*
- *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <cmath>
-#include "v2xMsgSae.hpp"
 #include "BsmMsgGenerator.hpp"
 #include "vehicle/VehicleInterfaceLocal.hpp"
 #include "vehicle/VehicleInterfaceIdl.hpp"
 #include "utils.h"
 #include "Logger.hpp"
 
-using J2735::idl::BasicSafetyMessage;
 using SPLITS::Vehicle::VehicleInterfaceLocal;
 using SPLITS::Vehicle::VehicleInterfaceIdl;
 namespace SPLITS {
@@ -19,6 +17,8 @@ namespace SPLITS {
 namespace Core {
 
 Status BsmMsgGenerator::init(bool useCan) {
+    LOGD(__FUNCTION__, " useCan:", useCan);
+
     if (useCan) {
         vehicle_ = std::make_shared<VehicleInterfaceLocal>();
     } else {
@@ -29,8 +29,16 @@ Status BsmMsgGenerator::init(bool useCan) {
         return Status::FAILED;
     }
     if (vehicle_->getStaticVehicleParameters(vehicleParams_) != Status::SUCCESS) {
+        LOGE(__FUNCTION__, " Failed to get static vehicle parameters");
         return Status::FAILED;
     }
+
+    if (Status::SUCCESS != vehicle_->registerListener(getptr())
+        or Status::SUCCESS != vehicle_->enableVehicleDynamicData() ) {
+        LOGE(__FUNCTION__, " Failed to register for veh dynamic data");
+        return Status::FAILED;
+    }
+
     utils_ = std::make_shared<QUtils>();
     //utils_->initDiagLog();
     if (utils_->hwTRNGInt(randNumMsgCnt_)) {
@@ -47,18 +55,148 @@ Status BsmMsgGenerator::init(bool useCan) {
         (randNumMsgId_ >> 16) & 0xFF,
         (randNumMsgId_ >> 24) & 0xFF
     };
+
+    if (utils_->hwTRNGData(tmpVehId_.data(), tmpVehId_.size())) {
+        LOGE(__FUNCTION__, " get random veh id failed");
+        return Status::FAILED;
+    }
+
     criticalState_ = false;
+    return Status::SUCCESS;
+}
+
+Status BsmMsgGenerator::fillBsm(std::shared_ptr<v2xMsgCsae> msg, bool idChanged,
+    unsigned char* newTempId) {
+    std::shared_ptr<Csae::idl::BasicSafetyMessage> sp = nullptr;
+    if (msg == nullptr) {
+        LOGE(__FUNCTION__, " no msg");
+        return Status::INVALIDPARAM;
+    }
+    if ((sp = msg->BSM()) == nullptr) {
+        sp = std::make_shared<Csae::idl::BasicSafetyMessage>();
+        if (sp == nullptr) {
+            LOGE(__FUNCTION__, " allocate BSM failed");
+            return Status::NOMEMORY;
+        } else {
+            msg->BSM(sp);
+        }
+    }
+
+    if (idChanged) {
+        if(utils_){
+            if (utils_->hwTRNGInt(randNumMsgCnt_)) {
+                LOGE(__FUNCTION__, " get random number failed");
+                return Status::FAILED;
+            }
+        }
+        msgCount_ = randNumMsgCnt_ % 128;
+
+        //tmp vehicle ID
+        if (newTempId == nullptr) {
+            LOGE(__FUNCTION__, " no temp ID");
+            return Status::INVALIDPARAM;
+        }
+
+        for (int i = 0; i < tmpVehId_.size(); ++i) {
+            tmpVehId_[i] = newTempId[i];
+        }
+    } else {
+        msgCount_ = (msgCount_ + 1) % 128;
+    }
+    sp->msgCnt(msgCount_);
+    sp->id(tmpVehId_);
+    sp->secMark(timestamp_now() % 60000);
+
+    // location data
+    BsmLocationInfo locData;
+    {
+        std::lock_guard<std::mutex> lk(locationMutex_);
+        locData = bsmLocation_;
+    }
+
+    // TODO: use c-shift pos data come from 3rd party
+    sp->pos().lat(locData.lat);
+    sp->pos().long_(locData.lon);
+
+    J2735::idl::PositionalAccuracy posAccu;
+    posAccu.semiMajor(locData.semiMajorAccu);
+    posAccu.semiMinor(locData.semiMinorAccu);
+    posAccu.orientation(locData.orientationAccu);
+    sp->posAccuracy(std::move(posAccu));
+
+    sp->speed(locData.speed);
+    sp->heading(locData.heading);
+
+    sp->accelSet().longitude(locData.longitudeAccel);
+    sp->accelSet().lat(locData.latitudeAccel);
+    sp->accelSet().vert(locData.vertAccel);
+    sp->accelSet().yaw(locData.yaw);
+
+    // dynamic vehicle data, come from local vehicle lib(CAN) or IVSS vehicle interface
+    current_dynamic_vehicle_state_t dynmVehData;
+    {
+        std::lock_guard<std::mutex> lk(vehStateMutex_);
+        dynmVehData = vehicleState_;
+    }
+    sp->transmission(static_cast<J2735::idl::TransmissionState>(dynmVehData.prndl));
+    // the IDL angle type char is unsigned, must cast it to int8_t first
+    int8_t angle = static_cast<int8_t>(dynmVehData.steering_wheel_angle);
+    sp->angle(angle);
+    Csae::idl::BrakeSystemStatus brake;
+    if (!dynmVehData.brake_status.bits.unavailable) {
+        J2735::idl::BrakeAppliedStatus wheelBrakes = 0;
+        wheelBrakes |= dynmVehData.brake_status.bits.leftFront ? (1 << 1) : 0;
+        wheelBrakes |= dynmVehData.brake_status.bits.leftRear ? ( 1 << 2) : 0;
+        wheelBrakes |= dynmVehData.brake_status.bits.rightFront ? ( 1 << 3) : 0;
+        wheelBrakes |= dynmVehData.brake_status.bits.rightRear ? ( 1 << 4) : 0;
+        brake.wheelBrakes(std::move(wheelBrakes));
+        brake.traction(std::move(static_cast<J2735::idl::TractionControlStatus>(
+            dynmVehData.brake_status.bits.traction_control_status)));
+        brake.abs(static_cast<J2735::idl::AntiLockBrakeStatus>(
+            dynmVehData.brake_status.bits.antilock_brake_status));
+        brake.scs(static_cast<J2735::idl::StabilityControlStatus>(
+            dynmVehData.brake_status.bits.stability_control_status));
+        brake.brakeBoost(static_cast<J2735::idl::BrakeBoostApplied>(
+            dynmVehData.brake_status.bits.brake_boost_applied));
+        brake.auxBrakes(static_cast<J2735::idl::AuxiliaryBrakeStatus>(
+            dynmVehData.brake_status.bits.aux_brake_status));
+    }
+    sp->brakes(std::move(brake));
+
+    //static vehicle data from client
+    sp->size().width(vehicleParams_.vehicle_width_cm);
+    sp->size().length(vehicleParams_.vehicle_length_cm);
+    sp->size().height(vehicleParams_.vehicle_height_cm);
+    //TODO: expand veh interface to include the two params
+    sp->vehicleClass().classification(0);
+    sp->vehicleClass().fuelType(0);
+
+    // VehicleSafetyExtensions
+    Csae::idl::VehicleSafetyExtensions safetyExt;
+    {
+        std::lock_guard<std::mutex> lk(eventMutex_);
+        if (criticalState_) {
+            safetyExt.events(eventFlags_);
+        }
+    }
+    if (0 != dynmVehData.exterior_lights.data) {
+        safetyExt.lights(static_cast<J2735::idl::ExteriorLights>(dynmVehData.exterior_lights.data));
+    }
+    // TODO: add PH and PD
+    sp->safetyExt(std::move(safetyExt));
+
+    // TODO: add VehicleEmergencyExtensions
     return Status::SUCCESS;
 }
 
 Status BsmMsgGenerator::fillBsm(std::shared_ptr<v2xMsgSae> msg, bool idChanged,
     unsigned char* newTempId) {
-    std::shared_ptr<BasicSafetyMessage> sp = nullptr;
+    std::shared_ptr<J2735::idl::BasicSafetyMessage> sp = nullptr;
     if (msg == nullptr) {
         return Status::INVALIDPARAM;
     }
     if ((sp = msg->BSM()) == nullptr) {
-        sp = std::make_shared<BasicSafetyMessage>();
+        sp = std::make_shared<J2735::idl::BasicSafetyMessage>();
         if (sp == nullptr) {
             return Status::NOMEMORY;
         } else {
@@ -69,7 +207,7 @@ Status BsmMsgGenerator::fillBsm(std::shared_ptr<v2xMsgSae> msg, bool idChanged,
     if (idChanged) {
         if(utils_){
             if (utils_->hwTRNGInt(randNumMsgCnt_)) {
-                //LOG ERROR
+                LOGE(__FUNCTION__, " generate ID failed");
                 return Status::FAILED;
             }
         }
@@ -111,27 +249,30 @@ Status BsmMsgGenerator::fillBsm(std::shared_ptr<v2xMsgSae> msg, bool idChanged,
     }
 
     //Vehicle state, come from local vehicle lib(CAN) or IVSS vehicle interface
-    coreData.transmission(static_cast<J2735::idl::TransmissionState>(vehicleState_.prndl));
-    coreData.angle(static_cast<char>(vehicleState_.steering_wheel_angle));
-    uint8_t brake = 0;
-    if (!vehicleState_.brake_status.bits.unavailable) {
-        brake |= vehicleState_.brake_status.bits.leftFront ? (1 << 1) : 0;
-        brake |= vehicleState_.brake_status.bits.leftRear ? ( 1 << 2) : 0;
-        brake |= vehicleState_.brake_status.bits.rightFront ? ( 1 << 3) : 0;
-        brake |= vehicleState_.brake_status.bits.rightRear ? ( 1 << 4) : 0;
-    }
-    coreData.brakes().wheelBrakes(brake);
-    coreData.brakes().traction(static_cast<J2735::idl::TractionControlStatus>(
-                vehicleState_.brake_status.bits.traction_control_status));
-    coreData.brakes().abs((static_cast<J2735::idl::AntiLockBrakeStatus>(
-                    vehicleState_.brake_status.bits.antilock_brake_status)));
-    coreData.brakes().scs(static_cast<J2735::idl::StabilityControlStatus>(
-                vehicleState_.brake_status.bits.stability_control_status));
-    coreData.brakes().brakeBoost(static_cast<J2735::idl::BrakeBoostApplied>(
-                vehicleState_.brake_status.bits.brake_boost_applied));
-    coreData.brakes().auxBrakes(static_cast<J2735::idl::AuxilaryBrakesStatus>(
-                vehicleState_.brake_status.bits.aux_brake_status));
+    {
+        std::lock_guard<std::mutex> lk(vehStateMutex_);
 
+        coreData.transmission(static_cast<J2735::idl::TransmissionState>(vehicleState_.prndl));
+        coreData.angle(static_cast<int8_t>(vehicleState_.steering_wheel_angle));
+        uint8_t brake = 0;
+        if (!vehicleState_.brake_status.bits.unavailable) {
+            brake |= vehicleState_.brake_status.bits.leftFront ? (1 << 1) : 0;
+            brake |= vehicleState_.brake_status.bits.leftRear ? ( 1 << 2) : 0;
+            brake |= vehicleState_.brake_status.bits.rightFront ? ( 1 << 3) : 0;
+            brake |= vehicleState_.brake_status.bits.rightRear ? ( 1 << 4) : 0;
+        }
+        coreData.brakes().wheelBrakes(brake);
+        coreData.brakes().traction(static_cast<J2735::idl::TractionControlStatus>(
+                    vehicleState_.brake_status.bits.traction_control_status));
+        coreData.brakes().abs((static_cast<J2735::idl::AntiLockBrakeStatus>(
+                        vehicleState_.brake_status.bits.antilock_brake_status)));
+        coreData.brakes().scs(static_cast<J2735::idl::StabilityControlStatus>(
+                    vehicleState_.brake_status.bits.stability_control_status));
+        coreData.brakes().brakeBoost(static_cast<J2735::idl::BrakeBoostApplied>(
+                    vehicleState_.brake_status.bits.brake_boost_applied));
+        coreData.brakes().auxBrakes(static_cast<J2735::idl::AuxilaryBrakesStatus>(
+                    vehicleState_.brake_status.bits.aux_brake_status));
+    }
 
     //static data: vehicle size
     //coreData.size().width(vehicleParams_.vehicle_width_cm);
@@ -164,7 +305,7 @@ Status BsmMsgGenerator::fillBsm(std::shared_ptr<v2xMsgSae> msg, bool idChanged,
     return Status::SUCCESS;
 }
 
-void BsmMsgGenerator::fillVehicleSafetyExt(std::shared_ptr<BasicSafetyMessage> bsm) {
+void BsmMsgGenerator::fillVehicleSafetyExt(std::shared_ptr<J2735::idl::BasicSafetyMessage> bsm) {
     J2735::idl::VehicleSafetyExtensions safetyExt;
     safetyExt.events(eventFlags_);
     //no pathHistory
@@ -181,9 +322,12 @@ void BsmMsgGenerator::onHighResMotionDataChanged(const high_resolution_motion_t 
     highResMotion_ = highResMotion;
 }
 void BsmMsgGenerator::onVehicleDataChanged(const current_dynamic_vehicle_state_t &vehicleState) {
+    std::lock_guard<std::mutex> lk(vehStateMutex_);
     vehicleState_ = vehicleState;
 }
 void BsmMsgGenerator::onVehicleEventChanged(const uint16_t &eventFlags) {
+    LOGD(__FUNCTION__, " eventFlags:", eventFlags, ", cur msg count:", msgCount_);
+
     std::lock_guard<std::mutex> lk(eventMutex_);
     if (eventFlags) {
         //critical event occured

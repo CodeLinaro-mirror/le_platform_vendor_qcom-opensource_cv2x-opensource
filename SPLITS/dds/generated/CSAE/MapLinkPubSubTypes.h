@@ -32,8 +32,6 @@
 #include "MapLink.h"
 
 #include "DefCommonPubSubTypes.h"
-#include "SPATIntersectionStatePubSubTypes.h"
-#include "MapPointPubSubTypes.h"
 #include "DefPositionOffsetPubSubTypes.h"
 #include "MapLanePubSubTypes.h"
 

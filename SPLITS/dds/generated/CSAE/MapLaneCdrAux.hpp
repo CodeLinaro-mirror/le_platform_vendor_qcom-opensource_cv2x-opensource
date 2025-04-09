@@ -24,6 +24,79 @@
 
 #include "MapLane.h"
 
+constexpr uint32_t Csae_idl_Connection_max_cdr_typesize {73UL};
+constexpr uint32_t Csae_idl_Connection_max_key_cdr_typesize {0UL};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+constexpr uint32_t Csae_idl_Lane_max_cdr_typesize {2468UL};
+constexpr uint32_t Csae_idl_Lane_max_key_cdr_typesize {0UL};
+
+
+
+
+
+
+
+
+
+
+
+
 constexpr uint32_t Csae_idl_LaneAttributes_max_cdr_typesize {28UL};
 constexpr uint32_t Csae_idl_LaneAttributes_max_key_cdr_typesize {0UL};
 
@@ -70,47 +143,6 @@ constexpr uint32_t Csae_idl_LaneAttributes_max_key_cdr_typesize {0UL};
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-constexpr uint32_t Csae_idl_Lane_max_cdr_typesize {64UL};
-constexpr uint32_t Csae_idl_Lane_max_key_cdr_typesize {0UL};
-
-
-
-
-
 namespace eprosima {
 namespace fastcdr {
 
@@ -122,6 +154,16 @@ class CdrSizeCalculator;
 eProsima_user_DllExport void serialize_key(
         eprosima::fastcdr::Cdr& scdr,
         const Csae::idl::LaneAttributes& data);
+
+
+
+eProsima_user_DllExport void serialize_key(
+        eprosima::fastcdr::Cdr& scdr,
+        const Csae::idl::Connection& data);
+
+
+
+
 
 
 

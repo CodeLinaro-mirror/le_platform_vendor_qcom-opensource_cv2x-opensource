@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <sys/types.h>
+#include <stdbool.h>
 #include <grp.h>
 #include <unistd.h>
 #include <iostream>
@@ -58,8 +59,13 @@ int main(int argc, char **argv) {
     if (setSupplementaryGroups(&groups[0], 1)) {
         return -1;
     }
-    while ((c = getopt(argc, argv, "t:p:f:F:")) != -1) {
+    bool csae = false;
+    while ((c = getopt(argc, argv, "t:p:f:F:c")) != -1) {
         switch(c) {
+        case 'c':
+            csae = true;
+            LOGI("CCSA V2X stack");
+            break;
         case 'p':
              if (optarg) {
              rxpduFileName = optarg;
@@ -98,11 +104,12 @@ int main(int argc, char **argv) {
             LOGE("               [-p rxpduFileName]");
             LOGE("               [-t txpduFileName]");
             LOGE("               [-F csvFileDir]");
+            LOGE("               [-c for CCSA]");
             break;
          }
      }
     auto coreFactory = SPLITS::Core::SplitsCoreFactory::getInstance();
-    auto core = coreFactory.getCore();
+    auto core = coreFactory.getCore(csae);
     if (nullptr == core) {
         LOGE("failed to get SPLITS core");
         return -1;

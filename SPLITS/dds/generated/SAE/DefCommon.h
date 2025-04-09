@@ -1234,6 +1234,26 @@ typedef uint16_t LaneWidth;
 typedef uint8_t LaneID;
 
 /*!
+ * @brief This enumeration represents the AllowedManeuvers bitflags defined by the user in the IDL file.
+ * @ingroup DefCommon
+ */
+enum AllowedManeuversBits : uint16_t
+{
+    maneuverStraightAllowed = 0x01ull << 0,
+    maneuverLeftAllowed = 0x01ull << 1,
+    maneuverRightAllowed = 0x01ull << 2,
+    maneuverUTurnAllowed = 0x01ull << 3,
+    maneuverLeftTurnOnRedAllowed = 0x01ull << 4,
+    maneuverRightTurnOnRedAllowed = 0x01ull << 5,
+    maneuverLaneChangeAllowed = 0x01ull << 6,
+    maneuverNoStoppingAllowed = 0x01ull << 7,
+    yieldAllwaysRequired = 0x01ull << 8,
+    goWithHalt = 0x01ull << 9,
+    caution = 0x01ull << 10,
+    am_reserved1 = 0x01ull << 11
+};
+typedef uint16_t AllowedManeuvers;
+/*!
  * @brief This enumeration represents the LaneAttributes_Barrier bitflags defined by the user in the IDL file.
  * @ingroup DefCommon
  */
@@ -1697,6 +1717,120 @@ enum LaneSharingBits : uint16_t
     reserved = 0x01ull << 9
 };
 typedef uint16_t LaneSharing;
+
+
+/*!
+ * @brief This class represents the structure ConnectingLane defined by the user in the IDL file.
+ * @ingroup DefCommon
+ */
+class ConnectingLane
+{
+public:
+
+    /*!
+     * @brief Default constructor.
+     */
+    eProsima_user_DllExport ConnectingLane();
+
+    /*!
+     * @brief Default destructor.
+     */
+    eProsima_user_DllExport ~ConnectingLane();
+
+    /*!
+     * @brief Copy constructor.
+     * @param x Reference to the object J2735::idl::ConnectingLane that will be copied.
+     */
+    eProsima_user_DllExport ConnectingLane(
+            const ConnectingLane& x);
+
+    /*!
+     * @brief Move constructor.
+     * @param x Reference to the object J2735::idl::ConnectingLane that will be copied.
+     */
+    eProsima_user_DllExport ConnectingLane(
+            ConnectingLane&& x) noexcept;
+
+    /*!
+     * @brief Copy assignment.
+     * @param x Reference to the object J2735::idl::ConnectingLane that will be copied.
+     */
+    eProsima_user_DllExport ConnectingLane& operator =(
+            const ConnectingLane& x);
+
+    /*!
+     * @brief Move assignment.
+     * @param x Reference to the object J2735::idl::ConnectingLane that will be copied.
+     */
+    eProsima_user_DllExport ConnectingLane& operator =(
+            ConnectingLane&& x) noexcept;
+
+    /*!
+     * @brief Comparison operator.
+     * @param x J2735::idl::ConnectingLane object to compare.
+     */
+    eProsima_user_DllExport bool operator ==(
+            const ConnectingLane& x) const;
+
+    /*!
+     * @brief Comparison operator.
+     * @param x J2735::idl::ConnectingLane object to compare.
+     */
+    eProsima_user_DllExport bool operator !=(
+            const ConnectingLane& x) const;
+
+    /*!
+     * @brief This function sets a value in member lane
+     * @param _lane New value for member lane
+     */
+    eProsima_user_DllExport void lane(
+            J2735::idl::LaneID _lane);
+
+    /*!
+     * @brief This function returns the value of member lane
+     * @return Value of member lane
+     */
+    eProsima_user_DllExport J2735::idl::LaneID lane() const;
+
+    /*!
+     * @brief This function returns a reference to member lane
+     * @return Reference to member lane
+     */
+    eProsima_user_DllExport J2735::idl::LaneID& lane();
+
+
+    /*!
+     * @brief This function copies the value in member aneuver
+     * @param _aneuver New value to be copied in member aneuver
+     */
+    eProsima_user_DllExport void aneuver(
+            const eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& _aneuver);
+
+    /*!
+     * @brief This function moves the value in member aneuver
+     * @param _aneuver New value to be moved in member aneuver
+     */
+    eProsima_user_DllExport void aneuver(
+            eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>&& _aneuver);
+
+    /*!
+     * @brief This function returns a constant reference to member aneuver
+     * @return Constant reference to member aneuver
+     */
+    eProsima_user_DllExport const eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& aneuver() const;
+
+    /*!
+     * @brief This function returns a reference to member aneuver
+     * @return Reference to member aneuver
+     */
+    eProsima_user_DllExport eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& aneuver();
+
+private:
+
+    J2735::idl::LaneID m_lane{0};
+    eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers> m_aneuver;
+
+};
 /*!
  * @brief This enumeration represents the IntersectionStatusObject bitflags defined by the user in the IDL file.
  * @ingroup DefCommon

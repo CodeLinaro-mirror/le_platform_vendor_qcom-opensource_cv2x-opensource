@@ -37,8 +37,6 @@ constexpr uint32_t J2735_idl_MapData_max_key_cdr_typesize {0UL};
 
 
 
-constexpr uint32_t J2735_idl_ConnectingLane_max_cdr_typesize {22UL};
-constexpr uint32_t J2735_idl_ConnectingLane_max_key_cdr_typesize {0UL};
 
 
 
@@ -294,13 +292,6 @@ class CdrSizeCalculator;
 
 
 
-
-
-
-
-eProsima_user_DllExport void serialize_key(
-        eprosima::fastcdr::Cdr& scdr,
-        const J2735::idl::ConnectingLane& data);
 
 
 

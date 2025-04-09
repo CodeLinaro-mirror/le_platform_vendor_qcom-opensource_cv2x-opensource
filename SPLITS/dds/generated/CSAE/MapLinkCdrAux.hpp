@@ -27,11 +27,12 @@
 constexpr uint32_t Csae_idl_Movement_max_cdr_typesize {37UL};
 constexpr uint32_t Csae_idl_Movement_max_key_cdr_typesize {0UL};
 
-constexpr uint32_t Csae_idl_Link_max_cdr_typesize {5412UL};
+constexpr uint32_t Csae_idl_Link_max_cdr_typesize {82340UL};
 constexpr uint32_t Csae_idl_Link_max_key_cdr_typesize {0UL};
 
-constexpr uint32_t Csae_idl_Node_max_cdr_typesize {173528UL};
+constexpr uint32_t Csae_idl_Node_max_cdr_typesize {2635224UL};
 constexpr uint32_t Csae_idl_Node_max_key_cdr_typesize {0UL};
+
 
 
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 /**
@@ -16,7 +16,9 @@
 #include <mutex>
 #include <queue>
 #include <condition_variable>
+#include <stdbool.h>
 #include "v2xMsgSae.hpp"
+#include "v2xMsgCsae.hpp"
 #include "SplitsDataPublisher.hpp"
 
 namespace SPLITS {
@@ -32,13 +34,6 @@ public:
     virtual ~SplitsClientDataPublisher() {}
 
     bool init(std::string topicPrefix) override {
-        for (int i = 0; i < MSG_POOL_SIZE; i++) {
-            auto msg = std::make_shared<v2xMsgSae>();
-            //null the unused buffers
-            msg->head = msg->buf = 0;
-            //msg->frame = 
-            putFreeMsg(msg);
-        }
         return SplitsDataPublisher::init(topicPrefix);
     }
 
@@ -101,15 +96,12 @@ public:
         td_.join();
     }
 
-private:
-    void publish(void) override;
+protected:
     std::queue<std::shared_ptr<v2xMsg>> pool_;
     std::queue<std::shared_ptr<v2xMsg>> queue_;
     std::mutex queueMtx_;
     std::mutex poolMtx_;
     std::condition_variable cv_;
-
-
 };
 
 } //namespace Interface

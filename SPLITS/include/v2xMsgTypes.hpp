@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef __V2XMSGTYPES_HPP__
@@ -35,6 +35,41 @@
 #ifndef SAE_PSID_SDSM
 #define SAE_PSID_SDSM (0x90)
 #endif
+
+#ifndef CSAE_AID_BSM
+#define CSAE_AID_BSM (111)
+#endif
+#ifndef CSAE_AID_BSM_EVENT
+#define CSAE_AID_BSM_EVENT (112)
+#endif
+#ifndef CSAE_AID_BSM_EMG
+#define CSAE_AID_BSM_EMG (113)
+#endif
+#ifndef CSAE_AID_BSM_EMG_EVENT
+#define CSAE_AID_BSM_EMG_EVENT (114)
+#endif
+#ifndef CSAE_AID_BSM_AM_OBU
+#define CSAE_AID_BSM_AM_OBU (3617)
+#endif
+#ifndef CSAE_AID_MAP
+#define CSAE_AID_MAP (3618)
+#endif
+#ifndef CSAE_AID_SPAT
+#define CSAE_AID_SPAT (3619)
+#endif
+#ifndef CSAE_AID_RSI_STATIC
+#define CSAE_AID_RSI_STATIC (3620)
+#endif
+#ifndef CSAE_AID_RSI_SEMI_STATIC
+#define CSAE_AID_RSI_SEMI_STATIC (3621)
+#endif
+#ifndef CSAE_AID_RSI_DYNAMIC
+#define CSAE_AID_RSI_DYNAMIC (3622)
+#endif
+#ifndef CSAE_AID_RSM
+#define CSAE_AID_RSM (3623)
+#endif
+
 namespace SPLITS {
 
 enum class StackType {
@@ -59,7 +94,8 @@ enum class v2xMsgType {
     V2X_CSAE_MSG_SPAT = 1 << 10,
     V2X_CSAE_MSG_MAP =  1 << 11,
     V2X_CSAE_MSG_RSM =  1 << 12,
-    V2X_MSG_PDU = 1 << 13,
+    V2X_CSAE_MSG_RSI =  1 << 13,
+    V2X_MSG_PDU = 1 << 14,
 };
 inline constexpr v2xMsgType operator|( v2xMsgType L, v2xMsgType R) {
     return static_cast<v2xMsgType>(
@@ -80,7 +116,8 @@ inline bool isCSAE(v2xMsgType type) {
     return static_cast<bool>((type &(v2xMsgType::V2X_CSAE_MSG_BSM |
                 v2xMsgType::V2X_CSAE_MSG_SPAT |
                 v2xMsgType::V2X_CSAE_MSG_MAP |
-                v2xMsgType::V2X_CSAE_MSG_RSM)));
+                v2xMsgType::V2X_CSAE_MSG_RSM |
+                v2xMsgType::V2X_CSAE_MSG_RSI)));
 }
 } //namespace SPLITS
 #endif //__V2XMSGTYPES_HPP__

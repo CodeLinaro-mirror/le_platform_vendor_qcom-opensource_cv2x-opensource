@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #ifndef __SPLITS_CONFIG_FILE_HPP__
 #define __SPLITS_CONFIG_FILE_HPP__
@@ -15,18 +15,31 @@ namespace Config {
 
 class SplitsConfigFile {
 public:
-    SplitsConfigFile(std::shared_ptr<SplitsConfig::SplitsConfigData> config) : 
+    SplitsConfigFile(std::shared_ptr<SplitsConfig::SplitsConfigData> config, bool csae) : 
         config_(config){
-        msgName2PsidMap_["BSM"] = SAE_PSID_BSM;
-        msgName2PsidMap_["WSA"] = SAE_PSID_WSA;
-        msgName2PsidMap_["SPAT"] = SAE_PSID_SPAT;
-        msgName2PsidMap_["MAP"] = SAE_PSID_MAP;
-        msgName2PsidMap_["RTCM"] = SAE_PSID_RTCM;
-        msgName2PsidMap_["RSM"] = SAE_PSID_RSM;
-        msgName2PsidMap_["RSM"] = SAE_PSID_RSM;
-        msgName2PsidMap_["SRM"] = SAE_PSID_SRM;
-        msgName2PsidMap_["SSM"] = SAE_PSID_SSM;
-        msgName2PsidMap_["SDSM"] = SAE_PSID_SDSM;
+        if (csae) {
+            msgName2PsidMap_["BSM"] = CSAE_AID_BSM;
+            msgName2PsidMap_["BSM_EMG"] = CSAE_AID_BSM_EMG;
+            msgName2PsidMap_["BSM_EMG_EVENT"] = CSAE_AID_BSM_EMG_EVENT;
+            msgName2PsidMap_["BSM_AM"] = CSAE_AID_BSM_AM_OBU;
+            msgName2PsidMap_["MAP"] = CSAE_AID_MAP;
+            msgName2PsidMap_["SPAT"] = CSAE_AID_SPAT;
+            msgName2PsidMap_["RSM"] = CSAE_AID_RSM;
+            msgName2PsidMap_["RSI"] = CSAE_AID_RSI_STATIC;
+            msgName2PsidMap_["RSI_SEMI_STATIC"] = CSAE_AID_RSI_SEMI_STATIC;
+            msgName2PsidMap_["RSI_DYNAMIC"] = CSAE_AID_RSI_DYNAMIC;
+        } else {
+            msgName2PsidMap_["BSM"] = SAE_PSID_BSM;
+            msgName2PsidMap_["WSA"] = SAE_PSID_WSA;
+            msgName2PsidMap_["SPAT"] = SAE_PSID_SPAT;
+            msgName2PsidMap_["MAP"] = SAE_PSID_MAP;
+            msgName2PsidMap_["RTCM"] = SAE_PSID_RTCM;
+            msgName2PsidMap_["RSM"] = SAE_PSID_RSM;
+            msgName2PsidMap_["RSM"] = SAE_PSID_RSM;
+            msgName2PsidMap_["SRM"] = SAE_PSID_SRM;
+            msgName2PsidMap_["SSM"] = SAE_PSID_SSM;
+            msgName2PsidMap_["SDSM"] = SAE_PSID_SDSM;
+        }
     }
 
     virtual ~SplitsConfigFile(){}

@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
  /**
   * @file: VehicleInterface.hpp
@@ -85,7 +85,7 @@ public:
     }
 
 protected:
-    uint16_t eventFlags_;
+    uint16_t eventFlags_ = 0;
     std::vector<std::weak_ptr<VehicleInterfaceListener>> listeners_;
     std::mutex listenerMutex_;
 

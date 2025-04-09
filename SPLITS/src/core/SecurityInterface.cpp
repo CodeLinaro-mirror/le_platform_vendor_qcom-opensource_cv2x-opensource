@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <iostream>
@@ -297,7 +297,7 @@ int SecurityInterface::registerIdChange(const std::string lcmName, IDChangeData*
                 static uint8_t rng_data = 0;
                 int rng_ret = -1;
                 auto app = static_cast<QUtils*>(userData);
-                rng_ret = app->hwTRNGChar(&rng_data);
+                rng_ret = app->hwTRNGData(&rng_data, 1);
                 if (rng_ret) {
                     LOGE(__FUNCTION__, "Failure in Random Number Generation for Cert ID");
                 }
@@ -313,6 +313,7 @@ int SecurityInterface::registerIdChange(const std::string lcmName, IDChangeData*
                 if (returnCode == WS_SUCCESS) {
                     if (tempIdChangePtr && certId) {
                         memcpy(tempIdChangePtr->tempId, certId, sizeof(tempIdChangePtr->tempId));
+                        memcpy(tempIdChangePtr->certId, certId, sizeof(tempIdChangePtr->certId));
                         // start at offset of 2 to get last 6 bytes
                         tempIdChangePtr->idChanged = true;
                     }

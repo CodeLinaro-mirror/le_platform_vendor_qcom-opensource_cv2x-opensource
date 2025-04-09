@@ -1,11 +1,12 @@
 /*
- *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <iostream>
 #include "SplitsCodecFactory.hpp"
-#include "SplitsCodecImpl.hpp"
+#include "SplitsCodecImplSae.hpp"
+#include "SplitsCodecImplCsae.hpp"
 
 namespace SPLITS {
 namespace Codec {
@@ -22,7 +23,13 @@ SplitsCodecFactory & SplitsCodecFactory::getInstance() {
 }
 
 std::shared_ptr<SplitsCodec> SplitsCodecFactory::getCodec(StackType st) {
-    return std::make_shared<SPLITS::Codec::SplitsCodecImpl>(st);
+    if (StackType::STACK_TYPE_SAE == st) {
+        return std::make_shared<SPLITS::Codec::SplitsCodecImplSae>();
+    } else if (StackType::STACK_TYPE_CSAE == st) {
+        return std::make_shared<SPLITS::Codec::SplitsCodecImplCsae>();
+    } else {
+        return nullptr;
+    }
 }
 }
 }

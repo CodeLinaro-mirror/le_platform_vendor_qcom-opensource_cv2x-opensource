@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 /**
@@ -88,7 +88,7 @@ struct SecLocation {
 typedef struct IDChangeData {
     unsigned char tempId [4]; // 32 bits
     unsigned char certId [8]; // last 8 bytes of cert id
-    bool idChanged;
+    bool idChanged = false;
     sem_t idChangeSem;
 } IDChangeData_t;
 

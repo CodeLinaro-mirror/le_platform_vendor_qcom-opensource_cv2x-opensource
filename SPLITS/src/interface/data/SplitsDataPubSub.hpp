@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 /**
@@ -19,18 +19,6 @@
 #include <fastdds/dds/publisher/DataWriterListener.hpp>
 #include <fastdds/dds/publisher/Publisher.hpp>
 #include <fastdds/dds/topic/TypeSupport.hpp>
-#include "J2735_BasicSafetyMessagePubSubTypes.h"
-#include "J2735_RTCMcorrectionsPubSubTypes.h"
-#include "J2735_MapDataPubSubTypes.h"
-#include "J2735_SPATPubSubTypes.h"
-#include "J2735_PSMPubSubTypes.h"
-#include "J2735_RSMPubSubTypes.h"
-#include "J2735_SDSMPubSubTypes.h"
-#include "J2735_SRMPubSubTypes.h"
-#include "J2735_SSMPubSubTypes.h"
-#include "Ieee1609Dot3WsaPubSubTypes.h"
-#include "J2735_PDUPubSubTypes.h"
-#include "v2xMsg.hpp"
 
 namespace SPLITS {
 
@@ -47,17 +35,16 @@ public:
     {
     }
     ~SplitsSubListener() override {}
-    void on_data_available(
-            eprosima::fastdds::dds::DataReader* reader) override;
+    void on_data_available(eprosima::fastdds::dds::DataReader* reader) override {};
 
     void on_subscription_matched(
             eprosima::fastdds::dds::DataReader* reader,
             const eprosima::fastdds::dds::SubscriptionMatchedStatus& info) override;
-private:
-    int matched_;
+protected:
+    int matched_ = 0;
     int32_t currentMatchedCount_ = 0;
     int topicId_;
-    std::shared_ptr<SplitsDataSubscriber> subscriber_;
+    std::shared_ptr<SplitsDataSubscriber> subscriber_ = nullptr;
 };
 class SplitsPubListener : public eprosima::fastdds::dds::DataWriterListener
 {
@@ -86,9 +73,7 @@ public:
 class SplitsDataPubSub
 {
 public:
-
-    SplitsDataPubSub();
-
+    SplitsDataPubSub() {};
     virtual ~SplitsDataPubSub();
 
     virtual bool init(std::string topicPrefix) = 0;
@@ -98,7 +83,7 @@ public:
 
 protected:
     std::string removeNameSpace(const std::string &typeName);
-    eprosima::fastdds::dds::DomainParticipant* participant_;
+    eprosima::fastdds::dds::DomainParticipant* participant_ = nullptr;
 
     std::map<int, eprosima::fastdds::dds::Topic*> topics_;
 

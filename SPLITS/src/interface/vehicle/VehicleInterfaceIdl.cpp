@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include <cstring>
 #include <thread>
@@ -17,6 +17,7 @@ namespace Vehicle {
 #define PROXY_TIMEOUT    60 //seconds
 
 Status VehicleInterfaceIdl::init(void) {
+    LOGD(__FUNCTION__);
     int count = 0;
     CommonAPI::Runtime::setProperty("LogContext", "SplitsService");
     CommonAPI::Runtime::setProperty("LogApplication", "SplitsService");
@@ -47,6 +48,7 @@ Status VehicleInterfaceIdl::init(void) {
 }
 
 Status VehicleInterfaceIdl::enableVehicleDynamicData(void) {
+    LOGD(__FUNCTION__);
     dynamicDataSub_ =
         proxy_->getDynamicVehicleStateEvent().subscribe(
             [&](const capisplits::VehicleData::dynamicVehicleState &state) {
@@ -58,18 +60,18 @@ Status VehicleInterfaceIdl::enableVehicleDynamicData(void) {
             for (auto listener : listeners_) {
                 auto sp = listener.lock();
                 if (sp) {
-                    if (critical && eventFlags_ == 0) {
-                        //critical event cleared.
+                    // notify vehicle data change first to ensure BSM triggered by
+                    // critical event is filled with latest veh data
+                    sp->onVehicleDataChanged(teluxDVS);
+
+                    if (eventFlags_ or (critical && eventFlags_ == 0)) {
+                        // critical event appeared or cleared.
                         sp->onVehicleEventChanged(eventFlags_);
-                    } else if (eventFlags_) {
-                        //critical event appeared
-                        sp->onVehicleEventChanged(eventFlags_);
-                    }  else {
-                        sp->onVehicleDataChanged(teluxDVS);
                     }
                 }
             }
     });
+    return Status::SUCCESS;
 }
 
 Status VehicleInterfaceIdl::enableHighResMotionData(void) {
@@ -89,6 +91,8 @@ Status VehicleInterfaceIdl::enableHighResMotionData(void) {
 }
 
 Status VehicleInterfaceIdl::disableVehicleDynamicData(void) {
+    LOGD(__FUNCTION__);
+
     if (proxy_) {
         proxy_->getDynamicVehicleStateEvent().unsubscribe(dynamicDataSub_);
     }
@@ -101,6 +105,8 @@ Status VehicleInterfaceIdl::disableHighResMotionData(void) {
     return Status::SUCCESS;
 }
 Status VehicleInterfaceIdl::getStaticVehicleParameters(static_vehicle_parameters_t &params) {
+    LOGD(__FUNCTION__);
+
     CommonAPI::CallStatus callStatus = CommonAPI::CallStatus::UNKNOWN;
     Status status = Status::FAILED;
     CommonDefines::ErrorCode error;
@@ -112,6 +118,7 @@ Status VehicleInterfaceIdl::getStaticVehicleParameters(static_vehicle_parameters
     //sync call
     proxy_->getStaticVehicleParameters(callStatus, error, idlParams);
     if (callStatus != CommonAPI::CallStatus::SUCCESS) {
+        LOGE(__FUNCTION__, " failed to get static veh params:", static_cast<int>(error));
         return Status::FAILED;
     } else {
         capi2teluxStaticParams(params, idlParams);

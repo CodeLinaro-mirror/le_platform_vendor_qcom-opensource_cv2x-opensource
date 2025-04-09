@@ -34,6 +34,9 @@
 #include <fastcdr/xcdr/optional.hpp>
 
 #include "DefCommon.h"
+#include "SPATIntersectionState.h"
+#include "MapPoint.h"
+#include "MapNode.h"
 
 
 #if defined(_WIN32)
@@ -197,6 +200,159 @@ private:
 
 
 /*!
+ * @brief This class represents the structure Connection defined by the user in the IDL file.
+ * @ingroup MapLane
+ */
+class Connection
+{
+public:
+
+    /*!
+     * @brief Default constructor.
+     */
+    eProsima_user_DllExport Connection();
+
+    /*!
+     * @brief Default destructor.
+     */
+    eProsima_user_DllExport ~Connection();
+
+    /*!
+     * @brief Copy constructor.
+     * @param x Reference to the object Csae::idl::Connection that will be copied.
+     */
+    eProsima_user_DllExport Connection(
+            const Connection& x);
+
+    /*!
+     * @brief Move constructor.
+     * @param x Reference to the object Csae::idl::Connection that will be copied.
+     */
+    eProsima_user_DllExport Connection(
+            Connection&& x) noexcept;
+
+    /*!
+     * @brief Copy assignment.
+     * @param x Reference to the object Csae::idl::Connection that will be copied.
+     */
+    eProsima_user_DllExport Connection& operator =(
+            const Connection& x);
+
+    /*!
+     * @brief Move assignment.
+     * @param x Reference to the object Csae::idl::Connection that will be copied.
+     */
+    eProsima_user_DllExport Connection& operator =(
+            Connection&& x) noexcept;
+
+    /*!
+     * @brief Comparison operator.
+     * @param x Csae::idl::Connection object to compare.
+     */
+    eProsima_user_DllExport bool operator ==(
+            const Connection& x) const;
+
+    /*!
+     * @brief Comparison operator.
+     * @param x Csae::idl::Connection object to compare.
+     */
+    eProsima_user_DllExport bool operator !=(
+            const Connection& x) const;
+
+    /*!
+     * @brief This function copies the value in member remoteIntersection
+     * @param _remoteIntersection New value to be copied in member remoteIntersection
+     */
+    eProsima_user_DllExport void remoteIntersection(
+            const Csae::idl::NodeReferenceID& _remoteIntersection);
+
+    /*!
+     * @brief This function moves the value in member remoteIntersection
+     * @param _remoteIntersection New value to be moved in member remoteIntersection
+     */
+    eProsima_user_DllExport void remoteIntersection(
+            Csae::idl::NodeReferenceID&& _remoteIntersection);
+
+    /*!
+     * @brief This function returns a constant reference to member remoteIntersection
+     * @return Constant reference to member remoteIntersection
+     */
+    eProsima_user_DllExport const Csae::idl::NodeReferenceID& remoteIntersection() const;
+
+    /*!
+     * @brief This function returns a reference to member remoteIntersection
+     * @return Reference to member remoteIntersection
+     */
+    eProsima_user_DllExport Csae::idl::NodeReferenceID& remoteIntersection();
+
+
+    /*!
+     * @brief This function copies the value in member connectingLane
+     * @param _connectingLane New value to be copied in member connectingLane
+     */
+    eProsima_user_DllExport void connectingLane(
+            const eprosima::fastcdr::optional<J2735::idl::ConnectingLane>& _connectingLane);
+
+    /*!
+     * @brief This function moves the value in member connectingLane
+     * @param _connectingLane New value to be moved in member connectingLane
+     */
+    eProsima_user_DllExport void connectingLane(
+            eprosima::fastcdr::optional<J2735::idl::ConnectingLane>&& _connectingLane);
+
+    /*!
+     * @brief This function returns a constant reference to member connectingLane
+     * @return Constant reference to member connectingLane
+     */
+    eProsima_user_DllExport const eprosima::fastcdr::optional<J2735::idl::ConnectingLane>& connectingLane() const;
+
+    /*!
+     * @brief This function returns a reference to member connectingLane
+     * @return Reference to member connectingLane
+     */
+    eProsima_user_DllExport eprosima::fastcdr::optional<J2735::idl::ConnectingLane>& connectingLane();
+
+
+    /*!
+     * @brief This function copies the value in member phaseId
+     * @param _phaseId New value to be copied in member phaseId
+     */
+    eProsima_user_DllExport void phaseId(
+            const eprosima::fastcdr::optional<Csae::idl::PhaseID>& _phaseId);
+
+    /*!
+     * @brief This function moves the value in member phaseId
+     * @param _phaseId New value to be moved in member phaseId
+     */
+    eProsima_user_DllExport void phaseId(
+            eprosima::fastcdr::optional<Csae::idl::PhaseID>&& _phaseId);
+
+    /*!
+     * @brief This function returns a constant reference to member phaseId
+     * @return Constant reference to member phaseId
+     */
+    eProsima_user_DllExport const eprosima::fastcdr::optional<Csae::idl::PhaseID>& phaseId() const;
+
+    /*!
+     * @brief This function returns a reference to member phaseId
+     * @return Reference to member phaseId
+     */
+    eProsima_user_DllExport eprosima::fastcdr::optional<Csae::idl::PhaseID>& phaseId();
+
+private:
+
+    Csae::idl::NodeReferenceID m_remoteIntersection;
+    eprosima::fastcdr::optional<J2735::idl::ConnectingLane> m_connectingLane;
+    eprosima::fastcdr::optional<Csae::idl::PhaseID> m_phaseId;
+
+};
+
+
+typedef std::vector<Csae::idl::Connection> ConnectsToList;
+
+
+
+/*!
  * @brief This class represents the structure Lane defined by the user in the IDL file.
  * @ingroup MapLane
  */
@@ -329,11 +485,123 @@ public:
      */
     eProsima_user_DllExport eprosima::fastcdr::optional<Csae::idl::LaneAttributes>& laneAttributes();
 
+
+    /*!
+     * @brief This function copies the value in member maneuvers
+     * @param _maneuvers New value to be copied in member maneuvers
+     */
+    eProsima_user_DllExport void maneuvers(
+            const eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& _maneuvers);
+
+    /*!
+     * @brief This function moves the value in member maneuvers
+     * @param _maneuvers New value to be moved in member maneuvers
+     */
+    eProsima_user_DllExport void maneuvers(
+            eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>&& _maneuvers);
+
+    /*!
+     * @brief This function returns a constant reference to member maneuvers
+     * @return Constant reference to member maneuvers
+     */
+    eProsima_user_DllExport const eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& maneuvers() const;
+
+    /*!
+     * @brief This function returns a reference to member maneuvers
+     * @return Reference to member maneuvers
+     */
+    eProsima_user_DllExport eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers>& maneuvers();
+
+
+    /*!
+     * @brief This function copies the value in member connectsTo
+     * @param _connectsTo New value to be copied in member connectsTo
+     */
+    eProsima_user_DllExport void connectsTo(
+            const eprosima::fastcdr::optional<Csae::idl::ConnectsToList>& _connectsTo);
+
+    /*!
+     * @brief This function moves the value in member connectsTo
+     * @param _connectsTo New value to be moved in member connectsTo
+     */
+    eProsima_user_DllExport void connectsTo(
+            eprosima::fastcdr::optional<Csae::idl::ConnectsToList>&& _connectsTo);
+
+    /*!
+     * @brief This function returns a constant reference to member connectsTo
+     * @return Constant reference to member connectsTo
+     */
+    eProsima_user_DllExport const eprosima::fastcdr::optional<Csae::idl::ConnectsToList>& connectsTo() const;
+
+    /*!
+     * @brief This function returns a reference to member connectsTo
+     * @return Reference to member connectsTo
+     */
+    eProsima_user_DllExport eprosima::fastcdr::optional<Csae::idl::ConnectsToList>& connectsTo();
+
+
+    /*!
+     * @brief This function copies the value in member speedLimits
+     * @param _speedLimits New value to be copied in member speedLimits
+     */
+    eProsima_user_DllExport void speedLimits(
+            const eprosima::fastcdr::optional<J2735::idl::SpeedLimitList>& _speedLimits);
+
+    /*!
+     * @brief This function moves the value in member speedLimits
+     * @param _speedLimits New value to be moved in member speedLimits
+     */
+    eProsima_user_DllExport void speedLimits(
+            eprosima::fastcdr::optional<J2735::idl::SpeedLimitList>&& _speedLimits);
+
+    /*!
+     * @brief This function returns a constant reference to member speedLimits
+     * @return Constant reference to member speedLimits
+     */
+    eProsima_user_DllExport const eprosima::fastcdr::optional<J2735::idl::SpeedLimitList>& speedLimits() const;
+
+    /*!
+     * @brief This function returns a reference to member speedLimits
+     * @return Reference to member speedLimits
+     */
+    eProsima_user_DllExport eprosima::fastcdr::optional<J2735::idl::SpeedLimitList>& speedLimits();
+
+
+    /*!
+     * @brief This function copies the value in member points
+     * @param _points New value to be copied in member points
+     */
+    eProsima_user_DllExport void points(
+            const eprosima::fastcdr::optional<Csae::idl::PointList>& _points);
+
+    /*!
+     * @brief This function moves the value in member points
+     * @param _points New value to be moved in member points
+     */
+    eProsima_user_DllExport void points(
+            eprosima::fastcdr::optional<Csae::idl::PointList>&& _points);
+
+    /*!
+     * @brief This function returns a constant reference to member points
+     * @return Constant reference to member points
+     */
+    eProsima_user_DllExport const eprosima::fastcdr::optional<Csae::idl::PointList>& points() const;
+
+    /*!
+     * @brief This function returns a reference to member points
+     * @return Reference to member points
+     */
+    eProsima_user_DllExport eprosima::fastcdr::optional<Csae::idl::PointList>& points();
+
 private:
 
     J2735::idl::LaneID m_laneID{0};
     eprosima::fastcdr::optional<J2735::idl::LaneWidth> m_laneWidth;
     eprosima::fastcdr::optional<Csae::idl::LaneAttributes> m_laneAttributes;
+    eprosima::fastcdr::optional<J2735::idl::AllowedManeuvers> m_maneuvers;
+    eprosima::fastcdr::optional<Csae::idl::ConnectsToList> m_connectsTo;
+    eprosima::fastcdr::optional<J2735::idl::SpeedLimitList> m_speedLimits;
+    eprosima::fastcdr::optional<Csae::idl::PointList> m_points;
 
 };
 

@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 /* 
@@ -11,7 +11,9 @@
 #define MAP_LANE_
 
 #include "DefCommon.idl"
-
+#include "MapNode.idl"
+#include "MapPoint.idl"
+#include "SPATIntersectionState.idl"
 
 module Csae {
 module idl {
@@ -21,10 +23,22 @@ struct LaneAttributes {
     J2735::idl::LaneTypeAttributes laneType;
 };
 
+struct Connection {
+    NodeReferenceID remoteIntersection;
+    @optional J2735::idl::ConnectingLane connectingLane;
+    @optional PhaseID phaseId;
+};
+
+typedef sequence<Connection, 8> ConnectsToList;
+
 struct Lane {
     J2735::idl::LaneID laneID;
     @optional J2735::idl::LaneWidth laneWidth;
     @optional LaneAttributes laneAttributes;
+    @optional J2735::idl::AllowedManeuvers maneuvers;
+    @optional ConnectsToList connectsTo;
+    @optional J2735::idl::SpeedLimitList speedLimits;
+    @optional PointList points;
 };
 typedef sequence<Lane, 32> LaneList;
 };

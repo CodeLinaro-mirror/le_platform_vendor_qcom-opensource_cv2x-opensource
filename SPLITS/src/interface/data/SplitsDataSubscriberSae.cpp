@@ -1,33 +1,81 @@
 /*
- * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
-#include "SplitsDataSubscriber.hpp"
+#include "SplitsDataSubscriberSae.hpp"
 #include "Logger.hpp"
+#include "v2xMsgTypes.hpp"
 
 using namespace eprosima::fastdds::dds;
 
 namespace SPLITS {
 namespace Interface {
-SplitsDataSubscriber::~SplitsDataSubscriber() {
-    for (auto reader : readers_) {
-        if (reader != nullptr)
-        {
-            if (subscriber_ != nullptr) {
-                subscriber_->delete_datareader(reader);
-            }
-        }
-    }
 
-    if (subscriber_ != nullptr) {
-        participant_->delete_subscriber(subscriber_);
-    }
+SplitsDataSubscriberSae::SplitsDataSubscriberSae () {
+    LOGD(__FUNCTION__);
+
+    std::string typeName;
+    eprosima::fastdds::dds::TypeSupport BsmType(new J2735::idl::BasicSafetyMessagePubSubType);
+    types_.push_back(BsmType);
+    typeName = removeNameSpace(BsmType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_SAE_MSG_BSM);
+
+    eprosima::fastdds::dds::TypeSupport RtcmType(new J2735::idl::RTCMcorrectionPubSubType);
+    types_.push_back(RtcmType);
+    typeName = removeNameSpace(RtcmType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_SAE_MSG_RTCM);
+
+    eprosima::fastdds::dds::TypeSupport MapType(new J2735::idl::MapDataPubSubType);
+    types_.push_back(MapType);
+    typeName = removeNameSpace(MapType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_SAE_MSG_MAP);
+
+    eprosima::fastdds::dds::TypeSupport SpatType(new J2735::idl::SPATPubSubType);
+    types_.push_back(SpatType);
+    typeName = removeNameSpace(SpatType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_SAE_MSG_SPAT);
+
+    eprosima::fastdds::dds::TypeSupport RsmType(new J2735::idl::RoadSafetyMessagePubSubType);
+    types_.push_back(RsmType);
+    typeName = removeNameSpace(RsmType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_SAE_MSG_RSM);
+
+    eprosima::fastdds::dds::TypeSupport SrmType(new J2735::idl::SignalRequestMessagePubSubType);
+    types_.push_back(SrmType);
+    typeName = removeNameSpace(SrmType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_SAE_MSG_SRM);
+
+    eprosima::fastdds::dds::TypeSupport SsmType(new J2735::idl::SignalStatusMessagePubSubType);
+    types_.push_back(SsmType);
+    typeName = removeNameSpace(SsmType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_SAE_MSG_SSM);
+
+    eprosima::fastdds::dds::TypeSupport SdsmType(
+        new J2735::idl::SensorDataSharingMessagePubSubType);
+    types_.push_back(SdsmType);
+    typeName = removeNameSpace(SdsmType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_SAE_MSG_SDSM);
+
+    eprosima::fastdds::dds::TypeSupport WsaType(new IEEE1609Dot3::idl::SrvAdvMsgPubSubType);
+    types_.push_back(WsaType);
+    typeName = removeNameSpace(WsaType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_SAE_MSG_WSA);
+
+    eprosima::fastdds::dds::TypeSupport pduType(new J2735::idl::MsgDataPubSubType);
+    types_.push_back(pduType);
+    typeName = removeNameSpace(pduType.get_type_name());
+    msgType2IdMap_[typeName] = static_cast<int>(SPLITS::v2xMsgType::V2X_MSG_PDU);
 }
 
-bool SplitsDataSubscriber::init(std::string topicPrefix) {
+bool SplitsDataSubscriberSae::init(std::string topicPrefix) {
+    LOGD(__FUNCTION__);
+
     //call baseclass init function to create participant, topics and register types
-    SplitsDataPubSub::init(topicPrefix);
+    if (false == SplitsDataSubscriber::init(topicPrefix)) {
+        return false;
+    }
+
     //CREATE THE SUBSCRIBER
     subscriber_ = participant_->create_subscriber(SUBSCRIBER_QOS_DEFAULT, nullptr);
     if (subscriber_ == nullptr) {
@@ -38,7 +86,7 @@ bool SplitsDataSubscriber::init(std::string topicPrefix) {
     DataReaderQos rqos = DATAREADER_QOS_DEFAULT;
     rqos.reliability().kind = RELIABLE_RELIABILITY_QOS;
     for (auto const & topic : topics_) {
-        SplitsSubListener * listener = new SplitsSubListener(topic.first, shared_from_this());
+        SplitsSubListener * listener = new SplitsSubListenerSae(topic.first, shared_from_this());
         if (!listener ) {
             LOGE(__FUNCTION__, " Failed to create listener for topic: ",
                  (topic.second)->get_type_name());
@@ -56,61 +104,8 @@ bool SplitsDataSubscriber::init(std::string topicPrefix) {
     }
     return true;
 }
-int SplitsDataSubscriber::registerListener(std::weak_ptr<SplitsDataListener> listener) {
-    auto sp = listener.lock();
-    if (sp == nullptr) {
-        LOGE(__FUNCTION__, " SplitsDataSubscriber::registerListener: invalid param ");
-        return -1;
-    }
-    std::lock_guard<std::mutex> lk(listenerMtx_);
-    for (auto item : listeners_) {
-        if (item.lock() == sp) {
-            return 0;
-        }
-    }
-    listeners_.push_back(listener);
-    return 0;
-}
-int SplitsDataSubscriber::deregisterListener(std::weak_ptr<SplitsDataListener> listener) {
-    std::lock_guard<std::mutex> lk(listenerMtx_);
-    bool listenerExisted = false;
 
-    for (auto it = listeners_.begin(); it != listeners_.end();) {
-        auto sp = (*it).lock();
-        if (!sp) {
-            it = listeners_.erase(it);
-        } else if (sp == listener.lock()) {
-            it = listeners_.erase(it);
-            listenerExisted = true;
-        } else {
-            ++it;
-        }
-    }
-    if (listenerExisted) {
-        return 0;
-    } else  {
-        LOGD(__FUNCTION__, " no such listener existed");
-        return -1;
-    }
-}
-
-void SplitsSubListener::on_subscription_matched(DataReader*,
-                                                const SubscriptionMatchedStatus& info) {
-    if (info.current_count_change == 1) {
-        currentMatchedCount_ = info.total_count;
-        LOGE(__FUNCTION__, " Subscriber matched.");
-    }
-    else if (info.current_count_change == -1) {
-        currentMatchedCount_ = info.total_count;
-        LOGE(__FUNCTION__, " Subscriber unmatched.");
-    } else {
-        LOGE(__FUNCTION__, info.current_count_change,
-             " is not a valid value for SubscriptionMatchedStatus current count change");
-    }
-}
-
-void SplitsSubListener::on_data_available(
-        DataReader* reader) {
+void SplitsSubListenerSae::on_data_available(DataReader* reader) {
     SampleInfo info;
     LOGD(__FUNCTION__, " data available: topicid = ", topicId_);
     switch(topicId_) {
@@ -120,7 +115,11 @@ void SplitsSubListener::on_data_available(
             if (reader->take_next_sample(&Bsm, &info) == ReturnCode_t::RETCODE_OK ) {
                 if (info.valid_data) {
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         listener->onBsmReady(std::make_shared<J2735::idl::BasicSafetyMessage>(Bsm));
                     }
                 } else {
@@ -137,9 +136,13 @@ void SplitsSubListener::on_data_available(
             LOGD(__FUNCTION__, " reading rtcm");
             if (reader->take_next_sample(&Rtcm, &info) == ReturnCode_t::RETCODE_OK ) {
                 if (info.valid_data) {
-            LOGD(__FUNCTION__, "  Rtcm goot");
+                    LOGD(__FUNCTION__, "  Rtcm goot");
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         listener->onRtcmReady(std::make_shared<J2735::idl::RTCMcorrection>(Rtcm));
                     }
                 } else {
@@ -156,7 +159,11 @@ void SplitsSubListener::on_data_available(
             if (reader->take_next_sample(&Map, &info) == ReturnCode_t::RETCODE_OK ) {
                 if (info.valid_data) {
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         listener->onMapReady(std::make_shared<J2735::idl::MapData>(Map));
                     }
                 } else {
@@ -173,7 +180,11 @@ void SplitsSubListener::on_data_available(
             if (reader->take_next_sample(&Spat, &info) == ReturnCode_t::RETCODE_OK ) {
                 if (info.valid_data) {
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         listener->onSpatReady(std::make_shared<J2735::idl::SPAT>(Spat));
                     }
                 } else {
@@ -190,7 +201,11 @@ void SplitsSubListener::on_data_available(
             if (reader->take_next_sample(&Rsm, &info) == ReturnCode_t::RETCODE_OK ) {
                 if (info.valid_data) {
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         listener->onRsmReady(std::make_shared<J2735::idl::RoadSafetyMessage>(Rsm));
                     }
                 } else {
@@ -207,7 +222,11 @@ void SplitsSubListener::on_data_available(
             if (reader->take_next_sample(&Srm, &info) == ReturnCode_t::RETCODE_OK ) {
                 if (info.valid_data) {
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         listener->onSrmReady(std::make_shared<J2735::idl::SignalRequestMessage>(Srm));
                     }
                 } else {
@@ -224,7 +243,11 @@ void SplitsSubListener::on_data_available(
             if (reader->take_next_sample(&Ssm, &info) == ReturnCode_t::RETCODE_OK ) {
                 if (info.valid_data) {
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         listener->onSsmReady(std::make_shared<J2735::idl::SignalStatusMessage>(Ssm));
                     }
                 } else {
@@ -241,7 +264,11 @@ void SplitsSubListener::on_data_available(
             if (reader->take_next_sample(&Sdsm, &info) == ReturnCode_t::RETCODE_OK ) {
                 if (info.valid_data) {
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         listener->onSdsmReady(std::make_shared<J2735::idl::SensorDataSharingMessage>(Sdsm));
                     }
                 } else {
@@ -258,7 +285,11 @@ void SplitsSubListener::on_data_available(
             if (reader->take_next_sample(&Wsa, &info) == ReturnCode_t::RETCODE_OK ) {
                 if (info.valid_data) {
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         listener->onWsaReady(std::make_shared<IEEE1609Dot3::idl::SrvAdvMsg>(Wsa));
                     }
                 } else {
@@ -277,7 +308,11 @@ void SplitsSubListener::on_data_available(
             LOGD(__FUNCTION__, "  pdu good");
                 if (info.valid_data) {
                     for (auto item : subscriber_->listeners_) {
-                        auto listener = item.lock();
+                        auto sp = item.lock();
+                        if (!sp) {
+                            continue;
+                        }
+                        auto listener = std::dynamic_pointer_cast<SplitsDataListenerSae>(sp);
                         LOGD(__FUNCTION__, " calling listener callback");
                         listener->onPduReady(std::make_shared<J2735::idl::MsgData>(Pdu));
                     }
@@ -292,7 +327,6 @@ void SplitsSubListener::on_data_available(
         default:
             LOGE(__FUNCTION__, " topicId: ", topicId_, "not supported");
             break;
-
     }
 }
 } //namespace Interface

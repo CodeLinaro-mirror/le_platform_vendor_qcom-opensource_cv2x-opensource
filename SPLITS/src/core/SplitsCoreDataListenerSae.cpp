@@ -1,16 +1,21 @@
 /*
- *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 #include "v2xMsgTypes.hpp"
+#include "v2xMsgSae.hpp"
 #include "SplitsCoreImpl.hpp"
-#include "SplitsCoreDataListener.hpp"
+#include "SplitsCoreDataListenerSae.hpp"
 #include "Logger.hpp"
 
 using SPLITS::MsgFormat;
 using SPLITS::v2xMsgType;
 
-void SplitsCoreDataListener::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu) {
+namespace SPLITS {
+
+namespace Core {
+
+void SplitsCoreDataListenerSae::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu) {
     uint8_t signedPdu[512];
     uint32_t signedPduLen = 512;
     MsgFormat format = MsgFormat::MSG_FORMAT_UNKNOWN;
@@ -62,7 +67,7 @@ void SplitsCoreDataListener::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu
                 //copy the signed pdu to msg buffer, but reserve headroom for WSMP header.
                 std::memcpy(msg->buf + RESERVE_HEADER_LEN, signedPdu, signedPduLen);
                 //encode Wsmp header and prepend to begining of buffer
-                if (splitsCore_->codec_->encodeWsmp(msg, true)) {
+                if (splitsCore_->codec_->encodeHeader(msg, true)) {
                     LOGE(__FUNCTION__, " Failed to encode WSMP header");
                     goto out;
                 }
@@ -77,8 +82,8 @@ void SplitsCoreDataListener::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu
             msg->buf += RESERVE_HEADER_LEN;
             msg->bufLen = pdu->length();
             //encode Wsmp header and prepend to begining of buffer
-            LOGD(__FUNCTION__, " calling encodeWSMP with secured false");
-            if (splitsCore_->codec_->encodeWsmp(msg, false)) {
+            LOGD(__FUNCTION__, " calling encodeHeader with secured false");
+            if (splitsCore_->codec_->encodeHeader(msg, false)) {
                 LOGE(__FUNCTION__, " Failed to encode WSMP header");
                 goto out;
             }
@@ -92,7 +97,7 @@ void SplitsCoreDataListener::onPduReady(std::shared_ptr<J2735::idl::MsgData> pdu
         std::copy(pdu->msg().begin(), pdu->msg().end(), msg->buf + RESERVE_HEADER_LEN);
         msg->bufLen = pdu->length();
         //encode Wsmp header and prepend to begining of buffer
-        if (splitsCore_->codec_->encodeWsmp(msg, true)) {
+        if (splitsCore_->codec_->encodeHeader(msg, true)) {
             LOGE(__FUNCTION__, " Failed to encode WSMP header");
             goto out;
         }
@@ -109,8 +114,7 @@ out:
         msg->bufLen = TX_BUF_LEN;
     }
 }
-void SplitsCoreDataListener::onMapReady(std::shared_ptr<J2735::idl::MapData> map)
-{
+void SplitsCoreDataListenerSae::onMapReady(std::shared_ptr<J2735::idl::MapData> map) {
     auto msg = std::dynamic_pointer_cast<v2xMsgSae>(splitsCore_->txEventMsgs_[SAE_PSID_MAP]);
     if (msg == nullptr) {
         LOGE(__FUNCTION__, " no msg for MAP msg ");
@@ -123,8 +127,7 @@ void SplitsCoreDataListener::onMapReady(std::shared_ptr<J2735::idl::MapData> map
         LOGE(__FUNCTION__, " tx failure");
     }
 }
-void SplitsCoreDataListener::onSpatReady(std::shared_ptr<J2735::idl::SPAT> spat)
-{
+void SplitsCoreDataListenerSae::onSpatReady(std::shared_ptr<J2735::idl::SPAT> spat) {
     auto msg = std::dynamic_pointer_cast<v2xMsgSae>(splitsCore_->txEventMsgs_[SAE_PSID_SPAT]);
     if (msg == nullptr) {
         LOGE(__FUNCTION__, " no msg for SPAT msg ");
@@ -138,8 +141,7 @@ void SplitsCoreDataListener::onSpatReady(std::shared_ptr<J2735::idl::SPAT> spat)
     }
 
 }
-void SplitsCoreDataListener::onRtcmReady(std::shared_ptr<J2735::idl::RTCMcorrection> rtcm)
-{
+void SplitsCoreDataListenerSae::onRtcmReady(std::shared_ptr<J2735::idl::RTCMcorrection> rtcm) {
     LOGD(__FUNCTION__, " got RTCM ");
     auto msg = std::dynamic_pointer_cast<v2xMsgSae>(splitsCore_->txEventMsgs_[SAE_PSID_RTCM]);
     if (msg == nullptr) {
@@ -153,8 +155,7 @@ void SplitsCoreDataListener::onRtcmReady(std::shared_ptr<J2735::idl::RTCMcorrect
         LOGE(__FUNCTION__, " tx failure");
     }
 }
-void SplitsCoreDataListener::onWsaReady(std::shared_ptr<IEEE1609Dot3::idl::SrvAdvMsg> wsa)
-{
+void SplitsCoreDataListenerSae::onWsaReady(std::shared_ptr<IEEE1609Dot3::idl::SrvAdvMsg> wsa) {
     auto msg = std::dynamic_pointer_cast<v2xMsgSae>(splitsCore_->txEventMsgs_[SAE_PSID_WSA]);
     if (msg == nullptr) {
         LOGE(__FUNCTION__, " no msg for WSA msg ");
@@ -167,3 +168,6 @@ void SplitsCoreDataListener::onWsaReady(std::shared_ptr<IEEE1609Dot3::idl::SrvAd
         LOGE(__FUNCTION__, " tx failure");
     }
 }
+
+} // namespace Core
+} // namespace SPLITS

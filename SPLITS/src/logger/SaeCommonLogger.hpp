@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef __SAE_COMMON_LOGGER_HPP__
@@ -35,7 +35,7 @@ public:
      * @param[in] msg the v2x message data pointer
      * @return none.
      */
-    virtual void logMsg(std::shared_ptr<v2xMsgSae> msg) = 0;
+    virtual void logMsg(std::shared_ptr<v2xMsgSae> msg) {}
 
     /**
      * log the BSM message.
@@ -208,7 +208,6 @@ public:
         *os_ << indents[ind] << "lat:" << idlAcc.lat() << endl;
         *os_ << indents[ind] << "vert:" << static_cast<int>(idlAcc.vert()) << endl;
         *os_ << indents[ind] << "yaw:" << idlAcc.yaw() << endl;
-
     }
     void printBrakeSystemStatus(const J2735::idl::BrakeSystemStatus &brakes, int ind) {
         *os_ << indents[ind] << "BrakeAppliedStatus: " << brakes.wheelBrakes() << endl;
@@ -353,7 +352,7 @@ protected:
             "\t\t\t\t",
             "\t\t\t\t\t"
         };
-private:
+
     void printPathHistoryPoint(const J2735::idl::PathHistoryPoint &idlPHP, int ind) {
         *os_ << indents[ind] << "speed:" << (idlPHP.speed().has_value() ?
                 std::to_string(idlPHP.speed().value()) : "n/a") << endl;

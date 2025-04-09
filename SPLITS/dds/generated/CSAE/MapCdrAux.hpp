@@ -24,8 +24,9 @@
 
 #include "Map.h"
 
-constexpr uint32_t Csae_idl_MapData_max_cdr_typesize {5552928UL};
+constexpr uint32_t Csae_idl_MapData_max_cdr_typesize {84327200UL};
 constexpr uint32_t Csae_idl_MapData_max_key_cdr_typesize {0UL};
+
 
 
 

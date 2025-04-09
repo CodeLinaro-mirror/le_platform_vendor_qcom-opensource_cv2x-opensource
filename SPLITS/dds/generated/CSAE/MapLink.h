@@ -34,8 +34,6 @@
 #include <fastcdr/xcdr/optional.hpp>
 
 #include "DefCommon.h"
-#include "SPATIntersectionState.h"
-#include "MapPoint.h"
 #include "DefPositionOffset.h"
 #include "MapLane.h"
 

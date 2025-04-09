@@ -1,7 +1,8 @@
 /*
- *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+
 #ifndef SPLITS_COREIMPL_HPP_
 #define SPLITS_COREIMPL_HPP_
 
@@ -22,10 +23,11 @@
 #include "SplitsConfigFile.hpp"
 #include "SplitsWra.hpp"
 #include "SplitsRTCM.hpp"
-#include "SplitsServiceDataPublisher.hpp"
-#include "SplitsDataSubscriber.hpp"
-#include "SplitsCoreDataListener.hpp"
-#include "SplitsStatisticsStubImpl.hpp"
+#include "data/SplitsServiceDataPublisher.hpp"
+#include "data/SplitsDataSubscriber.hpp"
+#include "stubs/SplitsStatisticsStubImpl.hpp"
+#include "SplitsCoreDataListenerSae.hpp"
+#include "SplitsCoreDataListenerCsae.hpp"
 
 using SPLITS::v2xMsg;
 using v1::commonapi::SPLITS::SplitsConfig;
@@ -34,10 +36,13 @@ using SPLITS::Config::SplitsConfigIdl;
 using SPLITS::Config::SplitsConfigFile;
 using SPLITS::Codec::SplitsCodec;
 using SPLITS::StackType;
+using SPLITS::Codec::TxRxInfo;
 using SPLITS::Interface::SplitsServiceDataPublisher;
 using SPLITS::Interface::SplitsDataSubscriber;
 using SPLITS::Interface::SplitsStatisticsStubImpl;
-using SPLITS::Core::SplitsCoreDataListener;
+using SPLITS::Interface::SplitsDataListener;
+using SPLITS::Core::SplitsCoreDataListenerSae;
+using SPLITS::Core::SplitsCoreDataListenerCsae;
 
 namespace CommonAPI {
     class Runtime;
@@ -72,7 +77,8 @@ public:
     virtual void clearRadioInstance() override{};
 
     virtual void closeAllRadio() override {};
-    friend class SplitsCoreDataListener;
+    friend class SplitsCoreDataListenerSae;
+    friend class SplitsCoreDataListenerCsae;
 
     void recordBSM(const std::shared_ptr<v2xMsg> msg, bool tx = true);
     
@@ -118,6 +124,8 @@ private:
     int initRadio(void);
     int initSecurity(const std::string ctxName, const uint16_t countryCode,
                     const std::string lcmName);
+    void getTxRxInfo(const SplitsConfig::CoreConfig &coreCfg, TxRxInfo &info);
+
     std::shared_ptr<v2xMsg> fillLocalMsg(int serviceId);
     int processReceive(void);
 
@@ -136,7 +144,7 @@ private:
     std::shared_ptr<SplitsServiceDataPublisher> publisher_ = nullptr;
     std::shared_ptr<SplitsDataSubscriber> subscriber_ = nullptr;
     std::shared_ptr<CommonAPI::Runtime> runtime_ =nullptr;
-    std::shared_ptr<SplitsStatisticsStubImpl> splitsStatisticsService_;
+    std::shared_ptr<SplitsStatisticsStubImpl> splitsStatisticsService_ = nullptr;
     std::shared_ptr<SplitsConfig::SplitsConfigData> configData_ = nullptr;
     std::shared_ptr<SplitsConfigFile> configFile_ = nullptr;
     std::shared_ptr<SplitsConfigIdl> configIdl_ = nullptr;
@@ -149,7 +157,7 @@ private:
     std::shared_ptr<CsvIO> csv_ = nullptr;
     std::shared_ptr<SplitsWra> wra_ = nullptr;
     std::shared_ptr<SplitsRTCM> rtcm_ = nullptr;
-    std::shared_ptr<SplitsCoreDataListener> dataListener_ = nullptr;
+    std::shared_ptr<SplitsDataListener> dataListener_ = nullptr;
     SPLITS::Core::Role role_;
 };
 

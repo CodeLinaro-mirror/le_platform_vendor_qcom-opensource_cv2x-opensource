@@ -133,6 +133,112 @@ void serialize_key(
 template<>
 eProsima_user_DllExport size_t calculate_serialized_size(
         eprosima::fastcdr::CdrSizeCalculator& calculator,
+        const Csae::idl::Connection& data,
+        size_t& current_alignment)
+{
+    using namespace Csae::idl;
+
+    static_cast<void>(data);
+
+    eprosima::fastcdr::EncodingAlgorithmFlag previous_encoding = calculator.get_encoding();
+    size_t calculated_size {calculator.begin_calculate_type_serialized_size(
+                                eprosima::fastcdr::CdrVersion::XCDRv2 == calculator.get_cdr_version() ?
+                                eprosima::fastcdr::EncodingAlgorithmFlag::DELIMIT_CDR2 :
+                                eprosima::fastcdr::EncodingAlgorithmFlag::PLAIN_CDR,
+                                current_alignment)};
+
+
+        calculated_size += calculator.calculate_member_serialized_size(eprosima::fastcdr::MemberId(0),
+                data.remoteIntersection(), current_alignment);
+
+        calculated_size += calculator.calculate_member_serialized_size(eprosima::fastcdr::MemberId(1),
+                data.connectingLane(), current_alignment);
+
+        calculated_size += calculator.calculate_member_serialized_size(eprosima::fastcdr::MemberId(2),
+                data.phaseId(), current_alignment);
+
+
+    calculated_size += calculator.end_calculate_type_serialized_size(previous_encoding, current_alignment);
+
+    return calculated_size;
+}
+
+template<>
+eProsima_user_DllExport void serialize(
+        eprosima::fastcdr::Cdr& scdr,
+        const Csae::idl::Connection& data)
+{
+    using namespace Csae::idl;
+
+    eprosima::fastcdr::Cdr::state current_state(scdr);
+    scdr.begin_serialize_type(current_state,
+            eprosima::fastcdr::CdrVersion::XCDRv2 == scdr.get_cdr_version() ?
+            eprosima::fastcdr::EncodingAlgorithmFlag::DELIMIT_CDR2 :
+            eprosima::fastcdr::EncodingAlgorithmFlag::PLAIN_CDR);
+
+    scdr
+        << eprosima::fastcdr::MemberId(0) << data.remoteIntersection()
+        << eprosima::fastcdr::MemberId(1) << data.connectingLane()
+        << eprosima::fastcdr::MemberId(2) << data.phaseId()
+;
+    scdr.end_serialize_type(current_state);
+}
+
+template<>
+eProsima_user_DllExport void deserialize(
+        eprosima::fastcdr::Cdr& cdr,
+        Csae::idl::Connection& data)
+{
+    using namespace Csae::idl;
+
+    cdr.deserialize_type(eprosima::fastcdr::CdrVersion::XCDRv2 == cdr.get_cdr_version() ?
+            eprosima::fastcdr::EncodingAlgorithmFlag::DELIMIT_CDR2 :
+            eprosima::fastcdr::EncodingAlgorithmFlag::PLAIN_CDR,
+            [&data](eprosima::fastcdr::Cdr& dcdr, const eprosima::fastcdr::MemberId& mid) -> bool
+            {
+                bool ret_value = true;
+                switch (mid.id)
+                {
+                                        case 0:
+                                                dcdr >> data.remoteIntersection();
+                                            break;
+
+                                        case 1:
+                                                dcdr >> data.connectingLane();
+                                            break;
+
+                                        case 2:
+                                                dcdr >> data.phaseId();
+                                            break;
+
+                    default:
+                        ret_value = false;
+                        break;
+                }
+                return ret_value;
+            });
+}
+
+void serialize_key(
+        eprosima::fastcdr::Cdr& scdr,
+        const Csae::idl::Connection& data)
+{
+    using namespace Csae::idl;
+
+    static_cast<void>(scdr);
+    static_cast<void>(data);
+}
+
+
+
+
+
+
+
+
+template<>
+eProsima_user_DllExport size_t calculate_serialized_size(
+        eprosima::fastcdr::CdrSizeCalculator& calculator,
         const Csae::idl::Lane& data,
         size_t& current_alignment)
 {
@@ -157,6 +263,18 @@ eProsima_user_DllExport size_t calculate_serialized_size(
         calculated_size += calculator.calculate_member_serialized_size(eprosima::fastcdr::MemberId(2),
                 data.laneAttributes(), current_alignment);
 
+        calculated_size += calculator.calculate_member_serialized_size(eprosima::fastcdr::MemberId(3),
+                data.maneuvers(), current_alignment);
+
+        calculated_size += calculator.calculate_member_serialized_size(eprosima::fastcdr::MemberId(4),
+                data.connectsTo(), current_alignment);
+
+        calculated_size += calculator.calculate_member_serialized_size(eprosima::fastcdr::MemberId(5),
+                data.speedLimits(), current_alignment);
+
+        calculated_size += calculator.calculate_member_serialized_size(eprosima::fastcdr::MemberId(6),
+                data.points(), current_alignment);
+
 
     calculated_size += calculator.end_calculate_type_serialized_size(previous_encoding, current_alignment);
 
@@ -180,6 +298,10 @@ eProsima_user_DllExport void serialize(
         << eprosima::fastcdr::MemberId(0) << data.laneID()
         << eprosima::fastcdr::MemberId(1) << data.laneWidth()
         << eprosima::fastcdr::MemberId(2) << data.laneAttributes()
+        << eprosima::fastcdr::MemberId(3) << data.maneuvers()
+        << eprosima::fastcdr::MemberId(4) << data.connectsTo()
+        << eprosima::fastcdr::MemberId(5) << data.speedLimits()
+        << eprosima::fastcdr::MemberId(6) << data.points()
 ;
     scdr.end_serialize_type(current_state);
 }
@@ -209,6 +331,22 @@ eProsima_user_DllExport void deserialize(
 
                                         case 2:
                                                 dcdr >> data.laneAttributes();
+                                            break;
+
+                                        case 3:
+                                                dcdr >> data.maneuvers();
+                                            break;
+
+                                        case 4:
+                                                dcdr >> data.connectsTo();
+                                            break;
+
+                                        case 5:
+                                                dcdr >> data.speedLimits();
+                                            break;
+
+                                        case 6:
+                                                dcdr >> data.points();
                                             break;
 
                     default:

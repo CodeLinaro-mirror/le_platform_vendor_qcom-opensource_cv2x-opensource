@@ -1,12 +1,13 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <memory>
 #include <atomic>
 #include <telux/common/CommonDefines.hpp>
 #include "v2xMsgSae.hpp"
+#include "v2xMsgCsae.hpp"
 #include "vehicle/VehicleInterface.hpp"
 #include "location/KinematicsReceive.hpp"
 #include "qUtils.hpp"
@@ -52,6 +53,9 @@ public:
     virtual Status fillBsm(std::shared_ptr<v2xMsgSae> msg, bool idChanged,
         unsigned char* newTempId);
 
+    virtual Status fillBsm(std::shared_ptr<v2xMsgCsae> msg, bool idChanged,
+        unsigned char* newTempId);
+
 private:
     void fillVehicleSafetyExt(std::shared_ptr<J2735::idl::BasicSafetyMessage> bsm);
     void onHighResMotionDataChanged(const high_resolution_motion_t &highResMotion) override;
@@ -62,6 +66,7 @@ private:
     std::shared_ptr<SplitsCore> splitsCore_;
     std::shared_ptr<QUtils> utils_;
     high_resolution_motion_t highResMotion_;
+    std::mutex vehStateMutex_;
     current_dynamic_vehicle_state_t vehicleState_;
     static_vehicle_parameters_t vehicleParams_;
     BsmLocationInfo bsmLocation_;
@@ -76,6 +81,7 @@ private:
     uint32_t randNumMsgId_ = 0;
     uint32_t msgCount_ = 0;
     std::array<uint8_t, 4> msgId_;
+    std::array<uint8_t, 8> tmpVehId_; // temporary vehicle ID used for CSAE BSM
     bool avdClass_ = false;  //test
 };
 } //namespace Core

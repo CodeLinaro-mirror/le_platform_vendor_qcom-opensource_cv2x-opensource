@@ -14,9 +14,13 @@ set(TARGET_CLIENT_SOURCES
 find_package(CommonAPI 3.2.0 REQUIRED)
 find_package(CommonAPI-SomeIP 3.2.0 REQUIRED)
 find_package(vsomeip3 3.1.0 REQUIRED)
-find_package(jsoncpp REQUIRED)
+find_library(JSONCPP_LIB NAMES jsoncpp REQUIRED)
+find_library(SPLITSDDS_GEN_LIB NAMES splitsdds_gen REQUIRED)
 
-include_directories(BEFORE 
+add_executable(${TARGET_CLIENT} ${TARGET_CLIENT_SOURCES})
+
+if (${BUILD_TARGET} STREQUAL "client")
+include_directories(BEFORE
     ${SPLITS_ROOT_PATH}
     ${SPLITS_ROOT_PATH}/include
     ${SPLITS_ROOT_PATH}/config
@@ -30,13 +34,28 @@ include_directories(BEFORE
     ${CMAKE_INSTALL_PREFIX}/include/splits-commonapi-gen/core
     ${CMAKE_INSTALL_PREFIX}/include/splits-commonapi-gen/someip
     )
+else()
+include_directories(BEFORE
+    ${SPLITS_ROOT_PATH}
+    ${SPLITS_ROOT_PATH}/include
+    ${SPLITS_ROOT_PATH}/config
+    ${SPLITS_ROOT_PATH}/src/interface
+    ${SPLITS_ROOT_PATH}/src/core
+    ${SPLITS_ROOT_PATH}/src/logger
+    ${COMMONAPI_INCLUDE_DIRS}
+    ${SYS_INCLUDE}/splits-commonapi-gen/core
+    ${SYS_INCLUDE}/splits-commonapi-gen/someip
+    ${SYS_INCLUDE}/splits-dds-gen
+    )
+target_link_libraries(${TARGET_CLIENT} telux_common)
+
+endif()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
-add_executable(${TARGET_CLIENT} ${TARGET_CLIENT_SOURCES})
 
 target_link_libraries(${TARGET_CLIENT}
-    splits_interface CommonAPI splitsdds_gen splits_logger jsoncpp
+    splits_interface_client CommonAPI ${SPLITSDDS_GEN_LIB} splits_logger ${JSONCPP_LIB}
 )
 
 install ( TARGETS ${TARGET_CLIENT}

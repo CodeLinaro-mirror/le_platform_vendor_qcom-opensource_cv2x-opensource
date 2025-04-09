@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <syslog.h>
@@ -14,11 +14,17 @@
 
 #include <CommonAPI/CommonAPI.hpp>
 #include "SplitsConfigStubImpl.hpp"
-#include "SplitsDataPublisher.hpp"
 #include "utils.h"
 #include "v2xMsgSae.hpp"
+#include "v2xMsgCsae.hpp"
 #include "CsvIO.hpp"
 #include "Logger.hpp"
+#include "SplitsCodecImpl.hpp"
+
+#include "data/SplitsServiceDataPublisherSae.hpp"
+#include "data/SplitsServiceDataPublisherCsae.hpp"
+#include "data/SplitsDataSubscriberSae.hpp"
+#include "data/SplitsDataSubscriberCsae.hpp"
 
 #define RX_POOL_SIZE    6000
 #define DEFAULT_BSM_PRIORITY    5
@@ -31,6 +37,11 @@ using SPLITS::MsgSource;
 using SPLITS::MsgFormat;
 using v1::commonapi::SPLITS::SplitsStatistics;
 using namespace telux::cv2x::prop;
+using SPLITS::Interface::SplitsServiceDataPublisherSae;
+using SPLITS::Interface::SplitsServiceDataPublisherCsae;
+using SPLITS::Interface::SplitsDataSubscriberSae;
+using SPLITS::Interface::SplitsDataSubscriberCsae;
+
 //Testing variables
 #include <cstdio>
 char gRxBuf[512];
@@ -42,6 +53,7 @@ std::atomic<uint64_t> totalExtracted {0};
 std::atomic<uint64_t> lastTimeStamp {0};
 std::atomic<uint64_t> numPublished {0};
 std::atomic<uint64_t> numRxed {0};
+
 namespace SPLITS {
 
 namespace Core {
@@ -215,7 +227,7 @@ int SplitsCoreImpl::initMsgs(void) {
         if (st_ == StackType::STACK_TYPE_SAE) {
             msg = std::make_shared<v2xMsgSae>();
         } else {
-            //TODO: Add CSAE message object
+            msg = std::make_shared<v2xMsgCsae>();
         }
         msg->head = msg->buf = (char *)malloc(RX_BUF_LEN);
         msg->bufLen = RX_BUF_LEN;
@@ -225,27 +237,27 @@ int SplitsCoreImpl::initMsgs(void) {
     for (auto const &spsTx : coreCfg.getSpsFlows()) {
         if (st_ == StackType::STACK_TYPE_SAE) {
             msg = std::make_shared<v2xMsgSae>();
-            msg->head = msg->buf = (char *)malloc(TX_BUF_LEN);
-            msg->bufLen = TX_BUF_LEN;
-            // TODO: Service ID to Message ID map,
-            //       for now we are just using the service ID
-            txSpsMsgs_[spsTx.getServiceId()] = msg;
         } else {
-            //TODO: Add CSAE message objects
+            msg = std::make_shared<v2xMsgCsae>();
         }
+        msg->head = msg->buf = (char *)malloc(TX_BUF_LEN);
+        msg->bufLen = TX_BUF_LEN;
+        // TODO: Service ID to Message ID map,
+        //       for now we are just using the service ID
+        txSpsMsgs_[spsTx.getServiceId()] = msg;
     }
     //tx event msgs
     for (auto const &eventTx : coreCfg.getEventFlows()) {
         if (st_ == StackType::STACK_TYPE_SAE) {
             msg = std::make_shared<v2xMsgSae>();
-            msg->head = msg->buf = (char *)malloc(TX_BUF_LEN);
-            msg->bufLen = TX_BUF_LEN;
-            // TODO: Service ID to Message ID map,
-            //       for now we are just using the service ID
-            txEventMsgs_[eventTx.getServiceId()] = msg;
         } else {
-            //TODO: Add CSAE message objects
+            msg = std::make_shared<v2xMsgCsae>();
         }
+        msg->head = msg->buf = (char *)malloc(TX_BUF_LEN);
+        msg->bufLen = TX_BUF_LEN;
+        // TODO: Service ID to Message ID map,
+        //       for now we are just using the service ID
+        txEventMsgs_[eventTx.getServiceId()] = msg;
     }
 
     return 0;
@@ -262,6 +274,31 @@ int SplitsCoreImpl::adjustSpsPeriodicity(int intervalMs) {
     }
     return (ret * 100);
 }
+
+
+void SplitsCoreImpl::getTxRxInfo(const SplitsConfig::CoreConfig &coreCfg, TxRxInfo &info) {
+    // fill Rx SIDs
+    for (auto const & rxFlow : coreCfg.getRxFlows()) {
+        info.rxSids.push_back(rxFlow.getServiceId());
+    }
+
+    // fill local and remote Tx SIDs
+    for (auto const & txSpsFlow : coreCfg.getSpsFlows()) {
+        if (static_cast<MsgSource>(txSpsFlow.getSource()) == MsgSource::LOCAL) {
+            info.localTxSids.push_back(txSpsFlow.getServiceId());
+        } else {
+            info.remoteTxSids.push_back(txSpsFlow.getServiceId());
+        }
+    }
+    for (auto const & txEventFlow : coreCfg.getEventFlows()) {
+        if (static_cast<MsgSource>(txEventFlow.getSource()) == MsgSource::LOCAL) {
+            info.localTxSids.push_back(txEventFlow.getServiceId());
+        } else {
+            info.remoteTxSids.push_back(txEventFlow.getServiceId());
+        }
+    }
+}
+
 int SplitsCoreImpl::init(std::string cfgFileName, std::string rxpduFileName,
                          std::string txpduFileName, std::string csvFileDir) {
     bool useLocalConfig = true;
@@ -277,8 +314,9 @@ int SplitsCoreImpl::init(std::string cfgFileName, std::string rxpduFileName,
         useLocalConfig = true;
     }
 #endif
+    bool csae = (SPLITS::StackType::STACK_TYPE_CSAE == st_) ? true : false;
     if (useLocalConfig == true) {
-        configFile_ = std::make_shared<SplitsConfigFile>(configData_);
+        configFile_ = std::make_shared<SplitsConfigFile>(configData_, csae);
         if (cfgFileName.empty()) {
             LOGE(__FUNCTION__, " config file name not specified");
             return -1;
@@ -321,19 +359,21 @@ int SplitsCoreImpl::init(std::string cfgFileName, std::string rxpduFileName,
         csv_->writeRx(header);
     }
 
-    // Initialize Tx/Rx messages 
+    // Initialize Tx/Rx messages
     initMsgs();
 
     // Codec
     SplitsCodecFactory codecFactory;
 
-    if (st_ == StackType::STACK_TYPE_SAE) {
-        codec_ = codecFactory.getCodec(SPLITS::StackType::STACK_TYPE_SAE);
-    } else {
-        codec_ = codecFactory.getCodec(SPLITS::StackType::STACK_TYPE_CSAE);
+    codec_ = codecFactory.getCodec(st_);
+    if (!codec_) {
+        LOGE(__FUNCTION__, " failed to get codec of stack type:", static_cast<int>(st_));
+        return -1;
     }
 
-    if (codec_->init(LOG_DEBUG, false)) {
+    SPLITS::Codec::TxRxInfo info;
+    getTxRxInfo(coreCfg, info);
+    if (codec_->init(info, LOG_ERR, true)) {
         LOGE(__FUNCTION__, " Failed to init codec");
         return -1;
     }
@@ -413,18 +453,30 @@ int SplitsCoreImpl::init(std::string cfgFileName, std::string rxpduFileName,
         }
     }
     //dds
-    publisher_ = std::make_shared<SplitsServiceDataPublisher>();
+    if (csae) {
+        publisher_ = std::make_shared<SPLITS::Interface::SplitsServiceDataPublisherCsae>();
+        subscriber_ = std::make_shared<SPLITS::Interface::SplitsDataSubscriberCsae>();
+        dataListener_ = std::make_shared<SplitsCoreDataListenerCsae>(getptr());
+    } else {
+        publisher_ = std::make_shared<SPLITS::Interface::SplitsServiceDataPublisherSae>();
+        subscriber_ = std::make_shared<SPLITS::Interface::SplitsDataSubscriberSae>();
+        dataListener_ = std::make_shared<SplitsCoreDataListenerSae>(getptr());
+    }
+
+    if (!publisher_ or !subscriber_ or !dataListener_) {
+        LOGE(__FUNCTION__, " create pub sub failed!");
+        return -1;
+    }
+
     if (publisher_->init(getptr(), std::string("SERVICE")) == false) {
         LOGE(__FUNCTION__, " Failed to init data publisher");
         return -1;
     }
-    subscriber_ = std::make_shared<SplitsDataSubscriber>();
     if (subscriber_->init(std::string("CLIENT")) == false) {
         LOGE(__FUNCTION__, " Failed to init data subscriber");
         return -1;
     }
     //register a listener for receiving message from EAP
-    dataListener_ = std::make_shared<SplitsCoreDataListener>(getptr());
     subscriber_->registerListener(dataListener_);
 
     return 0;
@@ -503,8 +555,6 @@ int SplitsCoreImpl::processReceive(void) {
             return ret;
         }
 
-        recordBSM(rxMsg, false);
-        
         auto& rxStatistics = allRxStatistics_[rxMsg->port_];
         /*
            enum class MsgFormat {
@@ -536,10 +586,10 @@ int SplitsCoreImpl::processReceive(void) {
             uint32_t dot2HdrLen = 0;
 
             // just decode wsmp
-            int msgType = 0;
-            msgType = codec_->decodeWsmp(rxMsg);
+            int psid = 0;
+            psid = codec_->decodeHeader(rxMsg);
 
-            if (msgType == -1) {
+            if (psid == -1) {
                 rxStatistics.setDecodeFailed(rxStatistics.getDecodeFailed() + 1);
                 LOGE(__FUNCTION__, " Error decoding wsmp header of signed pdu");
                 ret = -1;
@@ -549,7 +599,7 @@ int SplitsCoreImpl::processReceive(void) {
             uint32_t sizeBeforeExtract = rxMsg->bufLen;
             // provide the details of the message to aerolink
             // buffer length needs to be large enough...
-            // to do... somehow when an SPDU is signed with cert digest and not with full cert, 
+            // to do... somehow when an SPDU is signed with cert digest and not with full cert,
             // the SPDU gets rejected by aerolink due to smaller received packet size.
             // to do.. use proper method for the offset (6 bytes) to bypass the original wsmp header
             ret = secInterface_->extractMsg(&asyncCbData->smp,
@@ -570,7 +620,7 @@ int SplitsCoreImpl::processReceive(void) {
             rxMsg->buf = (char*)rxMsg->buf + dot2HdrLen;
             // rxMsg->buf = payload ?
             rxMsg->bufLen = sizeBeforeExtract - dot2HdrLen;
-            ret = codec_->decodeFrame(rxMsg, true, msgType, (uint8_t*)rxMsg->buf, rxMsg->bufLen);
+            ret = codec_->decodeFrame(rxMsg, true, psid, (uint8_t*)rxMsg->buf, rxMsg->bufLen);
             if (ret == -1) {
                 LOGE(__FUNCTION__, " Decode failure");
                 rxStatistics.setDecodeFailed(rxStatistics.getDecodeFailed() + 1);
@@ -838,6 +888,8 @@ int SplitsCoreImpl::processReceive(void) {
         }
 handleMsg:
         if (ret != -1) {
+            // record BSM after decode success
+            recordBSM(rxMsg, false);
             numPublished++;
             publisher_->publish(rxMsg);
         }
@@ -862,7 +914,7 @@ const SplitsStatistics::CongestionControlStatistics&
             congestionControlstatistics_.setCQI(data.channData->channQualInd);
         }
     }
-    
+
     return congestionControlstatistics_;
 }
 
@@ -887,14 +939,17 @@ const SplitsStatistics::SecurityStatistics& SplitsCoreImpl::getSecurityStatistic
 }
 
 std::shared_ptr<v2xMsg> SplitsCoreImpl::fillLocalMsg(int id) {
-    std::shared_ptr<v2xMsgSae> msg = nullptr;
+    std::shared_ptr<v2xMsg> msg = nullptr;
+    if (txSpsMsgs_.find(id) != txSpsMsgs_.end()) {
+        msg = txSpsMsgs_[id];
+    }
+    if (msg == nullptr) {
+        LOGE(__FUNCTION__, " No sps msg for msg id:", id);
+        goto out;
+    }
+
     switch (id) {
         case SAE_PSID_BSM:
-            msg = std::dynamic_pointer_cast<v2xMsgSae>(txSpsMsgs_[id]);
-            if (msg == nullptr) {
-                LOGE(__FUNCTION__, " No sps msg!");
-                goto out;
-            }
             msg->msgType_ = v2xMsgType::V2X_SAE_MSG_BSM;
 
             // we need to check for distance and time since last id change to determine
@@ -907,7 +962,8 @@ std::shared_ptr<v2xMsg> SplitsCoreImpl::fillLocalMsg(int id) {
                 }
             }
 
-            if (bsmGenerator_->fillBsm(msg, idChangeData_.idChanged,
+            if (bsmGenerator_->fillBsm(std::dynamic_pointer_cast<v2xMsgSae>(msg),
+                                       idChangeData_.idChanged,
                                        idChangeData_.tempId) != Status::SUCCESS) {
                 LOGE(__FUNCTION__, " Failed to init bsm msg");
                 msg = nullptr;
@@ -917,14 +973,9 @@ std::shared_ptr<v2xMsg> SplitsCoreImpl::fillLocalMsg(int id) {
             idChangeData_.idChanged = false;
             break;
         case SAE_PSID_WSA:
-            msg = std::dynamic_pointer_cast<v2xMsgSae>(txSpsMsgs_[id]);
-            if (msg == nullptr) {
-                LOGE(__FUNCTION__, " No sps msg!");
-                goto out;
-            }
             msg->msgType_ = v2xMsgType::V2X_SAE_MSG_WSA;
             if (wra_ != nullptr) {
-                if (wra_->fillWra(msg)) {
+                if (wra_->fillWra(std::dynamic_pointer_cast<v2xMsgSae>(msg))) {
                     LOGE(__FUNCTION__, " Failed to init WSA msg");
                     msg = nullptr;
                     goto out;
@@ -936,14 +987,10 @@ std::shared_ptr<v2xMsg> SplitsCoreImpl::fillLocalMsg(int id) {
             }
             break;
         case SAE_PSID_RTCM:
-            msg = std::dynamic_pointer_cast<v2xMsgSae>(txEventMsgs_[id]);
-            if (msg == nullptr) {
-                LOGE(__FUNCTION__, " No event msg!");
-                goto out;
-            }
             msg->msgType_ = v2xMsgType::V2X_SAE_MSG_RTCM;
             if (rtcm_ != nullptr) {
-                if (rtcm_->fillRTCM(msg) != Status::SUCCESS) {
+                if (rtcm_->fillRTCM(std::dynamic_pointer_cast<v2xMsgSae>(msg))
+                    != Status::SUCCESS) {
                     LOGE(__FUNCTION__, " failed to initialize RTCM msg");
                     goto out;
                 }
@@ -953,6 +1000,30 @@ std::shared_ptr<v2xMsg> SplitsCoreImpl::fillLocalMsg(int id) {
                 goto out;
             }
             break;
+        case CSAE_AID_BSM:
+            msg->msgType_ = v2xMsgType::V2X_CSAE_MSG_BSM;
+
+            // we need to check for distance and time since last id change to determine
+            // if a change should happen
+            if (configData_->getCoreConfig().getEnableSecurity() && secInterface_) {
+                if (secInterface_->changeIdNow()) {
+                    if (secInterface_->idChange() < 0) {
+                        LOGE(__FUNCTION__, " Id Change Failure");
+                    }
+                }
+            }
+
+            if (bsmGenerator_->fillBsm(std::dynamic_pointer_cast<v2xMsgCsae>(msg),
+                                       idChangeData_.idChanged,
+                                       idChangeData_.certId) != Status::SUCCESS) {
+                LOGE(__FUNCTION__, " Failed to init CSAE bsm msg");
+                msg = nullptr;
+                goto out;
+            }
+            // reset here
+            idChangeData_.idChanged = false;
+            break;
+
         default:
             LOGE(__FUNCTION__,
                  " not supporting local generation of message with Message Id: ", id);
@@ -963,6 +1034,9 @@ out:
 }
 
 void SplitsCoreImpl::recordBSM(const std::shared_ptr<v2xMsg> msg, bool tx) {
+    if (!csv_ or !msg) {
+        return;
+    }
     // write BSM messages to csv
     if (v2xMsgType::V2X_SAE_MSG_BSM == msg->msgType_) {
         std::shared_ptr<v2xMsgSae> bsm_msg = std::dynamic_pointer_cast<v2xMsgSae>(msg);
@@ -971,38 +1045,82 @@ void SplitsCoreImpl::recordBSM(const std::shared_ptr<v2xMsg> msg, bool tx) {
         J2735::idl::BSMCoreData& coreData = sp->coreData();
         std::stringstream line;
         J2735::idl::TemporaryID idlID = coreData.id();
-        if (csv_) {
-            line <<
-                static_cast<int>(coreData.msgCnt()) << "," <<
-                std::hex << std::setfill('0') << std::setw(2) <<
-                idlID[0] << idlID[1] << idlID[2] << idlID[3] << ",";
-            line <<
-                std::dec << coreData.secMark() << "," <<
-                coreData.lat() << "," <<
-                coreData.longitude() << "," <<
-                static_cast<int>(coreData.elev()) << "," <<
-                coreData.accuracy().semiMajor() << "," <<
-                coreData.accuracy().semiMinor() << "," <<
-                coreData.accuracy().orientation() << "," <<
-                coreData.transmission() << "," <<
-                coreData.speed() << "," <<
-                coreData.heading() << "," <<
-                static_cast<int>(coreData.angle()) << "," <<
-                coreData.accelSet().longitude() << "," <<
-                coreData.accelSet().lat() << "," <<
-                static_cast<int>(coreData.accelSet().vert()) << "," <<
-                coreData.accelSet().yaw() << "," <<
-                coreData.brakes().wheelBrakes() << "," <<
-                coreData.brakes().traction() << "," <<
-                coreData.brakes().abs() << "," <<
-                coreData.brakes().scs() << "," <<
-                coreData.brakes().brakeBoost() << "," <<
-                coreData.brakes().auxBrakes() << "," <<
-                static_cast<int>(coreData.size().length()) << "," <<
-                static_cast<int>(coreData.size().width()) << ",";
-            line << std::endl;
-            tx ? csv_->writeTx(line.str()) : csv_->writeRx(line.str());
+        line <<
+            static_cast<int>(coreData.msgCnt()) << "," <<
+            std::hex << std::setfill('0') << std::setw(2) <<
+            idlID[0] << idlID[1] << idlID[2] << idlID[3] << ",";
+        line <<
+            std::dec << coreData.secMark() << "," <<
+            coreData.lat() << "," <<
+            coreData.longitude() << "," <<
+            static_cast<int>(coreData.elev()) << "," <<
+            coreData.accuracy().semiMajor() << "," <<
+            coreData.accuracy().semiMinor() << "," <<
+            coreData.accuracy().orientation() << "," <<
+            coreData.transmission() << "," <<
+            coreData.speed() << "," <<
+            coreData.heading() << "," <<
+            static_cast<int8_t>(coreData.angle()) << "," <<
+            coreData.accelSet().longitude() << "," <<
+            coreData.accelSet().lat() << "," <<
+            static_cast<int>(coreData.accelSet().vert()) << "," <<
+            coreData.accelSet().yaw() << "," <<
+            coreData.brakes().wheelBrakes() << "," <<
+            coreData.brakes().traction() << "," <<
+            coreData.brakes().abs() << "," <<
+            coreData.brakes().scs() << "," <<
+            coreData.brakes().brakeBoost() << "," <<
+            coreData.brakes().auxBrakes() << "," <<
+            static_cast<int>(coreData.size().length()) << "," <<
+            static_cast<int>(coreData.size().width()) << ",";
+        line << std::endl;
+        tx ? csv_->writeTx(line.str()) : csv_->writeRx(line.str());
+    } else if (v2xMsgType::V2X_CSAE_MSG_BSM == msg->msgType_) {
+        std::shared_ptr<Csae::idl::BasicSafetyMessage> sp =
+            (std::dynamic_pointer_cast<v2xMsgCsae>(msg))->BSM();
+        std::stringstream line;
+        line << static_cast<int>(sp->msgCnt()) << ",";
+        for (int i = 0; i < sp->id().size(); ++i) {
+            line << std::hex << std::setfill('0') << std::setw(2) <<
+                static_cast<unsigned int>(sp->id()[i]);
         }
+        line << ",";
+        line <<
+            std::dec << sp->secMark() << "," <<
+            sp->pos().lat() << "," <<
+            sp->pos().long_() << "," <<
+            "NA" << "," << // no vertical value for CSAE BSM
+            (sp->posAccuracy().has_value() ?
+                std::to_string(sp->posAccuracy().value().semiMajor()) : "NA") << "," <<
+            (sp->posAccuracy().has_value() ?
+                std::to_string(sp->posAccuracy().value().semiMinor()) : "NA") << "," <<
+            (sp->posAccuracy().has_value() ?
+                std::to_string(sp->posAccuracy().value().orientation()) : "NA") << "," <<
+            sp->transmission() << "," <<
+            sp->speed() << "," <<
+            sp->heading() << "," <<
+            (sp->angle().has_value() ? std::to_string(static_cast<int8_t>(sp->angle().value())) : "NA")
+            << "," <<
+            sp->accelSet().longitude() << "," <<
+            sp->accelSet().lat() << "," <<
+            static_cast<int>(sp->accelSet().vert()) << "," <<
+            sp->accelSet().yaw() << "," <<
+            (sp->brakes().wheelBrakes().has_value() ?
+                std::to_string(sp->brakes().wheelBrakes().value()) : "NA") << "," <<
+            (sp->brakes().traction().has_value() ?
+                std::to_string(sp->brakes().traction().value()) : "NA") << "," <<
+            (sp->brakes().abs().has_value() ?
+                std::to_string(sp->brakes().abs().value()) : "NA") << "," <<
+            (sp->brakes().scs().has_value() ?
+                std::to_string(sp->brakes().scs().value()) : "NA") << "," <<
+            (sp->brakes().brakeBoost().has_value() ?
+                std::to_string(sp->brakes().brakeBoost().value()) : "NA") << "," <<
+            (sp->brakes().auxBrakes().has_value() ?
+                std::to_string(sp->brakes().auxBrakes().value()) : "NA") << "," <<
+            static_cast<int>(sp->size().length()) << "," <<
+            static_cast<int>(sp->size().width()) << ",";
+        line << std::endl;
+        tx ? csv_->writeTx(line.str()) : csv_->writeRx(line.str());
     }
 }
 
@@ -1023,7 +1141,7 @@ int SplitsCoreImpl::send(int msgId, std::shared_ptr<v2xMsg> msg) {
             return ret;
         }
     } else {
-        if (!congCtrlInit_ && SAE_PSID_BSM == msgId) {
+        if (!congCtrlInit_ && (SAE_PSID_BSM == msgId || CSAE_AID_BSM == msgId)) {
             LOGI(__FUNCTION__, " Init Congestion Ctrl");
             congestCtrl_->init(congCtrlConfig_, std::make_shared<RadioTransmit>(it->second));
             congCtrlInit_ = true;
@@ -1083,8 +1201,8 @@ int SplitsCoreImpl::send(int msgId, std::shared_ptr<v2xMsg> msg) {
                 LOGD(__FUNCTION__, " New signed payload length is: ", signedPduLen);
                 msg->bufLen = signedPduLen;
                 std::memcpy(msg->buf, signedPdu, signedPduLen);
-                //encode Wsmp header and prepend to begining of buffer
-                if (codec_->encodeWsmp(msg, true)) {
+                //encode header and prepend to begining of buffer
+                if (codec_->encodeHeader(msg, true)) {
                     LOGE(__FUNCTION__, " Failed to encode WSMP header");
                     statistics.setEncodeFailed(statistics.getEncodeFailed() + 1);
                     statistics.setTxFailed(statistics.getTxFailed() + 1);

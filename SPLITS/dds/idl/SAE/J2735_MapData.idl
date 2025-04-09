@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 /* 
@@ -16,24 +16,6 @@ module idl {
 
 /* Typedefs of all integer types */
 typedef octet LayerID;
-
-/* bit strings*/
-@bit_bound(16)
-bitmask AllowedManeuvers
-{
-    @position(0)	maneuverStraightAllowed,
-    @position(1)	maneuverLeftAllowed,
-    @position(2)	maneuverRightAllowed,
-    @position(3)	maneuverUTurnAllowed,
-    @position(4)	maneuverLeftTurnOnRedAllowed,
-    @position(5)	maneuverRightTurnOnRedAllowed,
-    @position(6)	maneuverLaneChangeAllowed,
-    @position(7)	maneuverNoStoppingAllowed,
-    @position(8)	yieldAllwaysRequired,
-    @position(9)	goWithHalt,
-    @position(10)	caution,
-    @position(11)	am_reserved1
-};
 
 @bit_bound(2)
 bitmask LaneDirection
@@ -76,17 +58,6 @@ enum LayerType
      lt_parkingAreaData,
      lt_sharedLaneData
 };
-
-/* compound data types */
-struct ConnectingLane
-{
-   LaneID lane;               /*-- Index of the connecting lane*/
-   @optional AllowedManeuvers aneuver;  /*AllowedManeuvers OPTIONAL
-                       -- The Maneuver between
-                       -- the enclosing lane and this lane
-                       -- at the stop line to connect them */
-};
-
 
 struct Connection
 {

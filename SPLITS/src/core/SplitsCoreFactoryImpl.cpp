@@ -1,6 +1,6 @@
 /*
- *Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #include <iostream>
@@ -20,8 +20,9 @@ SplitsCoreFactory & SplitsCoreFactory::getInstance() {
     return instance;
 }
 
-std::shared_ptr<SplitsCore> SplitsCoreFactory::getCore(void) {
-    return std::make_shared<SPLITS::Core::SplitsCoreImpl>();
+std::shared_ptr<SplitsCore> SplitsCoreFactory::getCore(bool csae) {
+    StackType st = (csae) ? (StackType::STACK_TYPE_CSAE) : (StackType::STACK_TYPE_SAE);
+    return std::make_shared<SPLITS::Core::SplitsCoreImpl>(st);
 }
 }
 }

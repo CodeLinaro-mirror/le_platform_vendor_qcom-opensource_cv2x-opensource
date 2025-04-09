@@ -7,6 +7,11 @@ set(PRJ_NAME SPLITS)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE BOTH)
 set(CMAKE_FIND_DEBUG_MODE TRUE)
 
+# BUILD_TARGET client: build client program running on EAP
+# BUILD_TARGET client_on_target: build client program running on IDP
+# Default: build service program running on IDP
+#set(BUILD_TARGET "client_on_target")
+
 OPTION(USE_FILE "Set to OFF to disable file logging" OFF )
 message(STATUS "USE_FILE is set to value: ${USE_FILE}")
 

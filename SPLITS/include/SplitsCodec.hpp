@@ -1,7 +1,6 @@
-
 /*
- *Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *SPDX-License-Identifier: BSD-3-Clause-Clear
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 /**
@@ -13,6 +12,7 @@
 #define SPLITS_CODEC_HPP_
 
 #include <memory>
+#include <vector>
 #include "v2xMsg.hpp"
 
 
@@ -20,6 +20,12 @@
 namespace SPLITS {
 
 namespace Codec {
+
+struct TxRxInfo {
+    std::vector<uint32_t> rxSids;  // Rx SIDs
+    std::vector<uint32_t> localTxSids; // SIDs of local generated messages
+    std::vector<uint32_t> remoteTxSids; // SIDs of remote generated messages
+};
 
 /**
  * This class encapsulate v2x message codec interface
@@ -31,7 +37,7 @@ public:
      *
      * @returns 0 on success or negavie on failure.
      */
-    virtual int init(int logLevel, bool syslog) = 0;
+    virtual int init(const TxRxInfo &info, int logLevel, bool syslog) = 0;
     /**
      * Deinitialze the frames
      *
@@ -57,16 +63,16 @@ public:
      * @returns 0 on success or negative on failure.
      */
     virtual int encodeFrame(std::shared_ptr<v2xMsg> msg) = 0;
-    /** encode WSMP header only
+    /** encode header only
      *
      * @returns 0 on success or negative on failure.
      */
-    virtual int encodeWsmp(std::shared_ptr<v2xMsg> msg, bool secured) = 0;
-    /** decode WSMP header only
+    virtual int encodeHeader(std::shared_ptr<v2xMsg> msg, bool secured) = 0;
+    /** decode header only
      *
      * @returns 0 on success or negative on failure.
      */
-    virtual int decodeWsmp(std::shared_ptr<v2xMsg> msg) = 0;
+    virtual int decodeHeader(std::shared_ptr<v2xMsg> msg) = 0;
 protected:
     StackType stackType_;    /**< type of the stack, e.g. SAE or C-SAE */
 };

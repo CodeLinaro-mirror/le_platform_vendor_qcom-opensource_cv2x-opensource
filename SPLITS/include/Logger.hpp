@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -18,7 +18,10 @@
 #endif
 
 #ifdef COMMONAPI_LOG
-#include <CommonAPI/CommonAPI.hpp>
+#if !defined (COMMONAPI_INTERNAL_COMPILATION)
+#define COMMONAPI_INTERNAL_COMPILATION
+#endif
+#include <CommonAPI/Logger.hpp>
 #endif
 
 #ifdef TELSDK_LOG
@@ -27,6 +30,8 @@
 #define SPLITS_INF(args...)  LOG(telux::common::LogLevel::LEVEL_INFO, args)
 #define SPLITS_WARN(args...)  LOG(telux::common::LogLevel::LEVEL_WARNING, args)
 #elif defined(COMMONAPI_LOG)
+#define LINE_NO_STR(x) #x
+#define LINE_NO(x) LINE_NO_STR(x)
 #define SPLITS_ERR(args...)  COMMONAPI_ERROR(__FILE__, LINE_NO(__LINE__), args)
 #define SPLITS_DBG(args...)  COMMONAPI_DEBUG(__FILE__, LINE_NO(__LINE__), args)
 #define SPLITS_INF(args...)  COMMONAPI_INFO(__FILE__, LINE_NO(__LINE__), args)
