@@ -28,6 +28,7 @@
 #include "stubs/SplitsStatisticsStubImpl.hpp"
 #include "SplitsCoreDataListenerSae.hpp"
 #include "SplitsCoreDataListenerCsae.hpp"
+#include "SplitsDiagLogger.hpp"
 
 using SPLITS::v2xMsg;
 using v1::commonapi::SPLITS::SplitsConfig;
@@ -81,7 +82,10 @@ public:
     friend class SplitsCoreDataListenerCsae;
 
     void recordBSM(const std::shared_ptr<v2xMsg> msg, bool tx = true);
-    
+
+    void recordBSMToDiag(const std::shared_ptr<v2xMsg> msg, bool tx,
+        const DiagLogData* logData, TransmitType txType = TransmitType::SPS);
+
     const SplitsStatistics::AllTxStatistics& getTxStatistics() const {
         return allTxStatistics_;
     }
@@ -128,15 +132,20 @@ private:
 
     std::shared_ptr<v2xMsg> fillLocalMsg(int serviceId);
     int processReceive(void);
-
+    void periodicDiagLog(void);
     bool useRxPduFile_ = false;
     bool useTxPduFile_ = false;
-    bool stop_ = false;
+    std::atomic<bool> stop_;
+    uint64_t txInterval_ = 0;
+    uint64_t lastTxTime_ = 0;
+    uint64_t diagLogPeriodInterval_ = 1000;
+    int timerfd_ = -1;
     SecuredMessageGeneratorC smg_;
     std::vector<SecuredMessageParserC> smps_;
     IDChangeData idChangeData_;
     std::vector<std::thread> rxThreads_;
     std::thread processRxThread_;
+    std::thread periodicDiagLogThread_;
     CongCtrlConfig congCtrlConfig_;
     bool congCtrlInit_ = false;
     std::mutex statisticsMutex_;
@@ -158,6 +167,7 @@ private:
     std::shared_ptr<SplitsWra> wra_ = nullptr;
     std::shared_ptr<SplitsRTCM> rtcm_ = nullptr;
     std::shared_ptr<SplitsDataListener> dataListener_ = nullptr;
+    std::shared_ptr<SplitsDiagLogger> diagLogger_ = nullptr;
     SPLITS::Core::Role role_;
 };
 

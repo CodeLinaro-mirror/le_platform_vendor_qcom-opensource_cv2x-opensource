@@ -34,6 +34,7 @@ set(SPLITS_CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/SplitsNtrip.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SplitsCoreDataListenerSae.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/SplitsCoreDataListenerCsae.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/SplitsDiagLogger.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils.c
     ${SPLITS_ROOT_PATH}/config/SplitsConfigFile.cpp
     ${SPLITS_ROOT_PATH}/config/SplitsConfigIdl.cpp
@@ -54,7 +55,7 @@ target_include_directories(${SPLITS_CORE_TARGET} PRIVATE
     ${SYS_INCLUDE}/splits-commonapi-gen/someip
     ${SYS_INCLUDE}/splits-dds-gen
 )
-target_link_libraries(${SPLITS_CORE_TARGET} fastcdr fastrtps splits_radio
+target_link_libraries(${SPLITS_CORE_TARGET} cv2x-diag fastcdr fastrtps splits_radio
     telux_cv2x telux_loc telux_squish telux_sec viicsec pthread rt ${SPLITSSRVICE_SOMIP})
 
 install(TARGETS ${SPLITS_CORE_TARGET}

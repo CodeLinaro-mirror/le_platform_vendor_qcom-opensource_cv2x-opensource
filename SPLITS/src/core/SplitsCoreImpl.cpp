@@ -8,6 +8,8 @@
 #include <cstring>
 #include <algorithm>
 #include <memory>
+#include <sys/time.h>
+#include <sys/timerfd.h>
 #include "SplitsCoreFactory.hpp"
 #include "SplitsCodecFactory.hpp"
 #include "SplitsCoreImpl.hpp"
@@ -57,13 +59,20 @@ std::atomic<uint64_t> numRxed {0};
 namespace SPLITS {
 
 namespace Core {
-SplitsCoreImpl::SplitsCoreImpl(StackType st) {
+SplitsCoreImpl::SplitsCoreImpl(StackType st) : stop_(false) {
     LOGD(__FUNCTION__);
     st_ = st;
 }
 
 SplitsCoreImpl::~SplitsCoreImpl() {
     LOGD(__FUNCTION__);
+    stop_.store(true);
+    if (timerfd_ >= 0) {
+        close(timerfd_);
+    }
+    if (periodicDiagLogThread_.joinable()) {
+        periodicDiagLogThread_.join();
+    }
 }
 
 int SplitsCoreImpl::readPduFromFile(std::string file, char *buf, int bufLen) {
@@ -354,7 +363,9 @@ int SplitsCoreImpl::init(std::string cfgFileName, std::string rxpduFileName,
     if (false == csvFileDir.empty()) {
         csv_ = std::make_shared<CsvIO>(csvFileDir);
         // TODO: Write csv header
-        std::string header = "count,id,second,latitude,longitude,elevation,semiMajor,semiMinor,orientation,transmission,speed,heading,angle,accel_longitude,accel_lat,accel_vert,yaw,brake,traction,abs,scs,brakeboost,auxBrake,length,width,\n";
+        std::string header = "count,id,second,latitude,longitude,elevation,semiMajor,semiMinor,\
+orientation,transmission,speed,heading,angle,accel_longitude,accel_lat,accel_vert,yaw,brake,\
+traction,abs,scs,brakeboost,auxBrake,length,width,\n";
         csv_->writeTx(header);
         csv_->writeRx(header);
     }
@@ -401,6 +412,9 @@ int SplitsCoreImpl::init(std::string cfgFileName, std::string rxpduFileName,
     kinematic_ = std::make_shared<KinematicsReceive>(locListeners, 100);
     //tx Scheduler
     txScheduler_ = std::make_shared<TxScheduler>(getptr());
+    if (!diagLogger_) {
+        diagLogger_ = std::make_shared<SplitsDiagLogger>(congestCtrl_);
+    }
 
     CommonAPI::Runtime::setProperty("LogContext", "SplitsService");
     CommonAPI::Runtime::setProperty("LogApplication", "SplitsService");
@@ -545,9 +559,11 @@ int SplitsCoreImpl::processReceive(void) {
     int ret = 0;
     char* bufStart = nullptr;
     uint64_t time_start_ms, time_finish_ms, time_start_us, time_finish_us = 0;
+    std::shared_ptr<SplitsFilter> splitsFilter_ = std::make_shared<SplitsFilter>();
+    const SplitsConfig::CoreConfig &coreCfg = configData_->getCoreConfig();
+    DiagLogData logData = {0};
     // process all queued rxed messages
-    while (stop_ == false) {
-
+    while (!stop_.load()) {
         auto rxMsg = dequeueMsg();
         if (rxMsg == nullptr) {
             // sanity check, should not happen
@@ -886,6 +902,29 @@ int SplitsCoreImpl::processReceive(void) {
                 allMessageStatistics_[static_cast<SplitsStatistics::MessageID>(rxMsg->msgType_)];
             msgStatistics.setRxUnsignedCount(msgStatistics.getRxUnsignedCount() + 1);
         }
+        if (v2xMsgType::V2X_SAE_MSG_BSM == rxMsg->msgType_
+            || v2xMsgType::V2X_CSAE_MSG_BSM == rxMsg->msgType_) {
+            if (splitsFilter_ && hvLocationInfo_) {
+                logData.distFromRV = splitsFilter_->bsmCompute2dDistance(
+                    (asyncCbData->rvBsmData.latitude)/10000000.0,
+                    (asyncCbData->rvBsmData.longitude)/10000000.0,
+                    hvLocationInfo_->getLatitude(),
+                    hvLocationInfo_->getLongitude());
+            }
+            logData.currTime = timestamp_now();
+            logData.enableCongCtrl = coreCfg.getEnableCongCtrl();
+            logData.validPkt = (ret >= 0) ? true : false;
+            for (auto const & radioRx : radioReceives_) {
+                if (radioRx.getPort() == rxMsg->port_) {
+                    logData.l2SrcAddr = radioRx.msgL2SrcAdrr;
+                    break;
+                }
+            }
+            if (logData.l2SrcAddr == 0) {
+                LOGE(__FUNCTION__, " could not find L2 ID");
+            }
+            recordBSMToDiag(rxMsg, false, &logData);
+        }
 handleMsg:
         if (ret != -1) {
             // record BSM after decode success
@@ -899,6 +938,24 @@ handleMsg:
         }
     }
     return ret;
+}
+
+void SplitsCoreImpl::periodicDiagLog(void) {
+    if (!diagLogger_) {
+        return;
+    }
+    uint64_t exp;
+    int ret;
+    while (!stop_.load()) {
+        ret = read(timerfd_, &exp, sizeof(exp));
+        if (ret == -1 && errno == EBADF) {
+            LOGD(__FUNCTION__, " timer was closed.");
+            break;
+        } else if (ret != sizeof(exp)) {
+            LOGE(__FUNCTION__, " read error from timer.");
+        }
+        diagLogger_->sendGeneralPeriodicInfo();
+    }
 }
 
 const SplitsStatistics::CongestionControlStatistics&
@@ -1124,10 +1181,61 @@ void SplitsCoreImpl::recordBSM(const std::shared_ptr<v2xMsg> msg, bool tx) {
     }
 }
 
+void SplitsCoreImpl::recordBSMToDiag(const std::shared_ptr<v2xMsg> msg, bool tx,
+    const DiagLogData* logData, TransmitType txType) {
+    if (!diagLogger_) {
+        return;
+    }
+
+    v2x_diag_bsm_data bsmInfo = {0};
+    // sened BSM messages to QXDM
+    if (v2xMsgType::V2X_SAE_MSG_BSM == msg->msgType_) {
+        std::shared_ptr<v2xMsgSae> bsm_msg = std::dynamic_pointer_cast<v2xMsgSae>(msg);
+        std::shared_ptr<J2735::idl::BasicSafetyMessage> sp = bsm_msg->BSM();
+        J2735::idl::BSMCoreData coreData = sp->coreData();
+        bsmInfo.msg_count = coreData.msgCnt();
+        for (int i = 7; i >= 0 ; i--) {
+            bsmInfo.temp_id |= ((coreData.id()[i] << 8*i) & 0x00);
+        }
+        bsmInfo.secmark_ms = coreData.secMark();
+        bsmInfo.latitude = coreData.lat();
+        bsmInfo.longitude = coreData.longitude();
+        bsmInfo.semi_major_dev = coreData.accuracy().semiMajor();
+        bsmInfo.speed = coreData.speed();
+        bsmInfo.heading = coreData.heading();
+        bsmInfo.long_accel = coreData.accelSet().longitude();
+        bsmInfo.lat_accel = coreData.accelSet().lat();
+    } else if (v2xMsgType::V2X_CSAE_MSG_BSM == msg->msgType_) {
+        std::shared_ptr<Csae::idl::BasicSafetyMessage> sp =
+            (std::dynamic_pointer_cast<v2xMsgCsae>(msg))->BSM();
+        bsmInfo.msg_count = sp->msgCnt();
+        for (int i = 7; i >= 0 ; i--) {
+            bsmInfo.temp_id |= ((sp->id()[i] << 8*i) & 0x00);
+        }
+        bsmInfo.secmark_ms = sp->secMark();
+        bsmInfo.latitude = sp->pos().lat();
+        bsmInfo.longitude = sp->pos().long_();
+        bsmInfo.semi_major_dev = sp->posAccuracy().value().semiMajor();
+        bsmInfo.speed = sp->speed();
+        bsmInfo.heading = sp->heading();
+        bsmInfo.long_accel = sp->accelSet().longitude();
+        bsmInfo.lat_accel = sp->accelSet().lat();
+    }
+    if (tx) {
+        diagLogger_->sendGeneralTxInfo(txType, logData, &bsmInfo);
+    } else {
+        diagLogger_->sendGeneralRxInfo(logData, &bsmInfo);
+    }
+}
+
 int SplitsCoreImpl::send(int msgId, std::shared_ptr<v2xMsg> msg) {
     int ret = -1;
     uint8_t signedPdu[512];
     uint32_t signedPduLen = 512;
+    uint64_t currTime = 0;
+    const SplitsConfig::CoreConfig &coreCfg = configData_->getCoreConfig();
+    DiagLogData logData = {0};
+    TransmitType txType;
 
     // TODO: use proper priority for different messages.
     Priority priority = static_cast<Priority>(DEFAULT_BSM_PRIORITY);
@@ -1139,8 +1247,11 @@ int SplitsCoreImpl::send(int msgId, std::shared_ptr<v2xMsg> msg) {
             LOGE(__FUNCTION__, " No corresponding radio to send msg for msgId: ", msgId);
             ret = -1;
             return ret;
+        } else {
+            txType = TransmitType::EVENT;
         }
     } else {
+        txType = TransmitType::SPS;
         if (!congCtrlInit_ && (SAE_PSID_BSM == msgId || CSAE_AID_BSM == msgId)) {
             LOGI(__FUNCTION__, " Init Congestion Ctrl");
             congestCtrl_->init(congCtrlConfig_, std::make_shared<RadioTransmit>(it->second));
@@ -1218,6 +1329,20 @@ int SplitsCoreImpl::send(int msgId, std::shared_ptr<v2xMsg> msg) {
     }
 
     recordBSM(msg);
+    if (v2xMsgType::V2X_SAE_MSG_BSM == msg->msgType_
+        || v2xMsgType::V2X_CSAE_MSG_BSM == msg->msgType_) {
+        currTime = timestamp_now();
+        txInterval_ = currTime - lastTxTime_;
+        if(lastTxTime_ == 0){
+            txInterval_ = 0;
+        }
+        lastTxTime_ = currTime;
+        logData.validPkt = (ret >= 0) ? true : false;
+        logData.currTime = timestamp_now();
+        logData.txInterval = txInterval_;
+        logData.enableCongCtrl = coreCfg.getEnableCongCtrl();
+        recordBSMToDiag(msg, true, &logData, txType);
+    }
 
     ret = it->second.transmit(msg->buf, msg->bufLen, priority);
     if (ret) {
@@ -1229,7 +1354,7 @@ int SplitsCoreImpl::send(int msgId, std::shared_ptr<v2xMsg> msg) {
     msgStatistics.setTxNumber(msgStatistics.getTxNumber() + 1);
     LOGI(__FUNCTION__, " msgId = ", msgId, " TxNumber = ", statistics.getTxNumber());
     ret = 0;
- out:
+out:
      //reset msg
     if (msg) {
         msg->buf = msg->head;
@@ -1267,10 +1392,30 @@ void SplitsCoreImpl::run(void) {
     int rxid = 0;
     // TODO: Fix this empty while-loop
     while (!congCtrlInit_) {}
+
+    if (congCtrlInit_ && congestCtrl_) {
+        struct itimerspec its = {0};
+        timerfd_ = timerfd_create(CLOCK_MONOTONIC, 0);
+        if (timerfd_ < 0) {
+            LOGE(__FUNCTION__, " diag log timer create failed.");
+        } else {
+            its.it_value.tv_sec = diagLogPeriodInterval_ / 1000;
+            its.it_value.tv_nsec = (diagLogPeriodInterval_%1000) * 1000000;
+            its.it_interval = its.it_value;
+
+            if (timerfd_settime(timerfd_, 0, &its, NULL) < 0) {
+                close(timerfd_);
+                LOGE(__FUNCTION__, " diag log timer set failed.");
+            } else {
+                periodicDiagLogThread_ = std::thread(&SplitsCoreImpl::periodicDiagLog, this);
+            }
+        }
+    }
+
     for (auto const & radioRx : radioReceives_) {
         auto rxThread =
             std::thread([&, rxid]() {
-                while (!stop_) {
+                while (!stop_.load()) {
                     receive(rxid, RX_BUF_LEN);
                 }
 
@@ -1278,7 +1423,7 @@ void SplitsCoreImpl::run(void) {
         rxThreads_.push_back(std::move(rxThread));
         rxid++;
     }
-    while (stop_ == false) {
+    while (!stop_.load()) {
        if (congCtrlInit_) {
            receive(0, RX_BUF_LEN);
        }

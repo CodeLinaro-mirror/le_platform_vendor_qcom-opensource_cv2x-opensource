@@ -18,11 +18,11 @@
 #include "qUtils.hpp"
 
 void QUtils::initDiagLog() {
-    //v2x_diag_log_init();
+    v2x_diag_log_init();
 }
 
 void QUtils::deInitDiagLog() {
-    //v2x_diag_log_deinit();
+    v2x_diag_log_deinit();
 }
 
 int QUtils::hwTRNGInt(uint32_t& randomNumber) {
